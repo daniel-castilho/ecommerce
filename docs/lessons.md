@@ -6,6 +6,64 @@ top, with date and context.
 
 ---
 
+## 8. Jakarta Security 4.0 removed `HttpMessageContext.authenticate(Credential)` — programmatic login needs `isAuthenticationRequest()` + `notifyContainerAboutLogin()`
+
+> Context: migrating login/RBAC to real Jakarta Security (2026-08-01). Compilation failed with
+> "incompatible types: `Credential` is not a functional interface" — `authenticate(Credential)`
+> no longer exists in `jakarta.security.enterprise-api` 4.0 (Jakarta EE 11).
+
+### Symptom
+
+A `LoginAuthenticationMechanism` written against the Jakarta Security 3.x recipe
+(`context.authenticate(new UsernamePasswordCredential(...))`) does not compile against
+`jakarta.security.enterprise-api` 4.0.
+
+### Root cause
+
+The 4.0 API removed `HttpMessageContext.authenticate(Credential)`. The supported programmatic
+flow is:
+
+1. The JSF bean calls `HttpServletRequest.login(email, password)` (still works) — the container
+   re-enters the mechanism's `validateRequest` with `context.isAuthenticationRequest()` true.
+2. Validate the credential yourself: inject the container-provided `IdentityStoreHandler` and
+   call `identityStoreHandler.validate(new UsernamePasswordCredential(u, p))`.
+3. On `CredentialValidationResult.Status.VALID`, establish the caller with
+   `context.notifyContainerAboutLogin(result)` (carries the `CallerPrincipal` + groups);
+   otherwise `context.responseUnauthorized()`.
+
+Other notes from the port:
+
+- `@AutoApplySession` on the mechanism persists the caller in the session.
+- Container groups must match the `security-role` names declared in `web.xml`
+  (`ADMIN`/`CUSTOMER`/`VENDOR` here) so `@RolesAllowed("ADMIN")` and
+  `SecurityContext.isCallerInRole(...)` resolve.
+- `Credential` is a plain marker interface in 4.0 (not a functional interface) — a test that
+  passed a lambda as a fake credential fails to compile; use `new Credential() { }`.
+- Pass the typed credentials to the mechanism via request attributes (not relying on the
+  container to re-derive them from `login()`) keeps the flow implementation-independent.
+- `request.login()` throws `ServletException` on failure — exactly what the bean catches to
+  render the inline `FacesMessage` instead of a container 401.
+
+### Golden rules
+
+1. On Jakarta EE 11 / Security 4.0, never call `context.authenticate(Credential)` — it does not
+   exist. Use `isAuthenticationRequest()` + `IdentityStoreHandler.validate(...)` +
+   `notifyContainerAboutLogin(...)`.
+2. Programmatic login via `HttpServletRequest.login()` still re-enters the mechanism; deliver the
+   credentials through request attributes so the mechanism does not depend on container behavior.
+3. Container groups = role enum names; keep them aligned with the `security-role` entries in
+   `web.xml`.
+
+### Files involved
+
+- `user-account/.../adapter/auth/LoginAuthenticationMechanism.java`
+- `user-account/.../adapter/auth/UserIdentityStore.java`
+- `user-account/.../adapter/in/web/LoginBean.java`
+- `user-account/.../adapter/in/web/UserBean.java` (`SecurityContext`-backed)
+- `web/.../WEB-INF/web.xml` (ADMIN security-constraint + security-roles)
+
+---
+
 ## 5. Element collection rows losing identity — `Address.id` was never assigned (null id collapses all rows)
 
 > Context: manual QA (2026-07-31) of the address book. "Set as Default" made **every** address

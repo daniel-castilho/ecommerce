@@ -126,7 +126,7 @@ com.loja.<module>
 - Parameterized queries / JPA — never string-concatenate user input into JPQL or SQL.
 - Escape output in `.xhtml` (JSF does this by default via `#{}` — don't disable escaping unless you know exactly why).
 - Keep secrets (DB passwords, API keys) out of source control — externalize to environment variables or a config file excluded via `.gitignore`. Passwords are **Argon2id** hashes only (`UserPassword`) — never plaintext.
-- RBAC: `@RolesAllowed("ADMIN")` on the bean plus a session-role page guard (`#{userBean.hasRole('ADMIN')}`) — this project has no container IdentityStore.
+- RBAC: `@RolesAllowed("ADMIN")` on the bean plus a session-role page guard (`#{userBean.hasRole('ADMIN')}`) as belt-and-braces. Since 2026-08-01 the container does RBAC for real: `UserIdentityStore` (Jakarta Security `IdentityStore`) + `LoginAuthenticationMechanism` (`@AutoApplySession`, `isAuthenticationRequest()` + `notifyContainerAboutLogin`) + `HttpServletRequest.login()` establish the caller; `web.xml` security-constraints gate admin URLs (`/user-account/admin/*`, `manageProduct.xhtml`); `@RolesAllowed` and `SecurityContext.isCallerInRole(...)` resolve against real groups.
 
 ---
 

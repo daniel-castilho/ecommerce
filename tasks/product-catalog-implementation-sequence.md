@@ -4,7 +4,11 @@
 
 > ## ✅ EPIC DELIVERED (2026-07-31)
 >
-> All steps below are implemented and verified in the `product-catalog` module (hexagonal, package root `com.loja.productcatalog`; pages in the `web` module). The **Progress status** section and the completion checklist at the end are authoritative. The step bodies are the original execution text written against a `catalog-core`/`catalog-web` layout; the actual code follows the layout in the `product-catalog-module-spec.md` banner (single module: `domain/model` + `domain/port/in|out` + `application/*` + `adapter/*`; verify with `mvn -pl product-catalog test`). Two steps reflect the real starting point: **3e (cutover) never applied** — `ProductJpaEntity` already lived in `adapter/out/persistence` and there was nothing to delete or migrate; **Step 4 was from scratch** — no `Category`/cache existed. RBAC follows the user-account precedent (`@RolesAllowed("ADMIN")` + session guard, no container IdentityStore); migration is `V7__product_catalog_extension.sql` registered by hand; `docker/docker-compose.yaml` already defines the `localstack` service.
+> All steps below are implemented and verified in the `product-catalog` module (hexagonal, package root `com.loja.productcatalog`; pages in the `web` module). The **Progress status** section and the completion checklist at the end are authoritative. The step bodies are the original execution text written against a `catalog-core`/`catalog-web` layout; the actual code follows the layout in the `product-catalog-module-spec.md` banner (single module: `domain/model` + `domain/port/in|out` + `application/*` + `adapter/*`; verify with `mvn -pl product-catalog test`). Two steps reflect the real starting point: **3e (cutover) never applied** — `ProductJpaEntity` already lived in `adapter/out/persistence`   and there was nothing to delete or migrate; **Step 4 was from scratch** — no `Category`/cache
+  existed. RBAC follows the user-account precedent (`@RolesAllowed("ADMIN")` + session guard —
+  backed by the real container IdentityStore/`request.login()` flow since 2026-08-01, see
+  `docs/lessons.md` #8); migration is `V7__product_catalog_extension.sql` registered by hand;
+  `docker/docker-compose.yaml` already defines the `localstack` service.
 
 **Rule for the implementing agent:** work through the steps in order. Do not start step N+1 until step N's "Done when" checklist is fully satisfied. If a step's prerequisites (previous steps) aren't met, stop and report rather than improvising an out-of-order approach.
 
@@ -57,8 +61,8 @@
 - **Step 7 — DONE.** `ManageProductBean` (product-catalog `adapter/in/web`) + `web/.../webapp/product-catalog/manageProduct.xhtml`; WAR builds (`web/target/web.war`).
   Bean enforces admin two ways: `@RolesAllowed("ADMIN")` on the class (precedent
   `AdminUsersBean`) **and** a session-role guard on the page (`#{userBean.hasRole('ADMIN')}`
-  gates the whole management UI — this is the check that actually works here, since the
-  container has no IdentityStore). Product list + create/edit form (DuplicateSku surfaces
+  gates the whole management UI — belt-and-braces on top of the real container RBAC added
+  2026-08-01). Product list + create/edit form (DuplicateSku surfaces
   on the SKU field, other values preserved), category `selectManyCheckbox`, image upload
   (`<h:inputFile>`), per-image alt text, primary radio, up/down reorder, and Publish/
   Archive buttons (disabled unless `canTransitionTo`). `ProductApplicationService` gained
@@ -208,7 +212,7 @@ Corresponds to backlog story **S5** plus the "glue" parts of S3/S6 not yet wired
 
 1. Implement `ProductApplicationService.java`, implementing all six use-case interfaces from Step 2, injecting `ProductRepositoryPort`, `CategoryRepositoryPort`, `ProductImageStoragePort` via `@Inject` (CDI resolves to the adapters built in Steps 3 and 5 — this is the first point in the sequence where domain, ports, and adapters are actually wired together end-to-end).
 2. Implement the seven business rules from spec §5 (SKU/slug generation, publish guard delegating to `Product.validateForPublishing()`, primary-image delegation, soft delete, category-existence check).
-3. Enforce the `ADMIN` role on mutating operations (spec §10) — **follow the repo precedent**: there is no container IdentityStore, so enforce at the JSF bean with `@RolesAllowed("ADMIN")` and/or a session-role check (`@CurrentUser`/`UserBean.hasRole`), like `AdminUsersBean`; do not rely on container-level security constraints.
+3. Enforce the `ADMIN` role on mutating operations (spec §10) — **follow the repo precedent**: `@RolesAllowed("ADMIN")` on the JSF bean plus a session-role page guard (`UserBean.hasRole`), like `AdminUsersBean`. Since 2026-08-01 these checks are backed by real container RBAC (`UserIdentityStore` + `LoginAuthenticationMechanism` + `web.xml` security-constraints for admin URLs); keep both layers.
 4. Write `ProductApplicationServiceTest` covering backlog story S5's acceptance criteria, mocking the three ports.
 
 **Done when:** `ProductApplicationServiceTest` is green and every use-case interface from Step 2 has exactly one calling path exercised in a test.

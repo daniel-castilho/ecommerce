@@ -582,7 +582,7 @@ Each story is sized to be completable and demoable independently, but dependenci
 
 ### S17 — RBAC Enforcement (@RolesAllowed, JSF Permission Checks)
 
-**Status:** ✅ Delivered (@RolesAllowed("ADMIN") on AdminUsersBean + #{userBean.hasRole('ADMIN')} guards)
+**Status:** ✅ Delivered (@RolesAllowed("ADMIN") on AdminUsersBean + #{userBean.hasRole('ADMIN')} guards; upgraded 2026-08-01 to **real container RBAC** — `UserIdentityStore` + `LoginAuthenticationMechanism` + `HttpServletRequest.login()`, ADMIN `web.xml` security-constraint, `SecurityContext`-backed `UserBean`; see `docs/lessons.md` #8)
 
 **As** the system, **I want** to enforce role-based access control throughout the application, **so that** non-admin users cannot access admin features.
 

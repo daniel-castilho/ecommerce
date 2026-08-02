@@ -99,6 +99,18 @@ WAR into `dropins`. The dev keystore password lives in `web/src/main/liberty/con
   `adapter.out.persistence`; `archunit-junit5` 1.3.0 added; full unit suite 103 green tests).
   **Immediate pending items:** none for Steps 7–9.
 
+Completed (2026-08-01): **real Jakarta Security RBAC** replaces the manual session-role guard.
+`UserIdentityStore` (a Jakarta Security `IdentityStore` backed by `ValidateCredentialsUseCase`)
+plus `LoginAuthenticationMechanism` (`@AutoApplySession`; 4.0 flow — `isAuthenticationRequest()` +
+`IdentityStoreHandler.validate` + `notifyContainerAboutLogin`) and `LoginBean`/`HttpServletRequest.login()`
+establish the container caller identity; `UserBean` now reads `SecurityContext` for
+`isLoggedIn`/`hasRole`. `web.xml` gains an ADMIN `security-constraint` for `/user-account/admin/*`
+and `/product-catalog/manageProduct.xhtml` (security-roles `ADMIN`/`CUSTOMER`/`VENDOR`, no
+`<login-config>` — the custom mechanism redirects anonymous callers of protected pages to
+`login.xhtml`); `admin/users.xhtml` keeps a `#{userBean.hasRole('ADMIN')}` guard as belt-and-braces.
+See `docs/lessons.md` #8 for the Security 4.0 API migration. 46 user-account unit tests green
+(incl. new `UserIdentityStoreTest`), `mvn -pl web -am test-compile` green.
+
 Completed (2026-07-31): **Bean Validation** on the JSF adapter beans (`adapter/in/web`) —
 constraints mirror the domain rules, keeping `domain/` and `application/` free of
 `jakarta.validation` (ArchUnit still green). **No new runtime dependency**: the API ships in
@@ -183,7 +195,6 @@ Backlog / radar (kept here so these are not forgotten; each gets its own work it
 
 - **Real providers** for payment / shipping / notification (mock adapters today — see
   `docs/notification-system-guide.md`)
-- **Jakarta Security / real RBAC** (manual session-role guard + `@RolesAllowed("ADMIN")` today)
 - **Real `DataSource`** (`java:/EcommerceDS`) configured in the application server
 - **CI pipeline** (ArchUnit + tests as a PR gate; noted as missing in the backlog specs)
 - **Scheduled inventory-reservation expiry** (today it is lazy: released on the next `reserve`
