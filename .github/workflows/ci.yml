@@ -31,10 +31,10 @@ jobs:
 
       # *Test (not *IT) keeps this job free of Testcontainers; the glob also
       # picks up every module's *HexagonalArchitectureTest, so ArchUnit is part
-      # of the fast gate. -DfailIfNoTests=false tolerates modules without
-      # matching tests (e.g. shared-kernel edge cases, web).
+      # of the fast gate. -DfailIfNoTests=false + -Dsurefire.failIfNoSpecifiedTests=false
+      # tolerate modules without matching tests (e.g. shared-kernel, web).
       - name: Unit tests + ArchUnit (no Testcontainers)
-        run: mvn -B -ntp test -Dtest='*Test' -DfailIfNoTests=false
+        run: mvn -B -ntp test -Dtest='*Test' -DfailIfNoTests=false -Dsurefire.failIfNoSpecifiedTests=false
 
       # AGENTS.md rule #4: 100% jakarta.*, zero javax.*. ArchUnit guards the
       # domain/application boundaries; this grep catches any javax.* import in
@@ -88,7 +88,7 @@ jobs:
       # modules' surefire configs, keeping docker-java compatible with modern
       # Docker Desktop/Engine API versions.
       - name: Integration tests
-        run: mvn -B -ntp test -Dtest='*IT' -DfailIfNoTests=false
+        run: mvn -B -ntp test -Dtest='*IT' -DfailIfNoTests=false -Dsurefire.failIfNoSpecifiedTests=false
 
       - name: Upload surefire reports on failure
         if: failure()
