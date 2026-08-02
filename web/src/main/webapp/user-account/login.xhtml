@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+  <h:head>
+    <title>Login</title>
+  </h:head>
+  <h:body>
+    <h2>Sign In</h2>
+    <h:form>
+      <h:messages styleClass="error" showDetail="true" showSummary="false" />
+      <h:panelGrid columns="2">
+        <h:outputLabel for="email" value="Email" />
+        <h:inputText id="email" value="#{loginBean.email}" required="true" />
+
+        <h:outputLabel for="password" value="Password" />
+        <h:inputSecret id="password" value="#{loginBean.password}" required="true" />
+      </h:panelGrid>
+      <h:commandButton value="Sign In" action="#{loginBean.login}" />
+      <h:outputLink value="/user-account/register.xhtml"> Don't have an account? Register</h:outputLink>
+      <h:outputLink value="/user-account/password-reset.xhtml"> Forgot your password?</h:outputLink>
+    </h:form>
+  </h:body>
+</html>

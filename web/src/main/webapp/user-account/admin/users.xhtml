@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+  <h:head>
+    <title>Admin - Users</title>
+  </h:head>
+  <h:body>
+    <h2>User Management</h2>
+    <h:messages globalOnly="true" />
+
+    <h:form>
+      <h:panelGrid columns="5">
+        <h:outputLabel for="emailFilter" value="Email" />
+        <h:inputText id="emailFilter" value="#{adminUsersBean.emailFilter}" />
+
+        <h:outputLabel for="statusFilter" value="Status" />
+        <h:selectOneMenu id="statusFilter" value="#{adminUsersBean.statusFilter}">
+          <f:selectItem itemValue="#{null}" itemLabel="All" />
+          <f:selectItems value="#{adminUsersBean.availableStatuses}" />
+        </h:selectOneMenu>
+
+        <h:commandButton value="Search" action="#{adminUsersBean.search}" />
+      </h:panelGrid>
+    </h:form>
+
+    <h:dataTable value="#{adminUsersBean.users}" var="user"
+                 rendered="#{not empty adminUsersBean.users}">
+      <h:column>
+        <f:facet name="header">Email</f:facet>
+        #{user.email.value}
+      </h:column>
+      <h:column>
+        <f:facet name="header">Name</f:facet>
+        #{user.fullName}
+      </h:column>
+      <h:column>
+        <f:facet name="header">Status</f:facet>
+        #{user.status}
+      </h:column>
+      <h:column>
+        <f:facet name="header">Roles</f:facet>
+        <h:outputText value="#{user.roles}" />
+      </h:column>
+      <h:column>
+        <f:facet name="header">Assign Role</f:facet>
+        <h:form>
+          <h:selectOneMenu id="role" value="#{adminUsersBean.selectedRole}">
+            <f:selectItems value="#{adminUsersBean.availableRoles}" />
+          </h:selectOneMenu>
+          <h:commandButton value="Assign"
+                           action="#{adminUsersBean.assignRole(user, adminUsersBean.selectedRole)}" />
+        </h:form>
+      </h:column>
+    </h:dataTable>
+
+    <h:form rendered="#{not empty adminUsersBean.users}">
+      <h:commandButton value="Previous" action="#{adminUsersBean.previousPage}"
+                       disabled="#{not adminUsersBean.hasPreviousPage()}" />
+      <h:outputText value="Page #{adminUsersBean.page + 1} of #{adminUsersBean.totalElements} users" />
+      <h:commandButton value="Next" action="#{adminUsersBean.nextPage}"
+                       disabled="#{not adminUsersBean.hasNextPage()}" />
+    </h:form>
+  </h:body>
+</html>

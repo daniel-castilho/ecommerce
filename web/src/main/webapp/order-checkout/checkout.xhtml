@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+  <h:head>
+    <title>Checkout</title>
+  </h:head>
+  <h:body>
+    <h1>Checkout</h1>
+    <h:messages showDetail="true" showSummary="false" />
+
+    <h:outputText value="You need to log in before placing an order."
+                  rendered="#{not userBean.isLoggedIn()}" />
+
+    <h:form rendered="#{userBean.isLoggedIn()}">
+      <h:dataTable value="#{checkoutBean.cartLines}" var="line">
+        <h:column>
+          <f:facet name="header">Product ID</f:facet>
+          <h:inputText value="#{line.productId}" />
+        </h:column>
+        <h:column>
+          <f:facet name="header">Quantity</f:facet>
+          <h:inputText value="#{line.quantity}" />
+        </h:column>
+        <h:column>
+          <f:facet name="header">Remove</f:facet>
+          <h:commandButton value="Remove" action="#{checkoutBean.removeLine(line)}" />
+        </h:column>
+      </h:dataTable>
+
+      <h:commandButton value="Add product" action="#{checkoutBean.addLine}" />
+      <h:commandButton value="Place order" action="#{checkoutBean.checkout}" />
+    </h:form>
+
+    <p><h:link outcome="/product-catalog/catalog" value="Back to catalog" /></p>
+  </h:body>
+</html>

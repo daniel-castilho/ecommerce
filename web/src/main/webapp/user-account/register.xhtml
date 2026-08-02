@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+  <h:head>
+    <title>Register</title>
+  </h:head>
+  <h:body>
+    <h2>Create Account</h2>
+    <h:form>
+      <h:messages styleClass="error" showDetail="true" showSummary="false" />
+      <h:panelGrid columns="2">
+        <h:outputLabel for="email" value="Email" />
+        <h:inputText id="email" value="#{registerBean.email}" required="true" />
+
+        <h:outputLabel for="fullName" value="Full Name" />
+        <h:inputText id="fullName" value="#{registerBean.fullName}" required="true" />
+
+        <h:outputLabel for="password" value="Password" />
+        <h:inputSecret id="password" value="#{registerBean.password}" required="true" />
+      </h:panelGrid>
+      <h:commandButton value="Register" action="#{registerBean.register}" />
+      <h:outputLink value="/user-account/login.xhtml"> Already have an account? Sign in</h:outputLink>
+    </h:form>
+  </h:body>
+</html>

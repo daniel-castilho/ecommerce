@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+  <h:head>
+    <title>Order confirmed</title>
+  </h:head>
+  <h:body>
+    <h1>Order confirmed</h1>
+    <h:messages globalOnly="true" />
+
+    <h:panelGroup rendered="#{empty checkoutBean.confirmedOrder}">
+      <p>No order to display.</p>
+    </h:panelGroup>
+
+    <h:panelGroup rendered="#{not empty checkoutBean.confirmedOrder}">
+      <p>
+        Order <strong>#{checkoutBean.confirmedOrder.id}</strong> —
+        status <strong>#{checkoutBean.confirmedOrder.status}</strong>
+      </p>
+
+      <h:dataTable value="#{checkoutBean.confirmedOrder.items}" var="item">
+        <h:column>
+          <f:facet name="header">Product</f:facet>
+          #{item.productId}
+        </h:column>
+        <h:column>
+          <f:facet name="header">Quantity</f:facet>
+          #{item.quantity}
+        </h:column>
+        <h:column>
+          <f:facet name="header">Unit price</f:facet>
+          #{item.unitPrice.amount}
+        </h:column>
+        <h:column>
+          <f:facet name="header">Subtotal</f:facet>
+          #{item.subtotal.amount}
+        </h:column>
+      </h:dataTable>
+
+      <p>Total: <strong>#{checkoutBean.confirmedOrder.total.amount}</strong></p>
+    </h:panelGroup>
+
+    <p><h:link outcome="/product-catalog/catalog" value="Back to catalog" /></p>
+  </h:body>
+</html>

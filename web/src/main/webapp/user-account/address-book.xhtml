@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+  <h:head>
+    <title>Address Book</title>
+  </h:head>
+  <h:body>
+    <h2>Address Book</h2>
+    <h:messages showDetail="true" showSummary="false" />
+
+    <h3>Saved Addresses</h3>
+    <h:dataTable value="#{addressBookBean.addresses}" var="address"
+                 rendered="#{not empty addressBookBean.addresses}">
+      <h:column>
+        <f:facet name="header">Street</f:facet>
+        #{address.street}, #{address.number}
+      </h:column>
+      <h:column>
+        <f:facet name="header">City / State</f:facet>
+        #{address.city} - #{address.state}
+      </h:column>
+      <h:column>
+        <f:facet name="header">Postal Code</f:facet>
+        #{address.postalCode}
+      </h:column>
+      <h:column>
+        <f:facet name="header">Label</f:facet>
+        #{address.label}
+      </h:column>
+      <h:column>
+        <f:facet name="header">Default</f:facet>
+        #{address['default'] ? 'Yes' : 'No'}
+      </h:column>
+      <h:column>
+        <h:form>
+          <h:commandButton value="Set as Default"
+                           action="#{addressBookBean.setDefault(address.id)}"
+                           rendered="#{not address['default']}" />
+          <h:commandButton value="Remove"
+                           action="#{addressBookBean.deleteAddress(address.id)}" />
+        </h:form>
+      </h:column>
+    </h:dataTable>
+
+    <h3>Add New Address</h3>
+    <h:form>
+      <h:panelGrid columns="2">
+        <h:outputLabel for="street" value="Street" />
+        <h:inputText id="street" value="#{addressBookBean.street}" required="true" />
+
+        <h:outputLabel for="number" value="Number" />
+        <h:inputText id="number" value="#{addressBookBean.number}" required="true" />
+
+        <h:outputLabel for="complement" value="Complement" />
+        <h:inputText id="complement" value="#{addressBookBean.complement}" />
+
+        <h:outputLabel for="neighborhood" value="Neighborhood" />
+        <h:inputText id="neighborhood" value="#{addressBookBean.neighborhood}" />
+
+        <h:outputLabel for="city" value="City" />
+        <h:inputText id="city" value="#{addressBookBean.city}" required="true" />
+
+        <h:outputLabel for="state" value="State" />
+        <h:inputText id="state" value="#{addressBookBean.state}" required="true" />
+
+        <h:outputLabel for="postalCode" value="Postal Code" />
+        <h:inputText id="postalCode" value="#{addressBookBean.postalCode}" required="true" />
+
+        <h:outputLabel for="label" value="Label (e.g. Home, Work)" />
+        <h:inputText id="label" value="#{addressBookBean.label}" />
+
+        <h:outputLabel for="setAsDefault" value="Set as default" />
+        <h:selectBooleanCheckbox id="setAsDefault" value="#{addressBookBean.setAsDefault}" />
+      </h:panelGrid>
+      <h:commandButton value="Add Address" action="#{addressBookBean.addAddress}" />
+    </h:form>
+  </h:body>
+</html>

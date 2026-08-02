@@ -1,0 +1,324 @@
+# Lessons Learned
+
+Register of subtle bugs and decisions that cost debugging time. Before
+implementing something similar, re-read the rules below. New lessons go at the
+top, with date and context.
+
+---
+
+## 5. Element collection rows losing identity — `Address.id` was never assigned (null id collapses all rows)
+
+> Context: manual QA (2026-07-31) of the address book. "Set as Default" made **every** address
+> default; "Remove" removed all addresses at once.
+
+### Symptom
+
+After adding two addresses, clicking "Set as Default" on one of them resulted in **both** rows
+having `is_default = true` in `user_address`. Clicking "Remove" removed the whole table.
+
+### Root cause
+
+`UserApplicationService.addAddress(...)` created the address with `new Address(null, ...)` and
+**never assigned the id** — every address in the user's collection shared `id = null`. The domain
+uses `Objects.equals(a.getId(), addressId)` to find a target (`setDefaultAddress`,
+`removeAddress`), so with `addressId = null` **every** address matched:
+`Objects.equals(null, null)` is `true` for all of them. `setDefaultAddress` then flipped
+`isDefault` on all rows, and `removeAddress(null)` removed all rows.
+
+This is **not** a JPA problem (the `@ElementCollection` of `AddressEmbeddable` — which also lacks
+`equals`/`hashCode` — would have its own diff issues on top, but the null-id collapse happened in
+pure domain logic first).
+
+### Fix applied
+
+`User.addAddress` now assigns a per-user unique id when none is provided
+(`max(existing ids) + 1`, domain-side, no DB dependency — the id is only unique *within* a user's
+collection, which is all the domain needs):
+
+```java
+private Address withId(Address address) {
+    if (address.getId() != null) return address;
+    long nextId = addresses.stream().map(Address::getId).filter(Objects::nonNull)
+            .mapToLong(Long::longValue).max().orElse(0L) + 1L;
+    return new Address(nextId, address.getStreet(), address.getNumber(), ...);
+}
+```
+
+Test added: `UserTest.shouldAssignUniqueAddressIdsWhenNoneProvided` — the pre-fix behavior
+(two addresses, both default after `setDefaultAddress`) fails, post-fix passes.
+
+### Golden rules
+
+1. **Identity-bearing value objects must get their id assigned at creation** — `null` ids in a
+   `Set` make every `Objects.equals(null, x)`-based lookup match everything.
+2. If the entity has an id column, the **domain must own id assignment** (or receive the id from
+   an explicit, tested source). Letting it silently stay `null` is a time bomb for any
+   id-targeted operation (`setDefaultAddress`, `removeAddress`, `findById`).
+3. For `@ElementCollection` embeddables, give them `equals`/`hashCode` (JPA spec recommendation)
+   or the collection diff during `merge()` misbehaves. `AddressEmbeddable` is a known follow-up
+   (currently identity-based, acceptable because the collection is fully replaced each save).
+4. QA rule that would have caught this immediately: after any per-row operation on a collection,
+   assert **exactly one** row changed, not "at least one".
+
+### Files involved
+
+- `user-account/.../domain/model/User.java` (gained `withId` in `addAddress`)
+- `user-account/.../domain/model/Address.java`
+- `user-account/.../application/service/UserApplicationService.java` (`addAddress` passes null id)
+- `user-account/.../domain/model/UserTest.java` (new test)
+
+---
+
+## 4. Testcontainers "Could not find a valid Docker environment" (HTTP 400) on Docker Desktop 29.2.1+ — docker-java API version negotiation
+
+**Date:** 2026-07-31 — during the `order-checkout` IT (`OrderRepositoryJpaAdapterIT`).
+
+### Symptom
+`mvn -pl order-checkout -am test` failed immediately in `AbstractIntegrationTest.startContainer`
+with `IllegalStateException: Could not find a valid Docker environment`. The testcontainers log showed:
+
+```
+UnixSocketClientProviderStrategy: failed with exception BadRequestException (Status 400: {
+  "ID":"","Containers":0,"Images":0,...,"ServerVersion":"",
+  "Labels":["com.docker.desktop.address=unix:///var/run/docker-cli.sock"],...})
+DockerDesktopClientProviderStrategy: failed with exception NullPointerException (getSocketPath() ... null)
+```
+
+The confusing part: the **Docker CLI works fine** (`docker ps`, `docker info` → Server 29.2.1,
+`curl --unix-socket /var/run/docker.sock .../_ping` → `OK`, `/info` → 200), and the **product-catalog
+ITs pass with the exact same testcontainers 1.21.3**.
+
+### Root cause
+Docker Desktop (Docker Engine **29.2.1+**, min API version **1.44**) dropped support for old API
+versions. The `docker-java` client bundled with testcontainers **1.21.3** defaults to negotiating a
+much older API version (1.30/1.32); the daemon (via Docker Desktop's WSL socket proxy, see the
+`com.docker.desktop.address` label) answers the `/info` probe with **HTTP 400** → no strategy
+validates → `IllegalStateException`. Confirmed upstream: testcontainers-java issue #11491 and the
+Docker forum (the fix in 1.x requires **≥ 1.21.4**).
+
+Why only `order-checkout` failed: `product-catalog`'s surefire config already passes
+`<argLine>-Dapi.version=1.44</argLine>` (added for LocalStack) — `docker-java` reads that system
+property as the API version to negotiate. `order-checkout` lacked it. Identical library, one module
+green, the other red.
+
+### Fix applied
+Add the same `argLine` to `order-checkout`'s `maven-surefire-plugin` configuration:
+
+```xml
+<argLine>-Dapi.version=1.44</argLine>
+```
+
+(Machine-level alternatives: `api.version=1.44` in `~/.docker-java.properties`, or upgrade
+testcontainers to ≥ 1.21.4. The pom `argLine` keeps it project-local and consistent with
+`product-catalog`.)
+
+### Golden rules
+1. Any module with Testcontainers ITs running against Docker Desktop 29.2.1+ needs the docker-java
+   API version pinned: `<argLine>-Dapi.version=1.44</argLine>` in surefire. Keep all modules consistent.
+2. When one module's ITs pass but an identical-looking module fails with "Could not find a valid
+   Docker environment" + HTTP 400, **diff the surefire `<argLine>`/system properties first** — the
+   docker client stack is the same, so the difference is in the fork's config.
+3. To see which strategies Testcontainers tries, add `slf4j-simple` **1.7.36** as a test dependency
+   (matches the `slf4j-api 1.7.36` that testcontainers pulls; `2.0.x` will not bind). Without a
+   binding the strategy logs are invisible.
+4. An empty `/info` JSON body with a `com.docker.desktop.address` label + 400 is the Docker Desktop
+   **socket proxy**, not a broken daemon — `curl`/`docker` against the same socket returning 200
+   means: don't chase Docker, fix the client's API version.
+
+### Files involved
+- `order-checkout/pom.xml` (maven-surefire-plugin `<argLine>-Dapi.version=1.44</argLine>`)
+- `product-catalog/pom.xml` (same `argLine`, pre-existing)
+- `order-checkout/src/test/java/com/loja/ordercheckout/adapter/out/persistence/AbstractIntegrationTest.java`
+
+---
+
+## 3. IT suite got stuck at the `TRUNCATE` in the `setUp()` — `idle in transaction` connection blocked the exclusive lock
+
+**Date:** 2026-07-31 — during Step 3 of the `product-catalog` (`decrementStock` + concurrency test S9).
+
+### Symptom
+`mvn -pl product-catalog test` **hung** (>10 min) at the `TRUNCATE TABLE ...` of
+the `@BeforeEach` of `ProductRepositoryJpaAdapterIT`. The log only pointed to a
+leaked connection: `Connection leak detected: there are 1 unclosed connections upon
+shutting down pool`.
+
+### Root cause
+Two things combined:
+
+1. **Reads outside a transaction + pool with `autoCommit=false`.** The test harness
+   called `adapter.findById/search/existsBySku/...` **without** an explicit transaction
+   (the application server provides `@Transactional`; the test does not). With Hibernate in
+   `autoCommit=false`, the connection stays open in an **implicit transaction** — `pg_stat_activity`
+   showed the previous test's pid as `idle in transaction`,
+   holding `AccessShareLock` on `tb_product(_image,_category)`.
+2. **`em` never closed.** The `AbstractIntegrationTest` creates `em` but has no
+   `@AfterEach` to close it → the connection with the open transaction leaks back to
+   the pool (the aforementioned "1 unclosed connection").
+
+Result: the next test's `TRUNCATE` (which requires `AccessExclusiveLock`) stays
+blocked **forever** by the previous test's `AccessShareLock`.
+
+### What does NOT work (tried)
+`hibernate.connection.autocommit=true`: the deadlock went away, but it broke
+(a) `@Lob` reading (`Unable to access lob stream` — needs a transaction) and
+(b) the concurrency test S9 (result `[1, 1]` instead of `[1, 0]` — the race
+lost its atomic semantics). **Don't disable the pool's autoCommit to "fix" a test.**
+
+### Fix applied
+- `@AfterEach` in `ProductRepositoryJpaAdapterIT` closes the `em`
+  (`if (em != null && em.isOpen()) em.close();`) — returns the connection with no pending transaction.
+- Every adapter read in the IT now runs in an explicit transaction via the helper
+  `inTx(() -> ...)` (`begin`/`commit`/`rollback`/`clear`) — mirrors the `@Transactional`
+  of production.
+
+### Bonus found along the way (paginating)
+`ProductRepositoryAdapter.search()` used `getResultStream()`, which **ignores**
+`setFirstResult`/`setMaxResults` (Hibernate logs `HHH90003004: firstResult/maxResults
+specified with collection fetch; applying in memory`). Page 2 returned 20 items
+instead of 5. Switching to `getResultList()` fixed it.
+
+### Golden rule
+1. In ITs with Hibernate `RESOURCE_LOCAL`, **every adapter operation needs an
+   explicit transaction** (or a helper that begins/commits it), just like the `@Transactional`
+   of production.
+2. **Always close the `EntityManager`** in the `@AfterEach` — the pool's "Connection leak detected"
+   is the symptom; the deadlock on `TRUNCATE`/DDL is the consequence.
+3. If a test hangs on `TRUNCATE`/`DROP`, investigate with
+   `SELECT pid, state, wait_event_type, query FROM pg_stat_activity` and `pg_locks`:
+   look for `idle in transaction` holding `AccessShareLock` against `AccessExclusiveLock`.
+4. `getResultStream()` + `setFirstResult`/`setMaxResults` is a Hibernate gotcha:
+   use `getResultList()`.
+
+### Files involved
+- `product-catalog/src/test/java/com/loja/productcatalog/adapter/out/persistence/ProductRepositoryJpaAdapterIT.java`
+- `product-catalog/src/test/resources/META-INF/persistence.xml`
+- `product-catalog/src/main/java/com/loja/productcatalog/adapter/out/persistence/ProductRepositoryAdapter.java`
+
+---
+
+## 2. `mvn test` in `product-catalog` is slow — Testcontainers boots a Postgres per run
+
+**Date:** 2026-07-31 — during Step 2 of the `product-catalog` (the session aborted the command twice).
+
+### Symptom
+`mvn -pl product-catalog test` takes dozens of seconds. It's not lack of CPU: it's the integration
+test. Running the whole suite just to validate the compilation of new ports is
+a waste of time.
+
+### Root cause
+`AbstractIntegrationTest` uses `new PostgreSQLContainer<>("postgres:15").start()` **without**
+`.withReuse(true)` — on every run Maven boots a new container, initializes
+Hibernate/EMF and tears it down at the end. The `ProductRepositoryJpaAdapterIT` (17 tests) runs
+exactly like that.
+
+### Fast feedback strategy (adopted)
+- Module compilation: `mvn -q -pl product-catalog test-compile` (seconds).
+- Unit tests without container: `mvn -pl product-catalog test -Dtest='ProductTest,SkuTest,SlugTest,ProductJpaMapperTest' -DfailIfNoTests=false`.
+- Whole-project compilation (validates that `order-checkout` still compiles against the ports):
+  `mvn -q -pl order-checkout -am compile`.
+- Run the `*IT.java` only when validating the persistence layer (Step 3/5).
+
+### Golden rule
+1. Before every `mvn test`, ask "do I need the real DB right now?". If not, filter with
+   `-Dtest=...` excluding `*IT`.
+2. If speed becomes a real priority: `.withReuse(true)` + `testcontainers.reuse.enabled=true`
+   in `~/.testcontainers.properties` keeps the container alive between runs.
+
+### Files involved
+- `product-catalog/src/test/java/com/loja/productcatalog/adapter/out/persistence/AbstractIntegrationTest.java`
+
+---
+
+## 1. `em.merge()` of a detached entity with `@Version = null` + child `@OneToMany` → duplicate INSERT (Hibernate)
+
+**Date:** 2026-07-30 — found in S2 of the `product-catalog` (test `shouldUpdateProductInPlace`).
+
+### Symptom
+When calling `repository.save(product)` a second time (update), Hibernate
+did a **correct UPDATE of the row** and then a **duplicate INSERT**, blowing up with
+`duplicate key value violates unique constraint ..._pkey`. The error even arrived misleadingly
+as `DuplicateSkuException` (because of the detection heuristic).
+
+### Root cause
+The graph has a child `@OneToMany(cascade = ALL)` (`ProductImageJpaEntity`) with a
+back-reference `@ManyToOne` to the parent. During `merge`, the cascade to the child makes Hibernate
+**re-merge the parent** through that association. Since the parent instance is
+**detached with a null `@Version`**, the second merge can't treat it as
+detached and schedules an `INSERT`.
+
+`user-account` never suffered this because `UserJpaEntity` only has embedded collections
+(`@ElementCollection`) — no child entity with a back-reference to the parent.
+
+### Fix applied
+The `@Version` (and, by extension, the optimistic locking state) now **round-trips
+through the domain**:
+- The `Product` domain gained `version` (getter/setter);
+- `ProductJpaMapper.toJpa` sets `entity.setVersion(product.getVersion())`;
+- `ProductJpaMapper.toDomain` restores `product.setVersion(entity.getVersion())`;
+- `ProductRepositoryAdapter.save()` keeps `em.merge(...)` + `em.flush()` and returns
+  the domain rebuilt from the managed copy (the flush also **materializes the generated
+  ids** of `ProductImageJpaEntity` and the `version` on the returned object).
+
+### Golden rule
+1. **Entity with a child entity that references the parent: the detached object passed to
+   `merge()` must carry the `@Version`.** Otherwise Hibernate can insert
+   instead of update. The same holds for any graph the cascade traverses.
+2. The `@Version` must be carried between domain ↔ JPA whenever the entity
+   has `@OneToMany`/`@ManyToMany` with cascade — the round-trip in the mapper is what
+   makes the `OptimisticLockException` translatable at the service layer.
+3. If one day you replace `merge()` with "load the managed entity and apply state"
+   (`em.find` + dirty checking), this trap disappears — it's the plan B if the
+   version round-trip becomes unfeasible.
+4. Debugging "duplicate insert on update": enable `hibernate.show_sql` and confirm whether
+   the sequence is `update` followed by `insert` on the same table — the signature of this bug.
+5. **The rule is broader than "collection with cascade":** it applies to **any entity
+   with `@Version` + generated id** that goes detached through `merge()`. In Step 4
+   (`CategoryJpaEntity`, which only has `@ManyToOne parent`, no `@OneToMany`), the merge
+   of a detached category with `version=null` blew up with
+   `PropertyValueException: Detached entity with generated id '1' has an uninitialized
+   version value 'null'`. The domain `Category` gained `version` with a round-trip in the
+   `CategoryJpaMapper`, just like `Product`.
+
+### Files involved
+- `product-catalog/.../adapter/out/persistence/ProductJpaMapper.java`
+- `product-catalog/.../adapter/out/persistence/ProductRepositoryAdapter.java`
+- `product-catalog/.../adapter/out/persistence/AuditableJpaEntity.java` (gained `setVersion`)
+- `product-catalog/.../domain/model/Product.java` (gained `version`)
+- `product-catalog/.../domain/model/Category.java` + `CategoryJpaMapper.java` (Step 4 case)
+
+---
+
+## 6. `mvn clean package` wipes the Open Liberty install under `web/target`
+
+### Symptom
+After a clean build + `mvn -pl web liberty:start`, the app never comes up on 9443:
+- `curl` to `https://localhost:9443` hangs or returns `000`;
+- `messages.log` shows `CWWKF0001E: A feature definition could not be found for
+  webprofile-11.0` and later `CWPKI0819I: The default keystore is not created because
+  a password is not configured ... and the 'keystore_password' environment variable is
+  not set` (the HTTPS port stays down, only 9080 listens).
+
+### Root cause
+`web/target/liberty` is a **build artifact**: `mvn clean` deletes it, along with the
+installed features (`wlp/lib/features`) and the auto-generated `key.p12` keystore. A fresh
+`liberty:start` therefore boots the bare `openliberty-kernel` with zero features and no
+keystore. On top of that, the previous server JVM keeps running from the now-deleted files
+and still owns ports 9080/9443, so the new start can't bind.
+
+### Fix applied
+- `web/src/main/liberty/config/server.xml` declares a dev-only
+  `<keyStore id="defaultKeyStore" password="keystore-password-dev"/>` so the keystore
+  auto-generates on start (dev credential only; the datasource password already lives here).
+- `scripts/run-liberty.sh` makes a fresh install reproducible: `mvn package` (no `clean`,
+  keeps an existing install), and if the `webProfile-11.0` feature manifest is missing it
+  runs `mvn -pl web liberty:create` + `featureUtility installServerFeatures defaultServer
+  --acceptLicense` (one-time download), then starts the server and copies
+  `web/target/web.war` into `dropins/`.
+
+### Golden rule
+1. Never assume `web/target/liberty` survives a build. After `mvn clean package`, run
+   `./scripts/run-liberty.sh` instead of `mvn liberty:start`.
+2. If the old server still holds the ports (a killed `clean` under it), kill the leftover
+   `ws-server.jar defaultServer` processes before starting a fresh one.
+3. The WAR is deployed as `dropins/web.war` (auto-deploy); a plain `mvn liberty:start`
+   does **not** deploy the app. Prefer `scripts/run-liberty.sh` over the individual goals.

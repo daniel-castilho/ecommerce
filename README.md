@@ -60,6 +60,9 @@ WAR into `dropins`. The dev keystore password lives in `web/src/main/liberty/con
 
 ## Current state (2026-07-31)
 
+- **Released as `v0.1.0` (2026-08-01)** — baseline snapshot of the monolith (user account +
+  catalog storefront + order checkout MVP). See `docs/releases/v0.1.0.md` and the
+  "Releases and tags" ritual in `AGENTS.md`.
 - `user-account` — reference module, complete.
 - `product-catalog` — epic in progress (see `tasks/product-catalog-implementation-sequence.md`
   and `tasks/product-catalog-backlog.md`). **Done:** Steps 1–3 (domain model, ports, persistence

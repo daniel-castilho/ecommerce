@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence xmlns="https://jakarta.ee/xml/ns/persistence"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence
+             https://jakarta.ee/xml/ns/persistence/persistence_3_2.xsd"
+             version="3.2">
+    <persistence-unit name="ecommercePU" transaction-type="JTA">
+        <jta-data-source>jdbc/EcommerceDS</jta-data-source>
+        <class>com.loja.useraccount.adapter.out.persistence.UserJpaEntity</class>
+        <class>com.loja.useraccount.adapter.out.persistence.UserAuditLogJpaEntity</class>
+        <class>com.loja.productcatalog.adapter.out.persistence.ProductJpaEntity</class>
+        <class>com.loja.productcatalog.adapter.out.persistence.CategoryJpaEntity</class>
+        <class>com.loja.productcatalog.adapter.out.persistence.ProductImageJpaEntity</class>
+        <class>com.loja.ordercheckout.adapter.out.persistence.OrderJpaEntity</class>
+        <exclude-unlisted-classes>true</exclude-unlisted-classes>
+    </persistence-unit>
+</persistence>

@@ -1,0 +1,25 @@
+# Maven build output (includes the Open Liberty install under web/target/liberty)
+**/target/
+
+# IDE / editor
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Local tooling / caches (not project content)
+.github/modernize/
+docker/.localstack/
+
+# Local secrets & environment files (dev infra passwords live in server.xml on purpose)
+*.p12
+*.jks
+.env

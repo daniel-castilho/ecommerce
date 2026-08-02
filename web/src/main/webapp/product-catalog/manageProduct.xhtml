@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+  <h:head>
+    <title>Admin - Product Catalog</title>
+  </h:head>
+  <h:body>
+    <h:panelGroup rendered="#{not userBean.hasRole('ADMIN')}">
+      <h2>Product Management</h2>
+      <p>You need an administrator account to manage the product catalog.</p>
+    </h:panelGroup>
+
+    <h:panelGroup rendered="#{userBean.hasRole('ADMIN')}">
+      <h2>Product Management</h2>
+      <h:messages showDetail="true" showSummary="false" />
+
+      <h:form>
+        <h:commandButton value="New product" action="#{manageProductBean.newProduct}" />
+
+        <h:dataTable value="#{manageProductBean.products}" var="p"
+                     rendered="#{not empty manageProductBean.products}">
+          <h:column>
+            <f:facet name="header">SKU</f:facet>
+            #{p.skuValue}
+          </h:column>
+          <h:column>
+            <f:facet name="header">Name</f:facet>
+            #{p.name}
+          </h:column>
+          <h:column>
+            <f:facet name="header">Status</f:facet>
+            #{p.status}
+          </h:column>
+          <h:column>
+            <f:facet name="header">Price</f:facet>
+            #{p.price.amount}
+          </h:column>
+          <h:column>
+            <f:facet name="header">Edit</f:facet>
+            <h:link outcome="manageProduct.xhtml" value="Edit">
+              <f:param name="productId" value="#{p.id}" />
+            </h:link>
+          </h:column>
+        </h:dataTable>
+      </h:form>
+
+      <h:form id="productForm">
+        <h3>#{manageProductBean.editMode ? 'Edit product' : 'New product'}</h3>
+
+        <h:panelGrid columns="2">
+          <h:outputLabel for="sku" value="SKU" />
+          <h:panelGroup>
+            <h:outputText value="#{manageProductBean.sku}" rendered="#{manageProductBean.editMode}" />
+            <h:inputText id="sku" value="#{manageProductBean.sku}"
+                         rendered="#{not manageProductBean.editMode}" />
+          </h:panelGroup>
+
+          <h:outputLabel for="name" value="Name" />
+          <h:inputText id="name" value="#{manageProductBean.name}" />
+
+          <h:outputLabel for="slug" value="Slug (blank = auto-generate on create)" />
+          <h:inputText id="slug" value="#{manageProductBean.slug}" />
+
+          <h:outputLabel for="shortDescription" value="Short description" />
+          <h:inputText id="shortDescription" value="#{manageProductBean.shortDescription}" />
+
+          <h:outputLabel for="description" value="Description (HTML)" />
+          <h:inputTextarea id="description" value="#{manageProductBean.description}" rows="5" cols="40" />
+
+          <h:outputLabel for="price" value="Price" />
+          <h:inputText id="price" value="#{manageProductBean.price}" />
+
+          <h:outputLabel for="compareAtPrice" value="Compare-at price" />
+          <h:inputText id="compareAtPrice" value="#{manageProductBean.compareAtPrice}" />
+
+          <h:outputLabel for="stock" value="Stock" />
+          <h:inputText id="stock" value="#{manageProductBean.stock}" />
+
+          <h:outputLabel for="weightGrams" value="Weight (grams)" />
+          <h:inputText id="weightGrams" value="#{manageProductBean.weightGrams}" />
+
+          <h:outputLabel for="metaTitle" value="SEO title" />
+          <h:inputText id="metaTitle" value="#{manageProductBean.metaTitle}" />
+
+          <h:outputLabel for="metaDescription" value="SEO description" />
+          <h:inputTextarea id="metaDescription" value="#{manageProductBean.metaDescription}" rows="2" cols="40" />
+
+          <h:outputLabel value="Categories" />
+          <h:selectManyCheckbox id="categories" value="#{manageProductBean.selectedCategoryIds}">
+            <f:selectItems value="#{manageProductBean.categories}" var="c"
+                           itemValue="#{c.id}" itemLabel="#{c.name}" />
+          </h:selectManyCheckbox>
+        </h:panelGrid>
+
+        <h:commandButton value="#{manageProductBean.editMode ? 'Save changes' : 'Create product'}"
+                         action="#{manageProductBean.submit}" />
+      </h:form>
+
+      <h:form id="imageForm" rendered="#{manageProductBean.editMode}">
+        <h3>Images</h3>
+
+        <h:dataTable value="#{manageProductBean.currentProduct.images}" var="image"
+                     rendered="#{not empty manageProductBean.currentProduct.images}">
+          <h:column>
+            <f:facet name="header">Image</f:facet>
+            <h:graphicImage value="#{manageProductBean.imageUrl(image)}" width="80" height="80" />
+          </h:column>
+          <h:column>
+            <f:facet name="header">Alt text</f:facet>
+            <h:inputText value="#{image.altText}" />
+          </h:column>
+          <h:column>
+            <f:facet name="header">Primary</f:facet>
+            <h:selectOneRadio value="#{manageProductBean.primaryImageId}" layout="pageDirection">
+              <f:selectItem itemValue="#{image.id}" itemLabel="Primary" />
+            </h:selectOneRadio>
+          </h:column>
+          <h:column>
+            <f:facet name="header">Order</f:facet>
+            <h:commandButton value="Up" action="#{manageProductBean.moveUp(image)}"
+                             disabled="#{not manageProductBean.canMoveUp(image)}" />
+            <h:commandButton value="Down" action="#{manageProductBean.moveDown(image)}"
+                             disabled="#{not manageProductBean.canMoveDown(image)}" />
+          </h:column>
+        </h:dataTable>
+
+        <h:commandButton value="Apply image changes"
+                         action="#{manageProductBean.applyImageChanges}"
+                         rendered="#{not empty manageProductBean.currentProduct.images}" />
+
+        <h:panelGrid columns="2">
+          <h:outputLabel for="file" value="Image file (jpeg/png/webp, max 5 MB)" />
+          <h:inputFile id="file" value="#{manageProductBean.file}" />
+          <h:outputLabel for="uploadAltText" value="Alt text" />
+          <h:inputText id="uploadAltText" value="#{manageProductBean.uploadAltText}" />
+          <h:outputLabel for="uploadPrimary" value="Make primary" />
+          <h:selectBooleanCheckbox id="uploadPrimary" value="#{manageProductBean.uploadPrimary}" />
+        </h:panelGrid>
+        <h:commandButton value="Upload image" action="#{manageProductBean.uploadImage}" />
+      </h:form>
+
+      <h:form id="statusForm" rendered="#{manageProductBean.editMode}">
+        <h3>Status: #{manageProductBean.currentProduct.status}</h3>
+        <h:commandButton value="Publish" action="#{manageProductBean.publish}"
+                         disabled="#{not manageProductBean.canPublish()}" />
+        <h:commandButton value="Archive" action="#{manageProductBean.archive}"
+                         disabled="#{not manageProductBean.canArchive()}" />
+      </h:form>
+    </h:panelGroup>
+  </h:body>
+</html>

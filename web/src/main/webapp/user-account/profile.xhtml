@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+  <h:head>
+    <title>My Profile</title>
+  </h:head>
+  <h:body>
+    <h2>My Profile</h2>
+    <p>
+      Signed in as #{userBean.currentUser.email.value}.
+      <h:outputLink value="/user-account/profile.xhtml">Profile</h:outputLink> |
+      <h:outputLink value="/user-account/address-book.xhtml">Address Book</h:outputLink> |
+      <h:outputLink value="/user-account/admin/users.xhtml" rendered="#{userBean.hasRole('ADMIN')}">Admin</h:outputLink> |
+      <h:commandLink value="Logout" action="#{loginBean.logout}" />
+    </p>
+    <h:messages showDetail="true" showSummary="false" />
+
+    <h3>Personal Information</h3>
+    <h:form>
+      <h:panelGrid columns="2">
+        <h:outputLabel for="fullName" value="Full Name" />
+        <h:inputText id="fullName" value="#{profileBean.fullName}" required="true" />
+      </h:panelGrid>
+      <h:commandButton value="Save" action="#{profileBean.saveProfile}" />
+    </h:form>
+
+    <h3>Change Password</h3>
+    <h:form>
+      <h:panelGrid columns="2">
+        <h:outputLabel for="currentPassword" value="Current Password" />
+        <h:inputSecret id="currentPassword" value="#{profileBean.currentPassword}" required="true" />
+
+        <h:outputLabel for="newPassword" value="New Password" />
+        <h:inputSecret id="newPassword" value="#{profileBean.newPassword}" required="true" />
+      </h:panelGrid>
+      <h:commandButton value="Change Password" action="#{profileBean.changePassword}" />
+    </h:form>
+  </h:body>
+</html>
