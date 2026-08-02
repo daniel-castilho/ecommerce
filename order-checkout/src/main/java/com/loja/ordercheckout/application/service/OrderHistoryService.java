@@ -7,6 +7,7 @@ import com.loja.ordercheckout.domain.model.PaymentInfo;
 import com.loja.ordercheckout.domain.port.in.CustomerOrderHistoryUseCase;
 import com.loja.ordercheckout.domain.port.out.NotificationPort;
 import com.loja.ordercheckout.domain.port.out.OrderRepositoryPort;
+import com.loja.productcatalog.domain.port.out.InventoryReservationPort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -22,11 +23,14 @@ public class OrderHistoryService implements CustomerOrderHistoryUseCase {
 
     private final OrderRepositoryPort orderRepository;
     private final NotificationPort notification;
+    private final InventoryReservationPort inventoryReservation;
 
     @Inject
-    public OrderHistoryService(OrderRepositoryPort orderRepository, NotificationPort notification) {
+    public OrderHistoryService(OrderRepositoryPort orderRepository, NotificationPort notification,
+                               InventoryReservationPort inventoryReservation) {
         this.orderRepository = orderRepository;
         this.notification = notification;
+        this.inventoryReservation = inventoryReservation;
     }
 
     @Transactional
@@ -47,6 +51,7 @@ public class OrderHistoryService implements CustomerOrderHistoryUseCase {
     public Order cancel(String orderId, String userId) {
         Order order = requireOwnedOrder(orderId, userId);
         order.cancel();
+        inventoryReservation.release(orderId);
         return orderRepository.save(order);
     }
 

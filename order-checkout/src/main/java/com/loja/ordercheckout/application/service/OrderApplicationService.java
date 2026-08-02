@@ -12,19 +12,21 @@ import com.loja.ordercheckout.domain.port.out.NotificationPort;
 import com.loja.ordercheckout.domain.port.out.OrderRepositoryPort;
 import com.loja.ordercheckout.domain.port.out.PaymentGatewayPort;
 import com.loja.ordercheckout.domain.port.out.ShippingRatePort;
-import com.loja.productcatalog.domain.exception.InsufficientStockException;
+import com.loja.productcatalog.application.dto.ReservationRequest;
 import com.loja.productcatalog.domain.model.Product;
+import com.loja.productcatalog.domain.port.out.InventoryReservationPort;
 import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Orchestrates the checkout workflow: build the order, check inventory before any
- * payment is attempted, quote shipping, then authorize/capture the payment and
- * persist. Depends only on ports (DIP) — adapters are wired by CDI.
+ * Orchestrates the checkout workflow: build the order, reserve inventory before
+ * any payment is attempted, quote shipping, then authorize/capture the payment
+ * and persist. Depends only on ports (DIP) — adapters are wired by CDI.
  */
 @ApplicationScoped
 public class OrderApplicationService implements CreateOrderFromCartUseCase {
@@ -34,18 +36,21 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
     private final PaymentGatewayPort paymentGateway;
     private final ShippingRatePort shippingRate;
     private final NotificationPort notification;
+    private final InventoryReservationPort inventoryReservation;
 
     @Inject
     public OrderApplicationService(OrderRepositoryPort orderRepository,
                                    ProductRepositoryPort productRepository,
                                    PaymentGatewayPort paymentGateway,
                                    ShippingRatePort shippingRate,
-                                   NotificationPort notification) {
+                                   NotificationPort notification,
+                                   InventoryReservationPort inventoryReservation) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.paymentGateway = paymentGateway;
         this.shippingRate = shippingRate;
         this.notification = notification;
+        this.inventoryReservation = inventoryReservation;
     }
 
     @Transactional
@@ -71,11 +76,10 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
         }
         order.validateForCheckout();
 
-        for (OrderLine line : order.getItems()) {
-            if (productRepository.decrementStock(line.getProductId(), line.getQuantity()) == 0) {
-                throw new InsufficientStockException("Insufficient stock for product: " + line.getProductName());
-            }
-        }
+        List<ReservationRequest> reservations = order.getItems().stream()
+                .map(line -> new ReservationRequest(line.getProductId(), line.getQuantity()))
+                .toList();
+        inventoryReservation.reserve(order.getId(), reservations);
 
         ShippingOption selected = shippingRate.getQuotes(command.shippingAddress()).stream()
                 .filter(option -> option.method().equals(command.shippingMethod()))
@@ -90,7 +94,9 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
         try {
             PaymentCapture capture = paymentGateway.capture(authorization.authorizationId());
             order.capture(capture);
+            inventoryReservation.confirm(order.getId());
         } catch (PaymentFailedException e) {
+            inventoryReservation.release(order.getId());
             return orderRepository.save(order);
         }
 

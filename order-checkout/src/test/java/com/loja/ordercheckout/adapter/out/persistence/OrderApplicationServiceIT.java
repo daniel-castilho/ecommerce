@@ -10,10 +10,12 @@ import com.loja.ordercheckout.domain.model.PaymentMethod;
 import com.loja.ordercheckout.domain.model.ShippingAddress;
 import com.loja.ordercheckout.domain.port.in.CreateOrderFromCartUseCase.CheckoutCommand;
 import com.loja.ordercheckout.domain.port.in.CreateOrderFromCartUseCase.ItemCheckoutRequest;
+import com.loja.productcatalog.application.dto.ReservationRequest;
 import com.loja.productcatalog.domain.model.Product;
 import com.loja.productcatalog.domain.model.ProductStatus;
 import com.loja.productcatalog.domain.model.Sku;
 import com.loja.productcatalog.domain.model.Slug;
+import com.loja.productcatalog.domain.port.out.InventoryReservationPort;
 import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
 import com.loja.shared.domain.Money;
 import jakarta.persistence.EntityManager;
@@ -30,7 +32,6 @@ import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -46,6 +47,7 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
 
     private OrderRepositoryAdapter orderRepository;
     private ProductRepositoryPort productRepository;
+    private InventoryReservationPort inventoryReservation;
     private PaymentGatewayMockAdapter paymentGateway;
     private ShippingRateMockAdapter shippingRate;
     private NotificationMockAdapter notification;
@@ -57,11 +59,12 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
         orderRepository = new OrderRepositoryAdapter();
         orderRepository.em = em;
         productRepository = mock(ProductRepositoryPort.class);
+        inventoryReservation = mock(InventoryReservationPort.class);
         paymentGateway = new PaymentGatewayMockAdapter();
         shippingRate = new ShippingRateMockAdapter();
         notification = new NotificationMockAdapter();
         service = new OrderApplicationService(orderRepository, productRepository,
-                paymentGateway, shippingRate, notification);
+                paymentGateway, shippingRate, notification, inventoryReservation);
 
         em.getTransaction().begin();
         em.createNativeQuery("TRUNCATE TABLE tb_order_item, tb_order RESTART IDENTITY CASCADE")
@@ -73,7 +76,6 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
                 new Product("p1", new Sku("SKU-p1"), new Slug("slug-p1"), "Product A",
                         null, null, new Money(new BigDecimal("10.00")), null, 5,
                         ProductStatus.ACTIVE, null, null, null, Set.of(1L), List.of())));
-        when(productRepository.decrementStock(anyString(), anyInt())).thenReturn(1);
     }
 
     @AfterEach
@@ -113,7 +115,9 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
         Order order = inTx(() -> service.checkout(command("e2e-1")));
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
-        verify(productRepository).decrementStock("p1", 2);
+        verify(inventoryReservation).reserve("e2e-1", List.of(
+                new ReservationRequest("p1", 2)));
+        verify(inventoryReservation).confirm("e2e-1");
 
         Optional<Order> restored = inTx(() -> orderRepository.findById("e2e-1"));
         assertThat(restored).isPresent();
@@ -134,7 +138,7 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
         Order second = inTx(() -> service.checkout(command("e2e-dup")));
 
         assertThat(second.getId()).isEqualTo(first.getId());
-        verify(productRepository, times(1)).decrementStock(anyString(), anyInt());
+        verify(inventoryReservation, times(1)).confirm("e2e-dup");
 
         Long rowCount = inTx(() -> (Long) em.createNativeQuery(
                 "SELECT COUNT(*) FROM tb_order WHERE id = 'e2e-dup'").getSingleResult());

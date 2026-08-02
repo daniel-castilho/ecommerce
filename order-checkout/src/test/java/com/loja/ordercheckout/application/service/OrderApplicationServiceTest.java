@@ -15,11 +15,13 @@ import com.loja.ordercheckout.domain.port.out.NotificationPort;
 import com.loja.ordercheckout.domain.port.out.OrderRepositoryPort;
 import com.loja.ordercheckout.domain.port.out.PaymentGatewayPort;
 import com.loja.ordercheckout.domain.port.out.ShippingRatePort;
+import com.loja.productcatalog.application.dto.ReservationRequest;
 import com.loja.productcatalog.domain.exception.InsufficientStockException;
 import com.loja.productcatalog.domain.model.Product;
 import com.loja.productcatalog.domain.model.ProductStatus;
 import com.loja.productcatalog.domain.model.Sku;
 import com.loja.productcatalog.domain.model.Slug;
+import com.loja.productcatalog.domain.port.out.InventoryReservationPort;
 import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
 import com.loja.shared.domain.Money;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,8 +38,9 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -51,6 +54,7 @@ class OrderApplicationServiceTest {
     private final PaymentGatewayPort paymentGateway = mock(PaymentGatewayPort.class);
     private final ShippingRatePort shippingRate = mock(ShippingRatePort.class);
     private final NotificationPort notification = mock(NotificationPort.class);
+    private final InventoryReservationPort inventoryReservation = mock(InventoryReservationPort.class);
 
     private OrderApplicationService service;
     private final Map<String, Order> store = new HashMap<>();
@@ -58,7 +62,7 @@ class OrderApplicationServiceTest {
     @BeforeEach
     void setUp() {
         service = new OrderApplicationService(orderRepository, productRepository,
-                paymentGateway, shippingRate, notification);
+                paymentGateway, shippingRate, notification, inventoryReservation);
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
             Order saved = inv.getArgument(0);
             store.put(saved.getId(), saved);
@@ -93,8 +97,6 @@ class OrderApplicationServiceTest {
                 product("p1", new Money(new BigDecimal("10.00")), 5)));
         when(productRepository.findById("p2")).thenReturn(Optional.of(
                 product("p2", new Money(new BigDecimal("5.50")), 3)));
-        when(productRepository.decrementStock(anyString(), anyInt()))
-                .thenReturn(1);
     }
 
     @Test
@@ -116,8 +118,10 @@ class OrderApplicationServiceTest {
         assertThat(order.getItems()).hasSize(2);
         assertThat(order.getShippingCost().getAmount()).isEqualByComparingTo("15.00");
         assertThat(order.getTotal().getAmount()).isEqualByComparingTo("51.50");
-        verify(productRepository).decrementStock("p1", 2);
-        verify(productRepository).decrementStock("p2", 3);
+        verify(inventoryReservation).reserve("req-1", List.of(
+                new ReservationRequest("p1", 2),
+                new ReservationRequest("p2", 3)));
+        verify(inventoryReservation).confirm("req-1");
         verify(orderRepository).save(order);
         verify(notification).notifyOrderConfirmed(order);
     }
@@ -134,6 +138,8 @@ class OrderApplicationServiceTest {
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
         assertThat(order.getPaymentInfo().getStatus().name()).isEqualTo("AUTHORIZED");
+        verify(inventoryReservation).release("req-2");
+        verify(inventoryReservation, never()).confirm(anyString());
         verify(orderRepository).save(order);
         verify(notification, never()).notifyOrderConfirmed(any());
     }
@@ -142,7 +148,8 @@ class OrderApplicationServiceTest {
     void checkout_whenStockInsufficient_throwsBeforePaymentIsAttempted() {
         when(productRepository.findById("p1")).thenReturn(Optional.of(
                 product("p1", new Money(new BigDecimal("10.00")), 0)));
-        when(productRepository.decrementStock("p1", 2)).thenReturn(0);
+        doThrow(new InsufficientStockException("Insufficient stock for product: p1"))
+                .when(inventoryReservation).reserve(anyString(), anyList());
         CheckoutCommand command = new CheckoutCommand("req-3", "user-1", "ana@example.com",
                 List.of(new ItemCheckoutRequest("p1", 2)), address(), "pac",
                 new PaymentMethod("card", "tok_test"));
@@ -152,6 +159,8 @@ class OrderApplicationServiceTest {
                 .hasMessageContaining("p1");
         verify(paymentGateway, never()).authorize(any(), any());
         verify(paymentGateway, never()).capture(anyString());
+        verify(inventoryReservation, never()).confirm(anyString());
+        verify(inventoryReservation, never()).release(anyString());
         verify(orderRepository, never()).save(any());
         verify(notification, never()).notifyOrderConfirmed(any());
     }
@@ -169,8 +178,8 @@ class OrderApplicationServiceTest {
 
         assertThat(second.getId()).isEqualTo(first.getId());
         assertThat(second).isEqualTo(first);
-        verify(productRepository, times(1)).decrementStock("p1", 2);
-        verify(productRepository, times(1)).decrementStock("p2", 3);
+        verify(inventoryReservation, times(1)).reserve(anyString(), anyList());
+        verify(inventoryReservation, times(1)).confirm(anyString());
         verify(notification, times(1)).notifyOrderConfirmed(any());
     }
 
@@ -195,7 +204,7 @@ class OrderApplicationServiceTest {
         assertThatThrownBy(() -> service.checkout(command))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("positive");
-        verify(productRepository, never()).decrementStock(anyString(), anyInt());
+        verify(inventoryReservation, never()).reserve(anyString(), anyList());
         verify(orderRepository, never()).save(any());
     }
 

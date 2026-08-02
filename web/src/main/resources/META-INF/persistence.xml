@@ -11,6 +11,7 @@
         <class>com.loja.productcatalog.adapter.out.persistence.ProductJpaEntity</class>
         <class>com.loja.productcatalog.adapter.out.persistence.CategoryJpaEntity</class>
         <class>com.loja.productcatalog.adapter.out.persistence.ProductImageJpaEntity</class>
+        <class>com.loja.productcatalog.adapter.out.persistence.InventoryReservationJpaEntity</class>
         <class>com.loja.ordercheckout.adapter.out.persistence.OrderJpaEntity</class>
         <exclude-unlisted-classes>true</exclude-unlisted-classes>
     </persistence-unit>

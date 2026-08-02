@@ -10,6 +10,7 @@ import com.loja.ordercheckout.domain.model.PaymentCapture;
 import com.loja.ordercheckout.domain.model.ShippingAddress;
 import com.loja.ordercheckout.domain.port.out.NotificationPort;
 import com.loja.ordercheckout.domain.port.out.OrderRepositoryPort;
+import com.loja.productcatalog.domain.port.out.InventoryReservationPort;
 import com.loja.shared.domain.Money;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,13 +35,14 @@ class OrderHistoryServiceTest {
 
     private final OrderRepositoryPort orderRepository = mock(OrderRepositoryPort.class);
     private final NotificationPort notification = mock(NotificationPort.class);
+    private final InventoryReservationPort inventoryReservation = mock(InventoryReservationPort.class);
 
     private OrderHistoryService service;
     private final Map<String, Order> store = new HashMap<>();
 
     @BeforeEach
     void setUp() {
-        service = new OrderHistoryService(orderRepository, notification);
+        service = new OrderHistoryService(orderRepository, notification, inventoryReservation);
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
             Order saved = inv.getArgument(0);
             store.put(saved.getId(), saved);
@@ -109,12 +111,13 @@ class OrderHistoryServiceTest {
     // ---- cancel ----
 
     @Test
-    void cancel_ownedPendingOrder_cancelsAndSaves() {
+    void cancel_ownedPendingOrder_cancelsSavesAndReleasesReservation() {
         pendingOrder("o1", "user-1");
 
         Order cancelled = service.cancel("o1", "user-1");
 
         assertThat(cancelled.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        verify(inventoryReservation).release("o1");
         verify(orderRepository).save(cancelled);
     }
 
