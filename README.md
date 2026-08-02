@@ -60,6 +60,10 @@ WAR into `dropins`. The dev keystore password lives in `web/src/main/liberty/con
 
 ## Current state (2026-08-01)
 
+- **Released as `v0.3.0` (2026-08-01)** — real Jakarta Security RBAC for user-account
+  (`UserIdentityStore` + `LoginAuthenticationMechanism` + `HttpServletRequest.login()`,
+  ADMIN `web.xml` security-constraint, `SecurityContext`-backed `UserBean`). See
+  `docs/releases/v0.3.0.md`.
 - **Released as `v0.2.0` (2026-08-01)** — completes the `order-checkout` epic (S1–S12: full
   order state machine, 4-step checkout wizard, order history with cancel/refund, inventory
   reservation, optimistic locking, ArchUnit guard rails) on top of the `v0.1.0` baseline. See
