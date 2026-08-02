@@ -1,46 +1,53 @@
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:h="jakarta.faces.html"
-      xmlns:f="jakarta.faces.core">
-  <h:head>
-    <title>Order confirmed</title>
-  </h:head>
-  <h:body>
-    <h1>Order confirmed</h1>
-    <h:messages globalOnly="true" />
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:my="https://loja.com/design-system"
+                template="/WEB-INF/templates/main.xhtml">
 
-    <h:panelGroup rendered="#{empty checkoutBean.confirmedOrder}">
-      <p>No order to display.</p>
-    </h:panelGroup>
+    <ui:define name="title">Order confirmed</ui:define>
 
-    <h:panelGroup rendered="#{not empty checkoutBean.confirmedOrder}">
-      <p>
-        Order <strong>#{checkoutBean.confirmedOrder.id}</strong> —
-        status <strong>#{checkoutBean.confirmedOrder.status}</strong>
-      </p>
+    <ui:define name="content">
+        <h1 class="page-title">Order confirmed</h1>
+        <h:messages globalOnly="true" styleClass="messages" />
 
-      <h:dataTable value="#{checkoutBean.confirmedOrder.items}" var="item">
-        <h:column>
-          <f:facet name="header">Product</f:facet>
-          #{item.productId}
-        </h:column>
-        <h:column>
-          <f:facet name="header">Quantity</f:facet>
-          #{item.quantity}
-        </h:column>
-        <h:column>
-          <f:facet name="header">Unit price</f:facet>
-          #{item.unitPrice.amount}
-        </h:column>
-        <h:column>
-          <f:facet name="header">Subtotal</f:facet>
-          #{item.subtotal.amount}
-        </h:column>
-      </h:dataTable>
+        <ui:fragment rendered="#{empty checkoutBean.confirmedOrder}">
+            <div class="card">
+                <p>No order to display.</p>
+            </div>
+        </ui:fragment>
 
-      <p>Total: <strong>#{checkoutBean.confirmedOrder.total.amount}</strong></p>
-    </h:panelGroup>
+        <ui:fragment rendered="#{not empty checkoutBean.confirmedOrder}">
+            <div class="card">
+                <p>
+                    Order <strong>#{checkoutBean.confirmedOrder.id}</strong> —
+                    status <my:statusBadge status="#{checkoutBean.confirmedOrder.status}" />
+                </p>
 
-    <p><h:link outcome="/product-catalog/catalog" value="Back to catalog" /></p>
-  </h:body>
-</html>
+                <h:dataTable value="#{checkoutBean.confirmedOrder.items}" var="item"
+                             styleClass="data-table">
+                    <h:column>
+                        <f:facet name="header">Product</f:facet>
+                        #{item.productId}
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Quantity</f:facet>
+                        #{item.quantity}
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Unit price</f:facet>
+                        #{item.unitPrice.amount}
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Subtotal</f:facet>
+                        #{item.subtotal.amount}
+                    </h:column>
+                </h:dataTable>
+
+                <p>Total: <strong>#{checkoutBean.confirmedOrder.total.amount}</strong></p>
+            </div>
+        </ui:fragment>
+
+        <p><h:link outcome="/product-catalog/catalog" value="Back to catalog" /></p>
+    </ui:define>
+</ui:composition>

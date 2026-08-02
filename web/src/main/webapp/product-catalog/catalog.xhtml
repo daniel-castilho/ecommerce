@@ -66,18 +66,16 @@
                 </ui:repeat>
             </div>
 
-            <div class="pagination">
-                <h:form id="resultForm">
-                    <h:commandButton value="Previous" action="#{productCatalogBean.previousPage}"
-                                     disabled="#{not productCatalogBean.hasPreviousPage()}"
-                                     styleClass="button button-secondary" />
-                    <span>Page #{productCatalogBean.page + 1} of #{productCatalogBean.totalPages}
-                          (#{productCatalogBean.totalElements} products)</span>
-                    <h:commandButton value="Next" action="#{productCatalogBean.nextPage}"
-                                     disabled="#{not productCatalogBean.hasNextPage()}"
-                                     styleClass="button" />
-                </h:form>
-            </div>
+            <h:form id="resultForm" styleClass="pagination">
+                <h:commandButton value="Previous" action="#{productCatalogBean.previousPage}"
+                                 disabled="#{not productCatalogBean.hasPreviousPage()}"
+                                 styleClass="button button-secondary" />
+                <span>Page #{productCatalogBean.page + 1} of #{productCatalogBean.totalPages}
+                      (#{productCatalogBean.totalElements} products)</span>
+                <h:commandButton value="Next" action="#{productCatalogBean.nextPage}"
+                                 disabled="#{not productCatalogBean.hasNextPage()}"
+                                 styleClass="button" />
+            </h:form>
         </ui:fragment>
 
         <p rendered="#{empty productCatalogBean.results}">No products match your search.</p>

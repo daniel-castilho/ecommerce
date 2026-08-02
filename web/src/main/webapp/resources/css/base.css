@@ -87,9 +87,14 @@ body {
     font-family: var(--font-family-base);
 }
 
-.form-field .ui-message {
-    color: var(--form-field-error-color);
-    font-size: var(--font-size-caption);
+/* --- Links --- */
+
+a {
+    color: var(--color-action-primary);
+}
+
+a:hover {
+    color: var(--color-action-primary-hover);
 }
 
 /* --- Messages (FacesMessage severities) --- */

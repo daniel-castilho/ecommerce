@@ -1,40 +1,49 @@
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:h="jakarta.faces.html"
-      xmlns:f="jakarta.faces.core">
-  <h:head>
-    <title>My Profile</title>
-  </h:head>
-  <h:body>
-    <h2>My Profile</h2>
-    <p>
-      Signed in as #{userBean.currentUser.email.value}.
-      <h:outputLink value="/user-account/profile.xhtml">Profile</h:outputLink> |
-      <h:outputLink value="/user-account/address-book.xhtml">Address Book</h:outputLink> |
-      <h:outputLink value="/user-account/admin/users.xhtml" rendered="#{userBean.hasRole('ADMIN')}">Admin</h:outputLink> |
-      <h:commandLink value="Logout" action="#{loginBean.logout}" />
-    </p>
-    <h:messages showDetail="true" showSummary="false" />
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:my="https://loja.com/design-system"
+                template="/WEB-INF/templates/main.xhtml">
 
-    <h3>Personal Information</h3>
-    <h:form>
-      <h:panelGrid columns="2">
-        <h:outputLabel for="fullName" value="Full Name" />
-        <h:inputText id="fullName" value="#{profileBean.fullName}" required="true" />
-      </h:panelGrid>
-      <h:commandButton value="Save" action="#{profileBean.saveProfile}" />
-    </h:form>
+    <ui:define name="title">My Profile</ui:define>
 
-    <h3>Change Password</h3>
-    <h:form>
-      <h:panelGrid columns="2">
-        <h:outputLabel for="currentPassword" value="Current Password" />
-        <h:inputSecret id="currentPassword" value="#{profileBean.currentPassword}" required="true" />
+    <ui:define name="content">
+        <h1 class="page-title">My Profile</h1>
 
-        <h:outputLabel for="newPassword" value="New Password" />
-        <h:inputSecret id="newPassword" value="#{profileBean.newPassword}" required="true" />
-      </h:panelGrid>
-      <h:commandButton value="Change Password" action="#{profileBean.changePassword}" />
-    </h:form>
-  </h:body>
-</html>
+        <p>
+            Signed in as #{userBean.currentUser.email.value}.
+            <h:outputLink value="/user-account/profile.xhtml">Profile</h:outputLink> |
+            <h:outputLink value="/user-account/address-book.xhtml">Address Book</h:outputLink> |
+            <h:outputLink value="/user-account/admin/users.xhtml" rendered="#{userBean.hasRole('ADMIN')}">Admin</h:outputLink> |
+            <h:commandLink value="Logout" action="#{loginBean.logout}" />
+        </p>
+
+        <h:messages showDetail="true" showSummary="false" styleClass="messages" />
+
+        <div class="card">
+            <h2>Personal Information</h2>
+            <h:form>
+                <my:formFieldGroup label="Full Name" for="fullName">
+                    <h:inputText id="fullName" value="#{profileBean.fullName}" required="true" />
+                </my:formFieldGroup>
+                <h:commandButton value="Save" action="#{profileBean.saveProfile}" styleClass="button" />
+            </h:form>
+        </div>
+
+        <div class="card">
+            <h2>Change Password</h2>
+            <h:form>
+                <my:formFieldGroup label="Current Password" for="currentPassword">
+                    <h:inputSecret id="currentPassword" value="#{profileBean.currentPassword}" required="true" />
+                </my:formFieldGroup>
+
+                <my:formFieldGroup label="New Password" for="newPassword">
+                    <h:inputSecret id="newPassword" value="#{profileBean.newPassword}" required="true" />
+                </my:formFieldGroup>
+
+                <h:commandButton value="Change Password" action="#{profileBean.changePassword}"
+                                 styleClass="button" />
+            </h:form>
+        </div>
+    </ui:define>
+</ui:composition>

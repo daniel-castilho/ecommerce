@@ -87,8 +87,8 @@ Location: `web/src/main/webapp/WEB-INF/tags/` (registered via a
 
 | Component | File | Status | Used by (real pages) | Tokens consumed |
 |---|---|---|---|---|
-| Status badge | `WEB-INF/tags/status-badge.xhtml` | **Built** (rule of two met) | `manageProduct.xhtml` (ProductStatus) wired; `order-confirmed.xhtml` (Order.Status) and `admin/users.xhtml` (UserStatus) adopt it when converted to the shared template | `--badge-*`, `--color-status-*` |
-| Form field group | `WEB-INF/tags/form-field-group.xhtml` | **Built** (rule of two met) | `manageProduct.xhtml` wired; login, register, password-reset, password-reset-confirm, profile, address-book, checkout adopt it when converted | `--form-field-*` |
+| Status badge | `WEB-INF/tags/status-badge.xhtml` | **Built** (rule of two met) | `manageProduct.xhtml` (ProductStatus), `order-confirmed.xhtml` (Order.Status), `admin/users.xhtml` (UserStatus) | `--badge-*`, `--color-status-*` |
+| Form field group | `WEB-INF/tags/form-field-group.xhtml` | **Built** (rule of two met) | login, register, password-reset, password-reset-confirm, profile, address-book, manageProduct | `--form-field-*` |
 | Admin data table | `admin-data-table.xhtml` | **Candidate — not yet** (1 occurrence: `admin/users.xhtml`) | — | (not defined yet) |
 | Metric card | `metric-card.xhtml` | **Candidate — not yet** (0 occurrences: no dashboard page) | — | (not defined yet) |
 
@@ -249,6 +249,14 @@ here.
   S7 deviation). Q1 resolved: shared template + single base stylesheet, not
   per-page stylesheets. Remaining pages (user-account, order-checkout,
   admin/users) adopt the template in a follow-up round.
+- 2026-08-01 — Rolled the shared template + tokens out to all remaining pages:
+  login, register, password-reset, password-reset-confirm, profile,
+  address-book, admin/users, checkout, order-confirmed. `form-field-group`
+  dropped its inner `<h:message>` (repo convention is `h:messages
+  showDetail="true" showSummary="false"`; a per-field message duplicated field
+  errors). Pagination now renders through the `pagination` component token on
+  the form element itself. Every page in the WAR now renders through the shared
+  template; the storefront and admin share one visual language.
 ```
 
 ---

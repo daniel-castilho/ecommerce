@@ -1,26 +1,37 @@
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:h="jakarta.faces.html"
-      xmlns:f="jakarta.faces.core">
-  <h:head>
-    <title>Register</title>
-  </h:head>
-  <h:body>
-    <h2>Create Account</h2>
-    <h:form>
-      <h:messages styleClass="error" showDetail="true" showSummary="false" />
-      <h:panelGrid columns="2">
-        <h:outputLabel for="email" value="Email" />
-        <h:inputText id="email" value="#{registerBean.email}" required="true" />
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:my="https://loja.com/design-system"
+                template="/WEB-INF/templates/main.xhtml">
 
-        <h:outputLabel for="fullName" value="Full Name" />
-        <h:inputText id="fullName" value="#{registerBean.fullName}" required="true" />
+    <ui:define name="title">Register</ui:define>
 
-        <h:outputLabel for="password" value="Password" />
-        <h:inputSecret id="password" value="#{registerBean.password}" required="true" />
-      </h:panelGrid>
-      <h:commandButton value="Register" action="#{registerBean.register}" />
-      <h:outputLink value="/user-account/login.xhtml"> Already have an account? Sign in</h:outputLink>
-    </h:form>
-  </h:body>
-</html>
+    <ui:define name="content">
+        <h1 class="page-title">Create Account</h1>
+
+        <div class="card">
+            <h:form>
+                <h:messages showDetail="true" showSummary="false" styleClass="messages" />
+
+                <my:formFieldGroup label="Email" for="email">
+                    <h:inputText id="email" value="#{registerBean.email}" required="true" />
+                </my:formFieldGroup>
+
+                <my:formFieldGroup label="Full Name" for="fullName">
+                    <h:inputText id="fullName" value="#{registerBean.fullName}" required="true" />
+                </my:formFieldGroup>
+
+                <my:formFieldGroup label="Password" for="password">
+                    <h:inputSecret id="password" value="#{registerBean.password}" required="true" />
+                </my:formFieldGroup>
+
+                <h:commandButton value="Register" action="#{registerBean.register}" styleClass="button" />
+
+                <p>
+                    <h:outputLink value="/user-account/login.xhtml">Already have an account? Sign in</h:outputLink>
+                </p>
+            </h:form>
+        </div>
+    </ui:define>
+</ui:composition>

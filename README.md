@@ -163,8 +163,10 @@ built** (resolves §10 Q1 of `docs/design-system.md`): `resources/css/base.css`
 (`WEB-INF/loja.taglib.xml`) with the `status-badge`/`form-field-group` components
 (registered via `jakarta.faces.FACELETS_LIBRARIES`). `catalog.xhtml` (results as
 product-card grid) and `manageProduct.xhtml` (form-field groups + status badges) were
-converted to the template + tokens. **Remaining:** convert the other pages
-(user-account, order-checkout, admin/users) to the shared template.
+converted to the template + tokens. Rollout finished the same day: **all remaining
+pages** (login, register, password-reset, password-reset-confirm, profile,
+address-book, admin/users, checkout, order-confirmed) now render through the shared
+template + tokens — every page in the WAR shares one visual language.
 
 ## General pending items (outside the product-catalog epic)
 
