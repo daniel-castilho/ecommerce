@@ -129,6 +129,14 @@ configured in `server.xml` with the connection host/port/db/user/password **exte
 `shop` Postgres), and a real deployment overrides them with OS environment variables — no
 credentials hardcoded in the server config anymore.
 
+Completed (2026-08-01): **CI pipeline** — `.github/workflows/ci.yml` (GitHub Actions). Two
+sequential jobs: `unit-and-archunit` (unit tests + every module's ArchUnit via `-Dtest='*Test'`,
+a `javax.*` migration guard, and the WAR packaging) then `integration-tests` (Testcontainers
+Postgres + LocalStack via `-Dtest='*IT'`) that only runs when the fast job is green. JDK 21
+(Temurin), Maven `~/.m2` cache, canceled superseded runs, WAR artifact archived on `main`,
+surefire reports uploaded on failure. To fully close the loop, enable "Require status checks"
+for `unit-and-archunit` + `integration-tests` on `main` in the repo settings.
+
 Completed (2026-07-31): **Bean Validation** on the JSF adapter beans (`adapter/in/web`) —
 constraints mirror the domain rules, keeping `domain/` and `application/` free of
 `jakarta.validation` (ArchUnit still green). **No new runtime dependency**: the API ships in
@@ -213,7 +221,6 @@ Backlog / radar (kept here so these are not forgotten; each gets its own work it
 
 - **Real providers** for payment / shipping / notification (mock adapters today — see
   `docs/notification-system-guide.md`)
-- **CI pipeline** (ArchUnit + tests as a PR gate; noted as missing in the backlog specs)
 - **admin-dashboard metrics** (module still composes no real metrics from the other modules)
 
 Applied (2026-07-31): `V8__order_checkout_schema.sql` on the running `shop_db`
