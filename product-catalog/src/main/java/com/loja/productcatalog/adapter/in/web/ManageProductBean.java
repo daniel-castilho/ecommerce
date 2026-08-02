@@ -153,8 +153,14 @@ public class ManageProductBean implements Serializable {
     public String create() {
         try {
             Product created = createProductUseCase.create(buildCreateCommand());
+            String imageError = uploadImageForNewProduct(created.getId());
             FacesContext ctx = FacesContext.getCurrentInstance();
             ctx.getExternalContext().getFlash().setKeepMessages(true);
+            if (imageError != null) {
+                addGlobal(FacesMessage.SEVERITY_WARN, "Product created, image rejected", imageError);
+            } else {
+                addGlobal(FacesMessage.SEVERITY_INFO, "Product created", "Product is now in DRAFT status");
+            }
             return "/product-catalog/manageProduct.xhtml?faces-redirect=true&productId=" + created.getId();
         } catch (DuplicateSkuException e) {
             FacesContext.getCurrentInstance().addMessage("productForm:sku",
@@ -163,6 +169,22 @@ public class ManageProductBean implements Serializable {
         } catch (IllegalArgumentException | ProductValidationException e) {
             addGlobal(FacesMessage.SEVERITY_ERROR, "Cannot create product", e.getMessage());
             return null;
+        }
+    }
+
+    private String uploadImageForNewProduct(String newProductId) {
+        if (file == null) {
+            return null;
+        }
+        try {
+            byte[] content = file.getInputStream().readAllBytes();
+            uploadProductImageUseCase.uploadImage(newProductId, new UploadProductImageCommand(
+                    content, file.getContentType(), uploadAltText, 0, uploadPrimary));
+            return null;
+        } catch (InvalidProductImageException | ProductValidationException e) {
+            return e.getMessage();
+        } catch (IOException e) {
+            return "Could not read the selected file";
         }
     }
 

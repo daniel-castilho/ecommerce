@@ -1,83 +1,85 @@
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:h="jakarta.faces.html"
-      xmlns:f="jakarta.faces.core">
-<h:head>
-    <title>Product Catalog</title>
-</h:head>
-<h:body>
-    <h1>Our Products</h1>
-    <h:messages globalOnly="true" />
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                template="/WEB-INF/templates/main.xhtml">
 
-    <h:form id="filterForm">
-        <h:panelGrid columns="2">
-            <h:outputLabel for="search" value="Search" />
-            <h:inputText id="search" value="#{productCatalogBean.searchTerm}" />
+    <ui:define name="title">Product Catalog</ui:define>
 
-            <h:outputLabel for="category" value="Category" />
-            <h:selectOneMenu id="category" value="#{productCatalogBean.categoryId}">
-                <f:selectItem itemValue="#{null}" itemLabel="All categories" />
-                <f:selectItems value="#{productCatalogBean.categories}" var="c"
-                               itemValue="#{c.id}" itemLabel="#{c.name}" />
-            </h:selectOneMenu>
+    <ui:define name="content">
+        <h1 class="page-title">Our Products</h1>
+        <h:messages globalOnly="true" styleClass="messages" />
 
-            <h:outputLabel for="minPrice" value="Min price" />
-            <h:inputText id="minPrice" value="#{productCatalogBean.minPrice}" />
+        <div class="card">
+            <h:form id="filterForm">
+                <div class="form-grid">
+                    <h:outputLabel for="search" value="Search" />
+                    <h:inputText id="search" value="#{productCatalogBean.searchTerm}" />
 
-            <h:outputLabel for="maxPrice" value="Max price" />
-            <h:inputText id="maxPrice" value="#{productCatalogBean.maxPrice}" />
+                    <h:outputLabel for="category" value="Category" />
+                    <h:selectOneMenu id="category" value="#{productCatalogBean.categoryId}">
+                        <f:selectItem itemValue="#{null}" itemLabel="All categories" />
+                        <f:selectItems value="#{productCatalogBean.categories}" var="c"
+                                       itemValue="#{c.id}" itemLabel="#{c.name}" />
+                    </h:selectOneMenu>
 
-            <h:outputLabel for="sortField" value="Sort by" />
-            <h:selectOneMenu id="sortField" value="#{productCatalogBean.sortField}">
-                <f:selectItems value="#{productCatalogBean.availableSortFields}" />
-            </h:selectOneMenu>
+                    <h:outputLabel for="minPrice" value="Min price" />
+                    <h:inputText id="minPrice" value="#{productCatalogBean.minPrice}" />
 
-            <h:outputLabel for="sortDirection" value="Direction" />
-            <h:selectOneMenu id="sortDirection" value="#{productCatalogBean.sortDirection}">
-                <f:selectItems value="#{productCatalogBean.availableSortDirections}" />
-            </h:selectOneMenu>
-        </h:panelGrid>
-        <h:commandButton value="Search" action="#{productCatalogBean.search}" />
-    </h:form>
+                    <h:outputLabel for="maxPrice" value="Max price" />
+                    <h:inputText id="maxPrice" value="#{productCatalogBean.maxPrice}" />
 
-    <h:form id="resultForm">
-        <h:dataTable value="#{productCatalogBean.results}" var="product"
-                     rendered="#{not empty productCatalogBean.results}">
-            <h:column>
-                <f:facet name="header">Name</f:facet>
-                #{product.name}
-            </h:column>
-            <h:column>
-                <f:facet name="header">SKU</f:facet>
-                #{product.skuValue}
-            </h:column>
-            <h:column>
-                <f:facet name="header">Price</f:facet>
-                #{product.price.amount}
-            </h:column>
-            <h:column>
-                <f:facet name="header">Description</f:facet>
-                #{product.shortDescription}
-            </h:column>
-            <h:column>
-                <f:facet name="header">Buy</f:facet>
-                <h:link outcome="/order-checkout/checkout.xhtml" value="Buy">
-                    <f:param name="productId" value="#{product.id}" />
-                </h:link>
-            </h:column>
-        </h:dataTable>
+                    <h:outputLabel for="sortField" value="Sort by" />
+                    <h:selectOneMenu id="sortField" value="#{productCatalogBean.sortField}">
+                        <f:selectItems value="#{productCatalogBean.availableSortFields}" />
+                    </h:selectOneMenu>
 
-        <h:outputText value="No products match your search."
-                      rendered="#{empty productCatalogBean.results}" />
+                    <h:outputLabel for="sortDirection" value="Direction" />
+                    <h:selectOneMenu id="sortDirection" value="#{productCatalogBean.sortDirection}">
+                        <f:selectItems value="#{productCatalogBean.availableSortDirections}" />
+                    </h:selectOneMenu>
+                </div>
+                <h:commandButton value="Search" action="#{productCatalogBean.search}"
+                                 styleClass="button" />
+            </h:form>
+        </div>
 
-        <h:panelGroup rendered="#{not empty productCatalogBean.results}">
-            <h:commandButton value="Previous" action="#{productCatalogBean.previousPage}"
-                             disabled="#{not productCatalogBean.hasPreviousPage()}" />
-            <h:outputText value="Page #{productCatalogBean.page + 1} of #{productCatalogBean.totalPages}
-                                 (#{productCatalogBean.totalElements} products)" />
-            <h:commandButton value="Next" action="#{productCatalogBean.nextPage}"
-                             disabled="#{not productCatalogBean.hasNextPage()}" />
-        </h:panelGroup>
-    </h:form>
-</h:body>
-</html>
+        <ui:fragment rendered="#{not empty productCatalogBean.results}">
+            <div class="product-grid">
+                <ui:repeat value="#{productCatalogBean.results}" var="product">
+                    <div class="product-card">
+                        <h:graphicImage value="#{productCatalogBean.primaryImageUrl(product)}"
+                                        alt="#{productCatalogBean.primaryImageAlt(product)}"
+                                        rendered="#{not empty productCatalogBean.primaryImageUrl(product)}"
+                                        styleClass="product-card-image" />
+                        <div class="product-card-body">
+                            <span class="product-card-name">#{product.name}</span>
+                            <span class="product-card-sku">#{product.skuValue}</span>
+                            <span class="product-card-price">$#{product.price.amount}</span>
+                            <span class="product-card-desc">#{product.shortDescription}</span>
+                            <h:link outcome="/order-checkout/checkout.xhtml" value="Buy"
+                                    styleClass="button button-secondary">
+                                <f:param name="productId" value="#{product.id}" />
+                            </h:link>
+                        </div>
+                    </div>
+                </ui:repeat>
+            </div>
+
+            <div class="pagination">
+                <h:form id="resultForm">
+                    <h:commandButton value="Previous" action="#{productCatalogBean.previousPage}"
+                                     disabled="#{not productCatalogBean.hasPreviousPage()}"
+                                     styleClass="button button-secondary" />
+                    <span>Page #{productCatalogBean.page + 1} of #{productCatalogBean.totalPages}
+                          (#{productCatalogBean.totalElements} products)</span>
+                    <h:commandButton value="Next" action="#{productCatalogBean.nextPage}"
+                                     disabled="#{not productCatalogBean.hasNextPage()}"
+                                     styleClass="button" />
+                </h:form>
+            </div>
+        </ui:fragment>
+
+        <p rendered="#{empty productCatalogBean.results}">No products match your search.</p>
+    </ui:define>
+</ui:composition>

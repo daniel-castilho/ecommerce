@@ -6,9 +6,11 @@ import com.loja.productcatalog.application.dto.ProductSortField;
 import com.loja.productcatalog.application.dto.SortDirection;
 import com.loja.productcatalog.domain.model.Category;
 import com.loja.productcatalog.domain.model.Product;
+import com.loja.productcatalog.domain.model.ProductImage;
 import com.loja.productcatalog.domain.model.ProductStatus;
 import com.loja.productcatalog.domain.port.in.SearchProductsUseCase;
 import com.loja.productcatalog.domain.port.out.CategoryRepositoryPort;
+import com.loja.productcatalog.domain.port.out.ProductImageStoragePort;
 import jakarta.annotation.PostConstruct;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
@@ -34,6 +36,9 @@ public class ProductCatalogBean implements Serializable {
 
     @Inject
     private CategoryRepositoryPort categoryRepository;
+
+    @Inject
+    private ProductImageStoragePort imageStorage;
 
     private String searchTerm;
     private Long categoryId;
@@ -96,6 +101,23 @@ public class ProductCatalogBean implements Serializable {
 
     public List<Product> getResults() {
         return result != null ? result.items() : List.of();
+    }
+
+    public String primaryImageUrl(Product product) {
+        return primaryImage(product).map(image -> imageStorage.publicUrlFor(image.getObjectKey()))
+                .orElse(null);
+    }
+
+    public String primaryImageAlt(Product product) {
+        return primaryImage(product).map(ProductImage::getAltText)
+                .filter(altText -> altText != null && !altText.isBlank())
+                .orElse(product.getName());
+    }
+
+    private static java.util.Optional<ProductImage> primaryImage(Product product) {
+        return product.getImages().stream()
+                .filter(ProductImage::isPrimary)
+                .findFirst();
     }
 
     public ProductSortField[] getAvailableSortFields() { return ProductSortField.values(); }

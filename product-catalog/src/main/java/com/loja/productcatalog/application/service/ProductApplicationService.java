@@ -38,7 +38,8 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Application service implementing all six product-catalog use cases (spec §5).
+ * Application service implementing all product-catalog use cases (spec §5, plus image
+ * management added in spec §8 for the admin UI).
  * Coordinates the repository, the category repository and the image storage port;
  * business rules that only need the product's own state live on the domain object,
  * rules that must consult a port live here.

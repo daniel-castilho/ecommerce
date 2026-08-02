@@ -151,8 +151,20 @@ mvn -pl product-catalog test
    QA fixes: `forcePathStyle(true)` on the S3 client (virtual-host broke LocalStack with
    hostname endpoints), `@Cacheable(false)` on `UserJpaEntity` (stale roles), UUID in
    `ProductApplicationService.create()`, FacesServlet `<multipart-config>`. Notes: external
-   SQL writes to `tb_category`/roles need a server restart to clear the app caches; the
-   public catalog card does not render images yet.
+   SQL writes to `tb_category`/roles need a server restart to clear the app caches.
+
+Completed (2026-08-01): **public catalog cards now render the primary product image**
+(`ProductCatalogBean.primaryImageUrl/primaryImageAlt` + S3 public URL); the admin
+**create form gained an optional image upload** (closes the S7 deviation — a rejected
+image still leaves the product created, with a warning). **Design-system foundation
+built** (resolves §10 Q1 of `docs/design-system.md`): `resources/css/base.css`
+(imports the tokens + shared component styles), shared template
+`WEB-INF/templates/main.xhtml`, and the `https://loja.com/design-system` tag library
+(`WEB-INF/loja.taglib.xml`) with the `status-badge`/`form-field-group` components
+(registered via `jakarta.faces.FACELETS_LIBRARIES`). `catalog.xhtml` (results as
+product-card grid) and `manageProduct.xhtml` (form-field groups + status badges) were
+converted to the template + tokens. **Remaining:** convert the other pages
+(user-account, order-checkout, admin/users) to the shared template.
 
 ## General pending items (outside the product-catalog epic)
 

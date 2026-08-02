@@ -1,152 +1,203 @@
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:h="jakarta.faces.html"
-      xmlns:f="jakarta.faces.core">
-  <h:head>
-    <title>Admin - Product Catalog</title>
-  </h:head>
-  <h:body>
-    <h:panelGroup rendered="#{not userBean.hasRole('ADMIN')}">
-      <h2>Product Management</h2>
-      <p>You need an administrator account to manage the product catalog.</p>
-    </h:panelGroup>
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:my="https://loja.com/design-system"
+                template="/WEB-INF/templates/main.xhtml">
 
-    <h:panelGroup rendered="#{userBean.hasRole('ADMIN')}">
-      <h2>Product Management</h2>
-      <h:messages showDetail="true" showSummary="false" />
+    <ui:define name="title">Admin - Product Catalog</ui:define>
 
-      <h:form>
-        <h:commandButton value="New product" action="#{manageProductBean.newProduct}" />
+    <ui:define name="content">
+        <h1 class="page-title">Product Management</h1>
 
-        <h:dataTable value="#{manageProductBean.products}" var="p"
-                     rendered="#{not empty manageProductBean.products}">
-          <h:column>
-            <f:facet name="header">SKU</f:facet>
-            #{p.skuValue}
-          </h:column>
-          <h:column>
-            <f:facet name="header">Name</f:facet>
-            #{p.name}
-          </h:column>
-          <h:column>
-            <f:facet name="header">Status</f:facet>
-            #{p.status}
-          </h:column>
-          <h:column>
-            <f:facet name="header">Price</f:facet>
-            #{p.price.amount}
-          </h:column>
-          <h:column>
-            <f:facet name="header">Edit</f:facet>
-            <h:link outcome="manageProduct.xhtml" value="Edit">
-              <f:param name="productId" value="#{p.id}" />
-            </h:link>
-          </h:column>
-        </h:dataTable>
-      </h:form>
+        <ui:fragment rendered="#{not userBean.hasRole('ADMIN')}">
+            <div class="card">
+                <p>You need an administrator account to manage the product catalog.</p>
+            </div>
+        </ui:fragment>
 
-      <h:form id="productForm">
-        <h3>#{manageProductBean.editMode ? 'Edit product' : 'New product'}</h3>
+        <ui:fragment rendered="#{userBean.hasRole('ADMIN')}">
+            <h:messages showDetail="true" showSummary="false" styleClass="messages" />
 
-        <h:panelGrid columns="2">
-          <h:outputLabel for="sku" value="SKU" />
-          <h:panelGroup>
-            <h:outputText value="#{manageProductBean.sku}" rendered="#{manageProductBean.editMode}" />
-            <h:inputText id="sku" value="#{manageProductBean.sku}"
-                         rendered="#{not manageProductBean.editMode}" />
-          </h:panelGroup>
+            <div class="card">
+                <h:form id="listForm">
+                    <h:commandButton value="New product" action="#{manageProductBean.newProduct}"
+                                     styleClass="button" />
 
-          <h:outputLabel for="name" value="Name" />
-          <h:inputText id="name" value="#{manageProductBean.name}" />
+                    <h:dataTable value="#{manageProductBean.products}" var="p"
+                                 styleClass="data-table"
+                                 rendered="#{not empty manageProductBean.products}">
+                        <h:column>
+                            <f:facet name="header">SKU</f:facet>
+                            #{p.skuValue}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Name</f:facet>
+                            #{p.name}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Status</f:facet>
+                            <my:statusBadge status="#{p.status}" />
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Price</f:facet>
+                            #{p.price.amount}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Edit</f:facet>
+                            <h:link outcome="manageProduct.xhtml" value="Edit">
+                                <f:param name="productId" value="#{p.id}" />
+                            </h:link>
+                        </h:column>
+                    </h:dataTable>
+                </h:form>
+            </div>
 
-          <h:outputLabel for="slug" value="Slug (blank = auto-generate on create)" />
-          <h:inputText id="slug" value="#{manageProductBean.slug}" />
+            <div class="card">
+                <h:form id="productForm">
+                    <h2>#{manageProductBean.editMode ? 'Edit product' : 'New product'}</h2>
 
-          <h:outputLabel for="shortDescription" value="Short description" />
-          <h:inputText id="shortDescription" value="#{manageProductBean.shortDescription}" />
+                    <my:formFieldGroup label="SKU" for="sku">
+                        <ui:fragment rendered="#{manageProductBean.editMode}">
+                            <h:outputText value="#{manageProductBean.sku}" />
+                        </ui:fragment>
+                        <ui:fragment rendered="#{not manageProductBean.editMode}">
+                            <h:inputText id="sku" value="#{manageProductBean.sku}" />
+                        </ui:fragment>
+                    </my:formFieldGroup>
 
-          <h:outputLabel for="description" value="Description (HTML)" />
-          <h:inputTextarea id="description" value="#{manageProductBean.description}" rows="5" cols="40" />
+                    <my:formFieldGroup label="Name" for="name">
+                        <h:inputText id="name" value="#{manageProductBean.name}" />
+                    </my:formFieldGroup>
 
-          <h:outputLabel for="price" value="Price" />
-          <h:inputText id="price" value="#{manageProductBean.price}" />
+                    <my:formFieldGroup label="Slug (blank = auto-generate on create)" for="slug">
+                        <h:inputText id="slug" value="#{manageProductBean.slug}" />
+                    </my:formFieldGroup>
 
-          <h:outputLabel for="compareAtPrice" value="Compare-at price" />
-          <h:inputText id="compareAtPrice" value="#{manageProductBean.compareAtPrice}" />
+                    <my:formFieldGroup label="Short description" for="shortDescription">
+                        <h:inputText id="shortDescription" value="#{manageProductBean.shortDescription}" />
+                    </my:formFieldGroup>
 
-          <h:outputLabel for="stock" value="Stock" />
-          <h:inputText id="stock" value="#{manageProductBean.stock}" />
+                    <my:formFieldGroup label="Description (HTML)" for="description">
+                        <h:inputTextarea id="description" value="#{manageProductBean.description}"
+                                         rows="5" cols="40" />
+                    </my:formFieldGroup>
 
-          <h:outputLabel for="weightGrams" value="Weight (grams)" />
-          <h:inputText id="weightGrams" value="#{manageProductBean.weightGrams}" />
+                    <my:formFieldGroup label="Price" for="price">
+                        <h:inputText id="price" value="#{manageProductBean.price}" />
+                    </my:formFieldGroup>
 
-          <h:outputLabel for="metaTitle" value="SEO title" />
-          <h:inputText id="metaTitle" value="#{manageProductBean.metaTitle}" />
+                    <my:formFieldGroup label="Compare-at price" for="compareAtPrice">
+                        <h:inputText id="compareAtPrice" value="#{manageProductBean.compareAtPrice}" />
+                    </my:formFieldGroup>
 
-          <h:outputLabel for="metaDescription" value="SEO description" />
-          <h:inputTextarea id="metaDescription" value="#{manageProductBean.metaDescription}" rows="2" cols="40" />
+                    <my:formFieldGroup label="Stock" for="stock">
+                        <h:inputText id="stock" value="#{manageProductBean.stock}" />
+                    </my:formFieldGroup>
 
-          <h:outputLabel value="Categories" />
-          <h:selectManyCheckbox id="categories" value="#{manageProductBean.selectedCategoryIds}">
-            <f:selectItems value="#{manageProductBean.categories}" var="c"
-                           itemValue="#{c.id}" itemLabel="#{c.name}" />
-          </h:selectManyCheckbox>
-        </h:panelGrid>
+                    <my:formFieldGroup label="Weight (grams)" for="weightGrams">
+                        <h:inputText id="weightGrams" value="#{manageProductBean.weightGrams}" />
+                    </my:formFieldGroup>
 
-        <h:commandButton value="#{manageProductBean.editMode ? 'Save changes' : 'Create product'}"
-                         action="#{manageProductBean.submit}" />
-      </h:form>
+                    <my:formFieldGroup label="SEO title" for="metaTitle">
+                        <h:inputText id="metaTitle" value="#{manageProductBean.metaTitle}" />
+                    </my:formFieldGroup>
 
-      <h:form id="imageForm" rendered="#{manageProductBean.editMode}">
-        <h3>Images</h3>
+                    <my:formFieldGroup label="SEO description" for="metaDescription">
+                        <h:inputTextarea id="metaDescription" value="#{manageProductBean.metaDescription}"
+                                         rows="2" cols="40" />
+                    </my:formFieldGroup>
 
-        <h:dataTable value="#{manageProductBean.currentProduct.images}" var="image"
-                     rendered="#{not empty manageProductBean.currentProduct.images}">
-          <h:column>
-            <f:facet name="header">Image</f:facet>
-            <h:graphicImage value="#{manageProductBean.imageUrl(image)}" width="80" height="80" />
-          </h:column>
-          <h:column>
-            <f:facet name="header">Alt text</f:facet>
-            <h:inputText value="#{image.altText}" />
-          </h:column>
-          <h:column>
-            <f:facet name="header">Primary</f:facet>
-            <h:selectOneRadio value="#{manageProductBean.primaryImageId}" layout="pageDirection">
-              <f:selectItem itemValue="#{image.id}" itemLabel="Primary" />
-            </h:selectOneRadio>
-          </h:column>
-          <h:column>
-            <f:facet name="header">Order</f:facet>
-            <h:commandButton value="Up" action="#{manageProductBean.moveUp(image)}"
-                             disabled="#{not manageProductBean.canMoveUp(image)}" />
-            <h:commandButton value="Down" action="#{manageProductBean.moveDown(image)}"
-                             disabled="#{not manageProductBean.canMoveDown(image)}" />
-          </h:column>
-        </h:dataTable>
+                    <my:formFieldGroup label="Categories" for="categories">
+                        <h:selectManyCheckbox id="categories" value="#{manageProductBean.selectedCategoryIds}">
+                            <f:selectItems value="#{manageProductBean.categories}" var="c"
+                                           itemValue="#{c.id}" itemLabel="#{c.name}" />
+                        </h:selectManyCheckbox>
+                    </my:formFieldGroup>
 
-        <h:commandButton value="Apply image changes"
-                         action="#{manageProductBean.applyImageChanges}"
-                         rendered="#{not empty manageProductBean.currentProduct.images}" />
+                    <ui:fragment rendered="#{not manageProductBean.editMode}">
+                        <my:formFieldGroup label="Image file (optional)" for="createFile">
+                            <h:inputFile id="createFile" value="#{manageProductBean.file}" />
+                        </my:formFieldGroup>
+                        <my:formFieldGroup label="Image alt text" for="createUploadAltText">
+                            <h:inputText id="createUploadAltText" value="#{manageProductBean.uploadAltText}" />
+                        </my:formFieldGroup>
+                        <my:formFieldGroup label="Make primary" for="createUploadPrimary">
+                            <h:selectBooleanCheckbox id="createUploadPrimary"
+                                                     value="#{manageProductBean.uploadPrimary}" />
+                        </my:formFieldGroup>
+                    </ui:fragment>
 
-        <h:panelGrid columns="2">
-          <h:outputLabel for="file" value="Image file (jpeg/png/webp, max 5 MB)" />
-          <h:inputFile id="file" value="#{manageProductBean.file}" />
-          <h:outputLabel for="uploadAltText" value="Alt text" />
-          <h:inputText id="uploadAltText" value="#{manageProductBean.uploadAltText}" />
-          <h:outputLabel for="uploadPrimary" value="Make primary" />
-          <h:selectBooleanCheckbox id="uploadPrimary" value="#{manageProductBean.uploadPrimary}" />
-        </h:panelGrid>
-        <h:commandButton value="Upload image" action="#{manageProductBean.uploadImage}" />
-      </h:form>
+                    <h:commandButton value="#{manageProductBean.editMode ? 'Save changes' : 'Create product'}"
+                                     action="#{manageProductBean.submit}" styleClass="button" />
+                </h:form>
+            </div>
 
-      <h:form id="statusForm" rendered="#{manageProductBean.editMode}">
-        <h3>Status: #{manageProductBean.currentProduct.status}</h3>
-        <h:commandButton value="Publish" action="#{manageProductBean.publish}"
-                         disabled="#{not manageProductBean.canPublish()}" />
-        <h:commandButton value="Archive" action="#{manageProductBean.archive}"
-                         disabled="#{not manageProductBean.canArchive()}" />
-      </h:form>
-    </h:panelGroup>
-  </h:body>
-</html>
+            <ui:fragment rendered="#{manageProductBean.editMode}">
+                <div class="card">
+                    <h:form id="imageForm">
+                        <h2>Images</h2>
+
+                        <h:dataTable value="#{manageProductBean.currentProduct.images}" var="image"
+                                     styleClass="data-table"
+                                     rendered="#{not empty manageProductBean.currentProduct.images}">
+                            <h:column>
+                                <f:facet name="header">Image</f:facet>
+                                <h:graphicImage value="#{manageProductBean.imageUrl(image)}"
+                                                width="80" height="80" />
+                            </h:column>
+                            <h:column>
+                                <f:facet name="header">Alt text</f:facet>
+                                <h:inputText value="#{image.altText}" />
+                            </h:column>
+                            <h:column>
+                                <f:facet name="header">Primary</f:facet>
+                                <h:selectOneRadio value="#{manageProductBean.primaryImageId}"
+                                                  layout="pageDirection">
+                                    <f:selectItem itemValue="#{image.id}" itemLabel="Primary" />
+                                </h:selectOneRadio>
+                            </h:column>
+                            <h:column>
+                                <f:facet name="header">Order</f:facet>
+                                <h:commandButton value="Up" action="#{manageProductBean.moveUp(image)}"
+                                                 disabled="#{not manageProductBean.canMoveUp(image)}" />
+                                <h:commandButton value="Down" action="#{manageProductBean.moveDown(image)}"
+                                                 disabled="#{not manageProductBean.canMoveDown(image)}" />
+                            </h:column>
+                        </h:dataTable>
+
+                        <h:commandButton value="Apply image changes"
+                                         action="#{manageProductBean.applyImageChanges}"
+                                         rendered="#{not empty manageProductBean.currentProduct.images}"
+                                         styleClass="button" />
+
+                        <h:panelGrid columns="2" styleClass="form-grid">
+                            <h:outputLabel for="file" value="Image file (jpeg/png/webp, max 5 MB)" />
+                            <h:inputFile id="file" value="#{manageProductBean.file}" />
+                            <h:outputLabel for="uploadAltText" value="Alt text" />
+                            <h:inputText id="uploadAltText" value="#{manageProductBean.uploadAltText}" />
+                            <h:outputLabel for="uploadPrimary" value="Make primary" />
+                            <h:selectBooleanCheckbox id="uploadPrimary"
+                                                     value="#{manageProductBean.uploadPrimary}" />
+                        </h:panelGrid>
+                        <h:commandButton value="Upload image" action="#{manageProductBean.uploadImage}"
+                                         styleClass="button" />
+                    </h:form>
+                </div>
+
+                <div class="card">
+                    <h:form id="statusForm">
+                        <h2>Status</h2>
+                        <my:statusBadge status="#{manageProductBean.currentProduct.status}" />
+                        <h:commandButton value="Publish" action="#{manageProductBean.publish}"
+                                         disabled="#{not manageProductBean.canPublish()}"
+                                         styleClass="button" />
+                        <h:commandButton value="Archive" action="#{manageProductBean.archive}"
+                                         disabled="#{not manageProductBean.canArchive()}"
+                                         styleClass="button button-secondary" />
+                    </h:form>
+                </div>
+            </ui:fragment>
+        </ui:fragment>
+    </ui:define>
+</ui:composition>

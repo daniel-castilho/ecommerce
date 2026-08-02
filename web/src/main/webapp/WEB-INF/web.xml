@@ -30,6 +30,12 @@
         <param-value>true</param-value>
     </context-param>
 
+    <!-- Shared design-system composite components (statusBadge, formFieldGroup). -->
+    <context-param>
+        <param-name>jakarta.faces.FACELETS_LIBRARIES</param-name>
+        <param-value>/WEB-INF/loja.taglib.xml</param-value>
+    </context-param>
+
     <session-config>
         <session-timeout>30</session-timeout>
         <cookie-config>

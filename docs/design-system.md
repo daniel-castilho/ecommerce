@@ -47,10 +47,11 @@ itself. If you're writing `color: #3498db` in an `.xhtml` or `.css` file, that's
 a bug — find or add the semantic token instead.
 
 All tokens live in one file:
-**`web/src/main/webapp/resources/css/design-tokens.css`**, linked once per page
-as `<h:outputStylesheet library="css" name="design-tokens.css"/>` (or from a
-shared Facelets template once one exists — see §10). Never duplicate token
-definitions per module.
+**`web/src/main/webapp/resources/css/design-tokens.css`**, consumed via
+**`resources/css/base.css`** (which imports the tokens and holds the shared
+component styles). Both are linked by the shared Facelets template
+`WEB-INF/templates/main.xhtml`; pages never link stylesheets directly (see
+§10, Q1 — resolved). Never duplicate token definitions per module.
 
 ---
 
@@ -86,22 +87,27 @@ Location: `web/src/main/webapp/WEB-INF/tags/` (registered via a
 
 | Component | File | Status | Used by (real pages) | Tokens consumed |
 |---|---|---|---|---|
-| Status badge | `status-badge.xhtml` | **Extracted** (rule of two met) | `order-confirmed.xhtml` (Order.Status), `manageProduct.xhtml` (ProductStatus), `admin/users.xhtml` (UserStatus) | `--badge-*`, `--color-status-*` |
-| Form field group | `form-field-group.xhtml` | **Extracted** (rule of two met) | login, register, password-reset, password-reset-confirm, profile, address-book, checkout, manageProduct | `--form-field-*` |
+| Status badge | `WEB-INF/tags/status-badge.xhtml` | **Built** (rule of two met) | `manageProduct.xhtml` (ProductStatus) wired; `order-confirmed.xhtml` (Order.Status) and `admin/users.xhtml` (UserStatus) adopt it when converted to the shared template | `--badge-*`, `--color-status-*` |
+| Form field group | `WEB-INF/tags/form-field-group.xhtml` | **Built** (rule of two met) | `manageProduct.xhtml` wired; login, register, password-reset, password-reset-confirm, profile, address-book, checkout adopt it when converted | `--form-field-*` |
 | Admin data table | `admin-data-table.xhtml` | **Candidate — not yet** (1 occurrence: `admin/users.xhtml`) | — | (not defined yet) |
 | Metric card | `metric-card.xhtml` | **Candidate — not yet** (0 occurrences: no dashboard page) | — | (not defined yet) |
 
 **Usage example** (status badge, referenced from any `.xhtml`):
 
 ```xhtml
-<ui:composition xmlns:my="...facelet-taglib-namespace...">
+<ui:composition xmlns:ui="jakarta.faces.facelets"
+                xmlns:my="https://loja.com/design-system">
   <my:statusBadge status="#{order.status}" />
 </ui:composition>
 ```
 
+The tag library is declared in `WEB-INF/loja.taglib.xml` and registered via the
+`jakarta.faces.FACELETS_LIBRARIES` context-param in `web.xml`.
+
 Internally `status-badge.xhtml` maps the enum value to a CSS class
-(`status-{enum-value-lowercase}`) that resolves entirely through
-`--color-status-*` tokens — the component itself never hardcodes a color.
+(`status-{enum-value-lowercase}`, via `fn:toLowerCase` — `jakarta.tags.functions`)
+that resolves entirely through `--color-status-*` tokens — the component itself
+never hardcodes a color.
 
 This inventory is the canonical list. **Before writing a new page,** check if
 the visual element you need already exists here — and honor the rule of two
@@ -232,18 +238,33 @@ here.
   admin-data-table and metric-card are listed as candidates only, not
   extracted. Status tokens mirror the real enums Order.Status, ProductStatus
   and UserStatus.
+- 2026-08-01 — Built the shared foundation: `resources/css/base.css` (imports
+  the tokens + shared component styles), `WEB-INF/templates/main.xhtml`
+  (shared template linking the stylesheet) and the `https://loja.com/design-system`
+  tag library (`WEB-INF/loja.taglib.xml`) with real `status-badge` and
+  `form-field-group` tag files, registered via `jakarta.faces.FACELETS_LIBRARIES`.
+  Converted the product-catalog pages (`catalog.xhtml`, `manageProduct.xhtml`)
+  to the template + tokens; public catalog now renders product cards with the
+  primary image; admin create form gained an optional image upload (closes the
+  S7 deviation). Q1 resolved: shared template + single base stylesheet, not
+  per-page stylesheets. Remaining pages (user-account, order-checkout,
+  admin/users) adopt the template in a follow-up round.
 ```
 
 ---
 
 ## 10. Open questions
 
-1. The `web` module currently has **no shared template and no stylesheet at
-   all** — pages render unstyled and `styleClass` names are undefined. Should a
-   shared Facelets template + a single base stylesheet importing
+1. ~~Should a shared Facelets template + a single base stylesheet importing
    `design-tokens.css` be introduced before the next round of pages, or is
    per-page `<h:outputStylesheet>` acceptable while the storefront and admin
-   still differ visually?
+   still differ visually?~~ **Resolved (2026-08-01):** shared template
+   (`WEB-INF/templates/main.xhtml`) + one base stylesheet (`resources/css/base.css`,
+   which `@import`s `design-tokens.css`). Rationale: the storefront and admin now
+   share a visual language and the welcome page is the storefront; per-page
+   stylesheet linking is exactly the drift this file exists to prevent. All new
+   pages render through the template; conversion of the remaining pages is in
+   progress.
 2. Status tokens use one flat namespace for three enums (`Order.Status`,
    `ProductStatus`, `UserStatus`). Overlapping values (`ACTIVE`, `INACTIVE`)
    intentionally share a token. If a fourth enum is introduced later, does it

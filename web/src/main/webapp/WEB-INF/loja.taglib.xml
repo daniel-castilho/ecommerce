@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<facelet-taglib version="4.1"
+                xmlns="https://jakarta.ee/xml/ns/jakartaee"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee
+                https://jakarta.ee/xml/ns/jakartaee/web-facelettaglibrary_4_1.xsd">
+
+    <namespace>https://loja.com/design-system</namespace>
+
+    <tag>
+        <tag-name>statusBadge</tag-name>
+        <source>tags/status-badge.xhtml</source>
+    </tag>
+
+    <tag>
+        <tag-name>formFieldGroup</tag-name>
+        <source>tags/form-field-group.xhtml</source>
+    </tag>
+</facelet-taglib>
