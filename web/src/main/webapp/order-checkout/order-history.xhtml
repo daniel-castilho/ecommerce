@@ -1,0 +1,77 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:my="https://loja.com/design-system"
+                template="/WEB-INF/templates/main.xhtml">
+
+    <ui:define name="title">My Orders</ui:define>
+
+    <ui:define name="content">
+        <h1 class="page-title">My Orders</h1>
+        <h:messages globalOnly="true" styleClass="messages" />
+
+        <div class="card" rendered="#{not orderHistoryBean.loggedIn}">
+            <p>You need to log in to view your orders.</p>
+            <p><h:link outcome="/user-account/login.xhtml" value="Log in" /></p>
+        </div>
+
+        <ui:fragment rendered="#{orderHistoryBean.loggedIn}">
+            <div class="card">
+                <h:dataTable value="#{orderHistoryBean.orders}" var="order"
+                             styleClass="data-table"
+                             rendered="#{not empty orderHistoryBean.orders}">
+                    <h:column>
+                        <f:facet name="header">Order</f:facet>
+                        #{order.id}
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Date</f:facet>
+                        #{orderHistoryBean.formatDate(order.createdAt)}
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Status</f:facet>
+                        <my:statusBadge status="#{order.status}" />
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Total</f:facet>
+                        #{order.total.amount}
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Tracking</f:facet>
+                        <ui:fragment rendered="#{not empty order.trackingNumber}">
+                            <a href="#{orderHistoryBean.trackingUrl(order)}" target="_blank"
+                               rel="noopener">#{order.trackingNumber}</a>
+                        </ui:fragment>
+                        <span rendered="#{empty order.trackingNumber}">&mdash;</span>
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Actions</f:facet>
+                        <h:link outcome="/order-checkout/order-detail.xhtml" value="View"
+                                styleClass="button button-secondary">
+                            <f:param name="orderId" value="#{order.id}" />
+                        </h:link>
+                        <h:commandButton value="Cancel"
+                                         action="#{orderHistoryBean.cancel(order)}"
+                                         rendered="#{orderHistoryBean.canCancel(order)}"
+                                         styleClass="button button-secondary" />
+                    </h:column>
+                </h:dataTable>
+                <p rendered="#{empty orderHistoryBean.orders}">No orders yet.</p>
+
+                <h:form rendered="#{not empty orderHistoryBean.orders}" styleClass="pagination">
+                    <h:commandButton value="Previous" action="#{orderHistoryBean.previousPage}"
+                                     disabled="#{not orderHistoryBean.hasPreviousPage()}"
+                                     styleClass="button button-secondary" />
+                    <span>Page #{orderHistoryBean.page + 1} of #{orderHistoryBean.totalPages}
+                          (#{orderHistoryBean.totalElements} orders)</span>
+                    <h:commandButton value="Next" action="#{orderHistoryBean.nextPage}"
+                                     disabled="#{not orderHistoryBean.hasNextPage()}"
+                                     styleClass="button" />
+                </h:form>
+            </div>
+        </ui:fragment>
+
+        <p><h:link outcome="/product-catalog/catalog.xhtml" value="Back to catalog" /></p>
+    </ui:define>
+</ui:composition>

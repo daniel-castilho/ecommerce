@@ -1,0 +1,106 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:my="https://loja.com/design-system"
+                template="/WEB-INF/templates/main.xhtml">
+
+    <ui:define name="title">Order details</ui:define>
+
+    <ui:define name="content">
+        <h1 class="page-title">Order details</h1>
+        <h:messages globalOnly="true" styleClass="messages" />
+
+        <ui:fragment rendered="#{empty orderHistoryBean.selectedOrder}">
+            <div class="card">
+                <p>Order not found.</p>
+            </div>
+        </ui:fragment>
+
+        <ui:fragment rendered="#{not empty orderHistoryBean.selectedOrder}">
+            <div class="card">
+                <h3>
+                    Order <strong>#{orderHistoryBean.selectedOrder.id}</strong>
+                    &mdash; <my:statusBadge status="#{orderHistoryBean.selectedOrder.status}" />
+                </h3>
+                <p>Placed on #{orderHistoryBean.formatDate(orderHistoryBean.selectedOrder.createdAt)}</p>
+                <p>Email: <strong>#{orderHistoryBean.selectedOrder.customerEmail}</strong></p>
+
+                <h3>Delivery address</h3>
+                <p>
+                    #{orderHistoryBean.selectedOrder.shippingAddress.recipientName}<br/>
+                    #{orderHistoryBean.selectedOrder.shippingAddress.street}
+                    #{orderHistoryBean.selectedOrder.shippingAddress.number}
+                    <ui:fragment rendered="#{not empty orderHistoryBean.selectedOrder.shippingAddress.complement}">
+                        , #{orderHistoryBean.selectedOrder.shippingAddress.complement}
+                    </ui:fragment>
+                    <br/>
+                    #{orderHistoryBean.selectedOrder.shippingAddress.neighborhood}
+                    #{orderHistoryBean.selectedOrder.shippingAddress.city} -
+                    #{orderHistoryBean.selectedOrder.shippingAddress.state}
+                    #{orderHistoryBean.selectedOrder.shippingAddress.postalCode}
+                </p>
+
+                <h3>Items</h3>
+                <h:dataTable value="#{orderHistoryBean.selectedOrder.items}" var="item"
+                             styleClass="data-table">
+                    <h:column>
+                        <f:facet name="header">Product</f:facet>
+                        #{item.productName}
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Quantity</f:facet>
+                        #{item.quantity}
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Unit price</f:facet>
+                        #{item.unitPrice.amount}
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Subtotal</f:facet>
+                        #{item.lineTotal.amount}
+                    </h:column>
+                </h:dataTable>
+
+                <p>Shipping cost: #{orderHistoryBean.selectedOrder.shippingCost.amount}</p>
+                <p>Total: <strong>#{orderHistoryBean.selectedOrder.total.amount}</strong></p>
+
+                <ui:fragment rendered="#{not empty orderHistoryBean.selectedOrder.trackingNumber}">
+                    <p>
+                        Tracking:
+                        <a href="#{orderHistoryBean.trackingUrl(orderHistoryBean.selectedOrder)}"
+                           target="_blank" rel="noopener">#{orderHistoryBean.selectedOrder.trackingNumber}</a>
+                    </p>
+                </ui:fragment>
+            </div>
+
+            <div class="card" rendered="#{orderHistoryBean.canCancel(orderHistoryBean.selectedOrder)}">
+                <h:form>
+                    <p>Cancel this order? This cannot be undone.</p>
+                    <h:commandButton value="Cancel Order"
+                                     action="#{orderHistoryBean.cancel(orderHistoryBean.selectedOrder)}"
+                                     styleClass="button button-secondary" />
+                </h:form>
+            </div>
+
+            <div class="card" rendered="#{orderHistoryBean.canRequestRefund(orderHistoryBean.selectedOrder)}">
+                <h:form>
+                    <h3>Request refund</h3>
+                    <my:formFieldGroup label="Reason" for="refundReason">
+                        <h:inputTextarea id="refundReason" rows="3" cols="40"
+                                         value="#{orderHistoryBean.refundReason}" />
+                    </my:formFieldGroup>
+                    <h:commandButton value="Request Refund"
+                                     action="#{orderHistoryBean.submitRefund}"
+                                     styleClass="button" />
+                </h:form>
+            </div>
+        </ui:fragment>
+
+        <p>
+            <h:link outcome="/order-checkout/order-history.xhtml" value="Back to my orders" />
+            &nbsp;|&nbsp;
+            <h:link outcome="/product-catalog/catalog.xhtml" value="Back to catalog" />
+        </p>
+    </ui:define>
+</ui:composition>

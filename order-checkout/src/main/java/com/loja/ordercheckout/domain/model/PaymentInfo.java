@@ -74,6 +74,11 @@ public final class PaymentInfo {
         return status == PaymentStatus.CAPTURED || status == PaymentStatus.REFUNDED;
     }
 
+    /** Remaining captured balance that can still be refunded. */
+    public Money getRefundableAmount() {
+        return new Money(capturedAmount.getAmount().subtract(refundedAmount.getAmount()));
+    }
+
     /**
      * Whether another refund of the given amount is possible without exceeding
      * the captured amount (idempotency: already-refunded money is not refunded
