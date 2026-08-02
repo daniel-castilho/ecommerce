@@ -16,6 +16,7 @@ import com.loja.productcatalog.domain.model.Sku;
 import com.loja.productcatalog.domain.model.Slug;
 import com.loja.productcatalog.domain.port.in.ArchiveProductUseCase;
 import com.loja.productcatalog.domain.port.in.CreateProductUseCase;
+import com.loja.productcatalog.domain.port.in.GetProductDetailUseCase;
 import com.loja.productcatalog.domain.port.in.PublishProductUseCase;
 import com.loja.productcatalog.domain.port.in.SearchProductsUseCase;
 import com.loja.productcatalog.domain.port.in.UpdateProductImageUseCase;
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -48,8 +50,8 @@ import java.util.UUID;
 @Transactional
 public class ProductApplicationService
         implements CreateProductUseCase, UpdateProductUseCase, PublishProductUseCase,
-                   ArchiveProductUseCase, SearchProductsUseCase, UploadProductImageUseCase,
-                   UpdateProductImageUseCase {
+                   ArchiveProductUseCase, SearchProductsUseCase, GetProductDetailUseCase,
+                   UploadProductImageUseCase, UpdateProductImageUseCase {
 
     private static final long MAX_IMAGE_BYTES = 5L * 1024 * 1024;
     private static final int MAX_IMAGES_PER_PRODUCT = 8;
@@ -155,6 +157,12 @@ public class ProductApplicationService
     @Override
     public List<Product> findByName(String name) {
         return productRepository.findByName(name);
+    }
+
+    @Override
+    public Optional<Product> findActiveBySlug(Slug slug) {
+        return productRepository.findBySlug(slug)
+                .filter(product -> product.getStatus() == ProductStatus.ACTIVE);
     }
 
     @Override

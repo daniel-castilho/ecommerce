@@ -269,6 +269,126 @@ a:hover {
     align-self: flex-start;
 }
 
+/* --- Product detail page (product-detail.xhtml) ---
+   Single occurrence so far — inline styles consuming existing tokens only.
+   No new primitive/semantic/component token was added (see design-system.md
+   sections 4 and 5). Revisit when a second storefront detail layout exists. */
+
+.product-detail {
+    display: grid;
+    grid-template-columns: minmax(280px, 420px) 1fr;
+    gap: var(--space-xl);
+    align-items: start;
+}
+
+.product-detail-main-image {
+    display: block;
+    width: 100%;
+    max-height: 420px;
+    object-fit: cover;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--color-border-default);
+    background: var(--color-bg-subtle);
+}
+
+.product-detail-gallery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+}
+
+.product-detail-thumb-link {
+    display: inline-block;
+    padding: var(--space-xs);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-control);
+    line-height: 0;
+}
+
+.product-detail-thumb-link:hover {
+    border-color: var(--color-border-strong);
+}
+
+.product-detail-thumb-link.active {
+    border-color: var(--color-action-primary);
+}
+
+.product-detail-thumb {
+    display: block;
+    width: var(--space-2xl);
+    height: var(--space-2xl);
+    object-fit: cover;
+    border-radius: var(--radius-control);
+    background: var(--color-bg-subtle);
+}
+
+.product-detail-name {
+    font-size: var(--font-size-h1);
+    font-weight: var(--font-weight-strong);
+    margin: 0 0 var(--space-sm);
+}
+
+.product-detail-price {
+    font-size: var(--font-size-h2);
+    font-weight: var(--font-weight-strong);
+    color: var(--color-text-primary);
+    margin: 0 0 var(--space-sm);
+}
+
+.product-detail-compare-at {
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-normal);
+    color: var(--color-text-muted);
+    text-decoration: line-through;
+    margin-left: var(--space-sm);
+}
+
+.product-detail-availability {
+    font-weight: var(--font-weight-medium);
+    margin: 0 0 var(--space-sm);
+}
+
+.product-detail-availability.in-stock {
+    color: var(--color-feedback-success);
+}
+
+.product-detail-availability.out-of-stock {
+    color: var(--color-feedback-error);
+}
+
+.product-detail-sku {
+    font-size: var(--font-size-caption);
+    color: var(--color-text-muted);
+    margin: 0 0 var(--space-md);
+}
+
+.product-detail-short {
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--space-md);
+}
+
+.product-detail-desc {
+    color: var(--color-text-primary);
+    margin: 0 0 var(--space-md);
+}
+
+.product-detail-desc p {
+    margin: 0 0 var(--space-sm);
+}
+
+.product-detail-categories {
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--space-md);
+}
+
+.product-detail-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-top: var(--space-md);
+}
+
 /* --- Pagination --- */
 
 .pagination {

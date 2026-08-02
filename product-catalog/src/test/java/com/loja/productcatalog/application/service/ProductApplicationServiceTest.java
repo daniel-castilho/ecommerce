@@ -319,6 +319,32 @@ class ProductApplicationServiceTest {
         verify(productRepository).findAll();
     }
 
+    // ------------------------------------------------------------ product detail
+
+    @Test
+    void findActiveBySlug_activeProduct_returnsIt() {
+        Product active = product(ProductStatus.ACTIVE);
+        when(productRepository.findBySlug(new Slug("abc-123"))).thenReturn(Optional.of(active));
+
+        assertThat(service.findActiveBySlug(new Slug("abc-123"))).containsSame(active);
+        verify(productRepository).findBySlug(new Slug("abc-123"));
+    }
+
+    @Test
+    void findActiveBySlug_nonActiveProduct_returnsEmpty() {
+        Product draft = product(ProductStatus.DRAFT);
+        when(productRepository.findBySlug(new Slug("abc-123"))).thenReturn(Optional.of(draft));
+
+        assertThat(service.findActiveBySlug(new Slug("abc-123"))).isEmpty();
+    }
+
+    @Test
+    void findActiveBySlug_unknownSlug_returnsEmpty() {
+        when(productRepository.findBySlug(new Slug("unknown"))).thenReturn(Optional.empty());
+
+        assertThat(service.findActiveBySlug(new Slug("unknown"))).isEmpty();
+    }
+
     // ------------------------------------------------------------------ uploadImage
 
     @Test

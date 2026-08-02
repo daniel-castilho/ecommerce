@@ -1,0 +1,103 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                template="/WEB-INF/templates/main.xhtml">
+
+    <ui:define name="title">#{productDetailBean.title}</ui:define>
+
+    <ui:define name="content">
+        <h:messages globalOnly="true" styleClass="messages" />
+
+        <ui:fragment rendered="#{productDetailBean.notFound}">
+            <div class="card">
+                <h1 class="page-title">Product not found</h1>
+                <p>The product you are looking for is not available anymore.</p>
+                <h:link outcome="/product-catalog/catalog.xhtml" value="Back to catalog"
+                        styleClass="button" />
+            </div>
+        </ui:fragment>
+
+        <ui:fragment rendered="#{not productDetailBean.notFound}">
+            <div class="product-detail">
+
+                <div>
+                    <h:form id="galleryForm">
+                        <h:graphicImage value="#{productDetailBean.mainImageUrl}"
+                                        alt="#{productDetailBean.mainImageAlt}"
+                                        styleClass="product-detail-main-image"
+                                        rendered="#{not empty productDetailBean.mainImageUrl}" />
+                        <div class="product-detail-gallery"
+                             rendered="#{productDetailBean.galleryImages.size() gt 1}">
+                            <ui:repeat value="#{productDetailBean.galleryImages}"
+                                       var="image" varStatus="status">
+                                <h:commandLink action="#{productDetailBean.selectImage(status.index)}"
+                                               title="#{image.altText}"
+                                               styleClass="product-detail-thumb-link"
+                                               rendered="#{status.index ne productDetailBean.selectedImageIndex}">
+                                    <h:graphicImage value="#{productDetailBean.imageUrl(image)}"
+                                                    alt="#{image.altText}"
+                                                    styleClass="product-detail-thumb" />
+                                </h:commandLink>
+                                <span class="product-detail-thumb-link active"
+                                      rendered="#{status.index eq productDetailBean.selectedImageIndex}">
+                                    <h:graphicImage value="#{productDetailBean.imageUrl(image)}"
+                                                    alt="#{image.altText}"
+                                                    styleClass="product-detail-thumb" />
+                                </span>
+                            </ui:repeat>
+                        </div>
+                    </h:form>
+                </div>
+
+                <div>
+                    <h1 class="product-detail-name">#{productDetailBean.product.name}</h1>
+
+                    <div class="product-detail-price">
+                        $#{productDetailBean.product.price.amount}
+                        <span class="product-detail-compare-at"
+                              rendered="#{not empty productDetailBean.product.compareAtPrice}">
+                            $#{productDetailBean.product.compareAtPrice.amount}
+                        </span>
+                    </div>
+
+                    <p class="product-detail-availability in-stock"
+                       rendered="#{productDetailBean.inStock}">In stock</p>
+                    <p class="product-detail-availability out-of-stock"
+                       rendered="#{not productDetailBean.inStock}">Out of stock</p>
+
+                    <p class="product-detail-sku">SKU: #{productDetailBean.product.skuValue}</p>
+
+                    <p class="product-detail-short"
+                       rendered="#{not empty productDetailBean.product.shortDescription}">
+                        #{productDetailBean.product.shortDescription}
+                    </p>
+
+                    <div class="product-detail-desc"
+                         rendered="#{not empty productDetailBean.product.description}">
+                        #{productDetailBean.product.description}
+                    </div>
+
+                    <p class="product-detail-categories"
+                       rendered="#{not empty productDetailBean.categoryNames}">
+                        Categories: #{productDetailBean.categoryNames}
+                    </p>
+
+                    <div class="product-detail-actions">
+                        <h:link outcome="/order-checkout/checkout.xhtml" value="Buy"
+                                styleClass="button"
+                                rendered="#{productDetailBean.inStock}">
+                            <f:param name="productId" value="#{productDetailBean.product.id}" />
+                        </h:link>
+                        <span class="button button-secondary" rendered="#{not productDetailBean.inStock}">
+                            Out of stock
+                        </span>
+                        <h:link outcome="/product-catalog/catalog.xhtml" value="Back to catalog"
+                                styleClass="button button-secondary" />
+                    </div>
+                </div>
+
+            </div>
+        </ui:fragment>
+    </ui:define>
+</ui:composition>

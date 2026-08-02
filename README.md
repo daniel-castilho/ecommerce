@@ -85,8 +85,14 @@ WAR into `dropins`. The dev keystore password lives in `web/src/main/liberty/con
   `product-images` bucket + `tb_product_image` row + public GET 200, category assignment,
   publish → `ACTIVE`; `@RolesAllowed("ADMIN")` + session-role page guard).
   Step 8 done (public catalog manually QA'd: ACTIVE product listed anonymously with
-  name/SKU/price/description and working search/pagination; cards link to checkout — no
-  dedicated product-detail page yet).
+  name/SKU/price/description and working search/pagination; cards link to the detail page —
+  see below — and from there to checkout).
+  Product-detail page done (2026-08-01): cards link to `product-detail.xhtml?slug=...`
+  (no more card → checkout); `GetProductDetailUseCase.findActiveBySlug` never returns
+  non-ACTIVE products, 404-style "not found" card otherwise; page shows primary/gallery
+  images (thumbnail selector), price + compare-at, stock availability, sanitized
+  description, category names and a "Buy" link back to checkout; styles consume existing
+  semantic tokens only (no new tokens — first occurrence).
   Step 9 done (`ProductHexagonalArchitectureTest` — 8/8 ArchUnit rules green: domain
   free of `jakarta.*`/`javax.*`, domain/application isolated from adapters, allowed-dependency
   whitelists, ports are interfaces, `*Adapter` implements interfaces, JPA entities used only in
@@ -172,6 +178,17 @@ address-book, admin/users, checkout, order-confirmed) now render through the sha
 template + tokens — every page in the WAR shares one visual language.
 
 ## General pending items (outside the product-catalog epic)
+
+Backlog / radar (kept here so these are not forgotten; each gets its own work item when started):
+
+- **Real providers** for payment / shipping / notification (mock adapters today — see
+  `docs/notification-system-guide.md`)
+- **Jakarta Security / real RBAC** (manual session-role guard + `@RolesAllowed("ADMIN")` today)
+- **Real `DataSource`** (`java:/EcommerceDS`) configured in the application server
+- **CI pipeline** (ArchUnit + tests as a PR gate; noted as missing in the backlog specs)
+- **Scheduled inventory-reservation expiry** (today it is lazy: released on the next `reserve`
+  of the same product)
+- **admin-dashboard metrics** (module still composes no real metrics from the other modules)
 
 - Set up a real `DataSource` (`java:/EcommerceDS`) in the application server.
 
