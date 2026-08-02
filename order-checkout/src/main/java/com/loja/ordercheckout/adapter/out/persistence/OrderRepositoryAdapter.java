@@ -1,11 +1,13 @@
 package com.loja.ordercheckout.adapter.out.persistence;
 
 import com.loja.ordercheckout.application.dto.PageResult;
+import com.loja.ordercheckout.domain.exception.OrderConcurrentModificationException;
 import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.OrderStatus;
 import com.loja.ordercheckout.domain.port.out.OrderRepositoryPort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.OptimisticLockException;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
 import java.util.Optional;
@@ -18,9 +20,13 @@ public class OrderRepositoryAdapter implements OrderRepositoryPort {
 
     @Override
     public Order save(Order order) {
-        OrderJpaEntity merged = em.merge(OrderJpaEntity.fromDomain(order));
-        em.flush();
-        return merged.toDomain();
+        try {
+            OrderJpaEntity merged = em.merge(OrderJpaEntity.fromDomain(order));
+            em.flush();
+            return merged.toDomain();
+        } catch (OptimisticLockException e) {
+            throw new OrderConcurrentModificationException(order.getId());
+        }
     }
 
     @Override

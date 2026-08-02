@@ -1,6 +1,7 @@
 package com.loja.ordercheckout.adapter.out.persistence;
 
 import com.loja.ordercheckout.application.dto.PageResult;
+import com.loja.ordercheckout.domain.exception.OrderConcurrentModificationException;
 import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.OrderLine;
 import com.loja.ordercheckout.domain.model.OrderStatus;
@@ -16,8 +17,14 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -226,12 +233,15 @@ class OrderRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         Order order = confirmedOrder("order-30", "user-30");
 
         inTx(() -> adapter.save(order));
-        order.process();
-        inTx(() -> adapter.save(order));
+
+        Order loaded = inTx(() -> adapter.findById("order-30")).orElseThrow();
+        loaded.process();
+        inTx(() -> adapter.save(loaded));
 
         Optional<Order> restored = inTx(() -> adapter.findById("order-30"));
         assertThat(restored).isPresent();
         assertThat(restored.get().getStatus()).isEqualTo(OrderStatus.PROCESSING);
+        assertThat(restored.get().getVersion()).isGreaterThan(0);
 
         Long rowCount = inTx(() -> (Long) em.createNativeQuery(
                 "SELECT COUNT(*) FROM tb_order WHERE id = 'order-30'").getSingleResult());
@@ -239,8 +249,61 @@ class OrderRepositoryJpaAdapterIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void shouldRoundTripFullAggregateWithAddressAndPayment() {
-        Order order = new Order("order-40", "user-40");
+    void optimisticLock_twoConcurrentUpdatesOnlyOneWins() throws Exception {
+        inTx(() -> adapter.save(confirmedOrder("lock-1", "user-1")));
+
+        int poolSize = 2;
+        ExecutorService executor = Executors.newFixedThreadPool(poolSize);
+        CountDownLatch ready = new CountDownLatch(poolSize);
+        CountDownLatch go = new CountDownLatch(1);
+        List<Future<Boolean>> futures = new ArrayList<>();
+
+        for (int i = 0; i < poolSize; i++) {
+            futures.add(executor.submit(() -> {
+                EntityManager workerEm = emf.createEntityManager();
+                OrderRepositoryAdapter workerAdapter = new OrderRepositoryAdapter();
+                workerAdapter.em = workerEm;
+                EntityTransaction tx = workerEm.getTransaction();
+                tx.begin();
+                try {
+                    Order order = workerAdapter.findById("lock-1").orElseThrow();
+                    ready.countDown();
+                    go.await();
+                    order.cancel();
+                    workerAdapter.save(order);
+                    tx.commit();
+                    return true;
+                } catch (OrderConcurrentModificationException e) {
+                    if (tx.isActive()) {
+                        tx.rollback();
+                    }
+                    return false;
+                } finally {
+                    workerEm.close();
+                }
+            }));
+        }
+
+        ready.await();
+        go.countDown();
+        List<Boolean> results = new ArrayList<>();
+        for (Future<Boolean> future : futures) {
+            results.add(future.get(30, TimeUnit.SECONDS));
+        }
+        executor.shutdown();
+
+        assertThat(results).containsExactlyInAnyOrder(true, false);
+
+        Optional<Order> restored = inTx(() -> adapter.findById("lock-1"));
+        assertThat(restored).isPresent();
+        assertThat(restored.get().getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        Long rowCount = inTx(() -> (Long) em.createNativeQuery(
+                "SELECT COUNT(*) FROM tb_order WHERE id = 'lock-1'").getSingleResult());
+        assertThat(rowCount).isEqualTo(1L);
+    }
+
+    @Test
+    void shouldRoundTripFullAggregateWithAddressAndPayment() {        Order order = new Order("order-40", "user-40");
         order.addItem(line("p1", "Product A", 2, new Money(new BigDecimal("10.00")), 0));
         order.setShippingAddress(new ShippingAddress("Ana Souza", "Rua das Flores", "123", null,
                 "Centro", "São Paulo", "SP", "01310-100", null));

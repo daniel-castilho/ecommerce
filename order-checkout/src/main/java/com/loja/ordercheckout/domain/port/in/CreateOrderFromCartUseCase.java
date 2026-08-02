@@ -1,9 +1,7 @@
 package com.loja.ordercheckout.domain.port.in;
 
+import com.loja.ordercheckout.application.dto.CheckoutCommand;
 import com.loja.ordercheckout.domain.model.Order;
-import com.loja.ordercheckout.domain.model.PaymentMethod;
-import com.loja.ordercheckout.domain.model.ShippingAddress;
-import java.util.List;
 
 /**
  * Inbound use case: place an order from a cart, quoting shipping, processing the
@@ -18,10 +16,4 @@ public interface CreateOrderFromCartUseCase {
      *         when the payment capture failed (no notification is sent in that case)
      */
     Order checkout(CheckoutCommand command);
-
-    record CheckoutCommand(String requestId, String userId, String customerEmail,
-                           List<ItemCheckoutRequest> items, ShippingAddress shippingAddress,
-                           String shippingMethod, PaymentMethod paymentMethod) { }
-
-    record ItemCheckoutRequest(String productId, int quantity) { }
 }

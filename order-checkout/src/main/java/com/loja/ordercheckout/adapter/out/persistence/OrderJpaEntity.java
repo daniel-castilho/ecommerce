@@ -19,6 +19,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -54,6 +55,10 @@ public class OrderJpaEntity {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
+    @Version
+    @Column(nullable = false)
+    private long version;
+
     @Embedded
     private ShippingAddressEmbeddable shippingAddress;
 
@@ -85,6 +90,7 @@ public class OrderJpaEntity {
         e.shippingCost = order.getShippingCost() == null ? null : order.getShippingCost().getAmount();
         e.trackingNumber = order.getTrackingNumber();
         e.paymentInfo = PaymentInfoEmbeddable.fromDomain(order.getPaymentInfo());
+        e.version = order.getVersion();
         e.items = new ArrayList<>(order.getItems().stream()
                 .map(OrderLineEmbeddable::fromDomain)
                 .toList());
@@ -98,13 +104,14 @@ public class OrderJpaEntity {
                 shippingCost == null ? null : new Money(shippingCost),
                 trackingNumber,
                 paymentInfo == null ? null : paymentInfo.toDomain(),
-                updatedAt);
+                updatedAt, version);
     }
 
     public String getId() { return id; }
     public String getUserId() { return userId; }
     public OrderStatus getStatus() { return status; }
     public Instant getCreatedAt() { return createdAt; }
+    public long getVersion() { return version; }
     public List<OrderLineEmbeddable> getItems() { return items; }
 
     @Embeddable

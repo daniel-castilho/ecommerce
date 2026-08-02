@@ -3,13 +3,13 @@ package com.loja.ordercheckout.adapter.out.persistence;
 import com.loja.ordercheckout.adapter.out.notification.NotificationMockAdapter;
 import com.loja.ordercheckout.adapter.out.payment.PaymentGatewayMockAdapter;
 import com.loja.ordercheckout.adapter.out.shipping.ShippingRateMockAdapter;
+import com.loja.ordercheckout.application.dto.CheckoutCommand;
+import com.loja.ordercheckout.application.dto.ItemCheckoutRequest;
 import com.loja.ordercheckout.application.service.OrderApplicationService;
 import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.OrderStatus;
 import com.loja.ordercheckout.domain.model.PaymentMethod;
 import com.loja.ordercheckout.domain.model.ShippingAddress;
-import com.loja.ordercheckout.domain.port.in.CreateOrderFromCartUseCase.CheckoutCommand;
-import com.loja.ordercheckout.domain.port.in.CreateOrderFromCartUseCase.ItemCheckoutRequest;
 import com.loja.productcatalog.application.dto.ReservationRequest;
 import com.loja.productcatalog.domain.model.Product;
 import com.loja.productcatalog.domain.model.ProductStatus;
@@ -25,14 +25,23 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -144,5 +153,57 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
                 "SELECT COUNT(*) FROM tb_order WHERE id = 'e2e-dup'").getSingleResult());
         assertThat(rowCount).isEqualTo(1L);
         assertThat(notification.getNotifications()).hasSize(1);
+    }
+
+    @Test
+    void checkout_twoConcurrentSubmissionsForSameCart_onlyOneOrderIsCreated() throws Exception {
+        CyclicBarrier barrier = new CyclicBarrier(2);
+        doAnswer(invocation -> {
+            barrier.await(30, TimeUnit.SECONDS);
+            return null;
+        }).when(inventoryReservation).reserve(anyString(), anyList());
+
+        int poolSize = 2;
+        ExecutorService executor = Executors.newFixedThreadPool(poolSize);
+        List<Future<Boolean>> futures = new ArrayList<>();
+
+        for (int i = 0; i < poolSize; i++) {
+            futures.add(executor.submit(() -> {
+                EntityManager workerEm = emf.createEntityManager();
+                OrderRepositoryAdapter workerRepository = new OrderRepositoryAdapter();
+                workerRepository.em = workerEm;
+                OrderApplicationService workerService = new OrderApplicationService(workerRepository,
+                        productRepository, new PaymentGatewayMockAdapter(),
+                        new ShippingRateMockAdapter(), notification, inventoryReservation);
+                EntityTransaction workerTx = workerEm.getTransaction();
+                workerTx.begin();
+                try {
+                    workerService.checkout(command("e2e-race"));
+                    workerTx.commit();
+                    return true;
+                } catch (RuntimeException e) {
+                    if (workerTx.isActive()) {
+                        workerTx.rollback();
+                    }
+                    return false;
+                } finally {
+                    workerEm.close();
+                }
+            }));
+        }
+
+        List<Boolean> results = new ArrayList<>();
+        for (Future<Boolean> future : futures) {
+            results.add(future.get(60, TimeUnit.SECONDS));
+        }
+        executor.shutdown();
+
+        assertThat(results).containsExactlyInAnyOrder(true, false);
+        Long rowCount = inTx(() -> (Long) em.createNativeQuery(
+                "SELECT COUNT(*) FROM tb_order WHERE id = 'e2e-race'").getSingleResult());
+        assertThat(rowCount).isEqualTo(1L);
+        verify(inventoryReservation, times(2)).reserve("e2e-race",
+                List.of(new ReservationRequest("p1", 2)));
+        verify(inventoryReservation, atLeastOnce()).confirm("e2e-race");
     }
 }

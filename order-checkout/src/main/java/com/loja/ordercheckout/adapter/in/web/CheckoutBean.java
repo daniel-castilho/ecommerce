@@ -1,5 +1,7 @@
 package com.loja.ordercheckout.adapter.in.web;
 
+import com.loja.ordercheckout.application.dto.CheckoutCommand;
+import com.loja.ordercheckout.application.dto.ItemCheckoutRequest;
 import com.loja.ordercheckout.domain.exception.PaymentFailedException;
 import com.loja.ordercheckout.domain.exception.ShippingException;
 import com.loja.ordercheckout.domain.model.Order;
@@ -7,8 +9,6 @@ import com.loja.ordercheckout.domain.model.PaymentMethod;
 import com.loja.ordercheckout.domain.model.ShippingAddress;
 import com.loja.ordercheckout.domain.model.ShippingOption;
 import com.loja.ordercheckout.domain.port.in.CreateOrderFromCartUseCase;
-import com.loja.ordercheckout.domain.port.in.CreateOrderFromCartUseCase.CheckoutCommand;
-import com.loja.ordercheckout.domain.port.in.CreateOrderFromCartUseCase.ItemCheckoutRequest;
 import com.loja.ordercheckout.domain.port.out.OrderRepositoryPort;
 import com.loja.ordercheckout.domain.port.out.ShippingRatePort;
 import com.loja.productcatalog.domain.exception.InsufficientStockException;

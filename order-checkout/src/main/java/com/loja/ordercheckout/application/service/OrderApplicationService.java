@@ -1,5 +1,7 @@
 package com.loja.ordercheckout.application.service;
 
+import com.loja.ordercheckout.application.dto.CheckoutCommand;
+import com.loja.ordercheckout.application.dto.ItemCheckoutRequest;
 import com.loja.ordercheckout.domain.exception.PaymentFailedException;
 import com.loja.ordercheckout.domain.exception.ShippingException;
 import com.loja.ordercheckout.domain.model.Order;

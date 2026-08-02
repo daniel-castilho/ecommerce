@@ -22,6 +22,7 @@ public final class Order {
     private String customerEmail;
     private final Instant createdAt;
     private Instant updatedAt;
+    private long version;
     private final List<OrderLine> items = new ArrayList<>();
     private ShippingAddress shippingAddress;
     private Money shippingCost;
@@ -62,6 +63,15 @@ public final class Order {
                                 OrderStatus status, List<OrderLine> items, ShippingAddress shippingAddress,
                                 Money shippingCost, String trackingNumber, PaymentInfo paymentInfo,
                                 Instant updatedAt) {
+        return restore(id, userId, customerEmail, createdAt, status, items, shippingAddress,
+                shippingCost, trackingNumber, paymentInfo, updatedAt, 0L);
+    }
+
+    /** Restores an exact persisted snapshot including the optimistic-lock version. */
+    public static Order restore(String id, String userId, String customerEmail, Instant createdAt,
+                                OrderStatus status, List<OrderLine> items, ShippingAddress shippingAddress,
+                                Money shippingCost, String trackingNumber, PaymentInfo paymentInfo,
+                                Instant updatedAt, long version) {
         Order order = new Order(id, userId, createdAt, status);
         order.customerEmail = customerEmail;
         order.items.addAll(items);
@@ -70,6 +80,7 @@ public final class Order {
         order.trackingNumber = trackingNumber;
         order.paymentInfo = paymentInfo;
         order.updatedAt = updatedAt;
+        order.version = version;
         return order;
     }
 
@@ -206,6 +217,7 @@ public final class Order {
     public String getId() { return id; }
     public String getUserId() { return userId; }
     public String getCustomerEmail() { return customerEmail; }
+    public long getVersion() { return version; }
 
     public void setCustomerEmail(String customerEmail) {
         this.customerEmail = customerEmail;

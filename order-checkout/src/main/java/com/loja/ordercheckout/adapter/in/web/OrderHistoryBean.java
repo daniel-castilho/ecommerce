@@ -2,6 +2,7 @@ package com.loja.ordercheckout.adapter.in.web;
 
 import com.loja.ordercheckout.application.dto.PageResult;
 import com.loja.ordercheckout.domain.exception.InvalidOrderStateException;
+import com.loja.ordercheckout.domain.exception.OrderConcurrentModificationException;
 import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.OrderStatus;
 import com.loja.ordercheckout.domain.port.in.CustomerOrderHistoryUseCase;
@@ -117,6 +118,9 @@ public class OrderHistoryBean implements Serializable {
                     "Order " + order.getId() + " was cancelled");
         } catch (IllegalArgumentException | InvalidOrderStateException e) {
             addMessage(FacesMessage.SEVERITY_ERROR, "Cancel failed", e.getMessage());
+        } catch (OrderConcurrentModificationException e) {
+            addMessage(FacesMessage.SEVERITY_ERROR, "Order was updated by another process",
+                    "Please reload the page and try again");
         }
         if (selectedOrder != null && selectedOrder.getId().equals(order.getId())) {
             selectedOrder = orderHistory.findById(order.getId(), currentUserId()).orElse(null);
@@ -142,6 +146,9 @@ public class OrderHistoryBean implements Serializable {
                     "Order " + order.getId() + " was refunded");
         } catch (IllegalArgumentException | InvalidOrderStateException e) {
             addMessage(FacesMessage.SEVERITY_ERROR, "Refund failed", e.getMessage());
+        } catch (OrderConcurrentModificationException e) {
+            addMessage(FacesMessage.SEVERITY_ERROR, "Order was updated by another process",
+                    "Please reload the page and try again");
         }
         return null;
     }
