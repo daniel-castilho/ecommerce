@@ -24,11 +24,31 @@
                     status <my:statusBadge status="#{checkoutBean.confirmedOrder.status}" />
                 </p>
 
+                <p>
+                    Email: <strong>#{checkoutBean.confirmedOrder.customerEmail}</strong>
+                </p>
+
+                <h3>Delivery address</h3>
+                <p>
+                    #{checkoutBean.confirmedOrder.shippingAddress.recipientName}<br/>
+                    #{checkoutBean.confirmedOrder.shippingAddress.street}
+                    #{checkoutBean.confirmedOrder.shippingAddress.number}
+                    <ui:fragment rendered="#{not empty checkoutBean.confirmedOrder.shippingAddress.complement}">
+                        , #{checkoutBean.confirmedOrder.shippingAddress.complement}
+                    </ui:fragment>
+                    <br/>
+                    #{checkoutBean.confirmedOrder.shippingAddress.neighborhood}
+                    #{checkoutBean.confirmedOrder.shippingAddress.city} -
+                    #{checkoutBean.confirmedOrder.shippingAddress.state}
+                    #{checkoutBean.confirmedOrder.shippingAddress.postalCode}
+                </p>
+
+                <h3>Items</h3>
                 <h:dataTable value="#{checkoutBean.confirmedOrder.items}" var="item"
                              styleClass="data-table">
                     <h:column>
                         <f:facet name="header">Product</f:facet>
-                        #{item.productId}
+                        #{item.productName}
                     </h:column>
                     <h:column>
                         <f:facet name="header">Quantity</f:facet>
@@ -40,10 +60,11 @@
                     </h:column>
                     <h:column>
                         <f:facet name="header">Subtotal</f:facet>
-                        #{item.subtotal.amount}
+                        #{item.lineTotal.amount}
                     </h:column>
                 </h:dataTable>
 
+                <p>Shipping cost: #{checkoutBean.confirmedOrder.shippingCost.amount}</p>
                 <p>Total: <strong>#{checkoutBean.confirmedOrder.total.amount}</strong></p>
             </div>
         </ui:fragment>

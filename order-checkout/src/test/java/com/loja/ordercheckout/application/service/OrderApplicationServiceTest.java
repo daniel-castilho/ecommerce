@@ -1,0 +1,215 @@
+package com.loja.ordercheckout.application.service;
+
+import com.loja.ordercheckout.domain.exception.PaymentFailedException;
+import com.loja.ordercheckout.domain.exception.ShippingException;
+import com.loja.ordercheckout.domain.model.Order;
+import com.loja.ordercheckout.domain.model.OrderStatus;
+import com.loja.ordercheckout.domain.model.PaymentAuthorization;
+import com.loja.ordercheckout.domain.model.PaymentCapture;
+import com.loja.ordercheckout.domain.model.PaymentMethod;
+import com.loja.ordercheckout.domain.model.ShippingAddress;
+import com.loja.ordercheckout.domain.model.ShippingOption;
+import com.loja.ordercheckout.domain.port.in.CreateOrderFromCartUseCase.CheckoutCommand;
+import com.loja.ordercheckout.domain.port.in.CreateOrderFromCartUseCase.ItemCheckoutRequest;
+import com.loja.ordercheckout.domain.port.out.NotificationPort;
+import com.loja.ordercheckout.domain.port.out.OrderRepositoryPort;
+import com.loja.ordercheckout.domain.port.out.PaymentGatewayPort;
+import com.loja.ordercheckout.domain.port.out.ShippingRatePort;
+import com.loja.productcatalog.domain.exception.InsufficientStockException;
+import com.loja.productcatalog.domain.model.Product;
+import com.loja.productcatalog.domain.model.ProductStatus;
+import com.loja.productcatalog.domain.model.Sku;
+import com.loja.productcatalog.domain.model.Slug;
+import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
+import com.loja.shared.domain.Money;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+class OrderApplicationServiceTest {
+
+    private final OrderRepositoryPort orderRepository = mock(OrderRepositoryPort.class);
+    private final ProductRepositoryPort productRepository = mock(ProductRepositoryPort.class);
+    private final PaymentGatewayPort paymentGateway = mock(PaymentGatewayPort.class);
+    private final ShippingRatePort shippingRate = mock(ShippingRatePort.class);
+    private final NotificationPort notification = mock(NotificationPort.class);
+
+    private OrderApplicationService service;
+    private final Map<String, Order> store = new HashMap<>();
+
+    @BeforeEach
+    void setUp() {
+        service = new OrderApplicationService(orderRepository, productRepository,
+                paymentGateway, shippingRate, notification);
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+            Order saved = inv.getArgument(0);
+            store.put(saved.getId(), saved);
+            return saved;
+        });
+        when(orderRepository.findById(anyString()))
+                .thenAnswer(inv -> Optional.ofNullable(store.get(inv.getArgument(0))));
+        when(shippingRate.getQuotes(any())).thenReturn(List.of(
+                new ShippingOption("pac", new Money(new BigDecimal("15.00")), 15, "PAC"),
+                new ShippingOption("sedex", new Money(new BigDecimal("30.00")), 2, "SEDEX")));
+    }
+
+    private Product product(String id, Money price, int stock) {
+        return new Product(id, new Sku("SKU-" + id), new Slug("slug-" + id), "Product " + id,
+                null, null, price, null, stock, ProductStatus.ACTIVE,
+                null, null, null, Set.of(1L), List.of());
+    }
+
+    private ShippingAddress address() {
+        return new ShippingAddress("Ana Souza", "Rua das Flores", "123", null,
+                "Centro", "Sao Paulo", "SP", "01310-100", null);
+    }
+
+    private CheckoutCommand command(String requestId) {
+        return new CheckoutCommand(requestId, "user-1", "ana@example.com",
+                List.of(new ItemCheckoutRequest("p1", 2), new ItemCheckoutRequest("p2", 3)),
+                address(), "pac", new PaymentMethod("card", "tok_test"));
+    }
+
+    private void stubProductsAndStock() {
+        when(productRepository.findById("p1")).thenReturn(Optional.of(
+                product("p1", new Money(new BigDecimal("10.00")), 5)));
+        when(productRepository.findById("p2")).thenReturn(Optional.of(
+                product("p2", new Money(new BigDecimal("5.50")), 3)));
+        when(productRepository.decrementStock(anyString(), anyInt()))
+                .thenReturn(1);
+    }
+
+    @Test
+    void checkout_withValidCommand_createsConfirmedOrderSavesAndNotifies() {
+        stubProductsAndStock();
+        PaymentAuthorization auth = new PaymentAuthorization("card", "auth-1",
+                new Money(new BigDecimal("51.50")), "tx-1", Instant.now());
+        PaymentCapture capture = new PaymentCapture("auth-1", "capture-1",
+                new Money(new BigDecimal("51.50")), "tx-1", Instant.now());
+        when(paymentGateway.authorize(any(), any())).thenReturn(auth);
+        when(paymentGateway.capture("auth-1")).thenReturn(capture);
+
+        Order order = service.checkout(command("req-1"));
+
+        assertThat(order.getId()).isEqualTo("req-1");
+        assertThat(order.getUserId()).isEqualTo("user-1");
+        assertThat(order.getCustomerEmail()).isEqualTo("ana@example.com");
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        assertThat(order.getItems()).hasSize(2);
+        assertThat(order.getShippingCost().getAmount()).isEqualByComparingTo("15.00");
+        assertThat(order.getTotal().getAmount()).isEqualByComparingTo("51.50");
+        verify(productRepository).decrementStock("p1", 2);
+        verify(productRepository).decrementStock("p2", 3);
+        verify(orderRepository).save(order);
+        verify(notification).notifyOrderConfirmed(order);
+    }
+
+    @Test
+    void checkout_whenCaptureFails_returnsPendingOrderWithoutNotification() {
+        stubProductsAndStock();
+        when(paymentGateway.authorize(any(), any())).thenReturn(new PaymentAuthorization(
+                "card", "auth-1", new Money(new BigDecimal("51.50")), "tx-1", Instant.now()));
+        when(paymentGateway.capture("auth-1"))
+                .thenThrow(new PaymentFailedException("Payment capture failed."));
+
+        Order order = service.checkout(command("req-2"));
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(order.getPaymentInfo().getStatus().name()).isEqualTo("AUTHORIZED");
+        verify(orderRepository).save(order);
+        verify(notification, never()).notifyOrderConfirmed(any());
+    }
+
+    @Test
+    void checkout_whenStockInsufficient_throwsBeforePaymentIsAttempted() {
+        when(productRepository.findById("p1")).thenReturn(Optional.of(
+                product("p1", new Money(new BigDecimal("10.00")), 0)));
+        when(productRepository.decrementStock("p1", 2)).thenReturn(0);
+        CheckoutCommand command = new CheckoutCommand("req-3", "user-1", "ana@example.com",
+                List.of(new ItemCheckoutRequest("p1", 2)), address(), "pac",
+                new PaymentMethod("card", "tok_test"));
+
+        assertThatThrownBy(() -> service.checkout(command))
+                .isInstanceOf(InsufficientStockException.class)
+                .hasMessageContaining("p1");
+        verify(paymentGateway, never()).authorize(any(), any());
+        verify(paymentGateway, never()).capture(anyString());
+        verify(orderRepository, never()).save(any());
+        verify(notification, never()).notifyOrderConfirmed(any());
+    }
+
+    @Test
+    void checkout_duplicateRequestId_returnsExistingOrderWithoutReprocessing() {
+        stubProductsAndStock();
+        when(paymentGateway.authorize(any(), any())).thenReturn(new PaymentAuthorization(
+                "card", "auth-1", new Money(new BigDecimal("51.50")), "tx-1", Instant.now()));
+        when(paymentGateway.capture("auth-1")).thenReturn(new PaymentCapture(
+                "auth-1", "capture-1", new Money(new BigDecimal("51.50")), "tx-1", Instant.now()));
+
+        Order first = service.checkout(command("req-dup"));
+        Order second = service.checkout(command("req-dup"));
+
+        assertThat(second.getId()).isEqualTo(first.getId());
+        assertThat(second).isEqualTo(first);
+        verify(productRepository, times(1)).decrementStock("p1", 2);
+        verify(productRepository, times(1)).decrementStock("p2", 3);
+        verify(notification, times(1)).notifyOrderConfirmed(any());
+    }
+
+    @Test
+    void checkout_unknownShippingMethod_throwsShippingException() {
+        stubProductsAndStock();
+        CheckoutCommand command = new CheckoutCommand("req-4", "user-1", "ana@example.com",
+                List.of(new ItemCheckoutRequest("p1", 1)), address(), "overnight",
+                new PaymentMethod("card", "tok_test"));
+
+        assertThatThrownBy(() -> service.checkout(command))
+                .isInstanceOf(ShippingException.class)
+                .hasMessageContaining("overnight");
+    }
+
+    @Test
+    void checkout_withZeroQuantity_throwsIllegalArgumentException() {
+        CheckoutCommand command = new CheckoutCommand("req-5", "user-1", "ana@example.com",
+                List.of(new ItemCheckoutRequest("p1", 0)), address(), "pac",
+                new PaymentMethod("card", "tok_test"));
+
+        assertThatThrownBy(() -> service.checkout(command))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("positive");
+        verify(productRepository, never()).decrementStock(anyString(), anyInt());
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void checkout_withUnknownProduct_throwsIllegalArgumentException() {
+        when(productRepository.findById("missing")).thenReturn(Optional.empty());
+
+        CheckoutCommand command = new CheckoutCommand("req-6", "user-1", "ana@example.com",
+                List.of(new ItemCheckoutRequest("missing", 1)), address(), "pac",
+                new PaymentMethod("card", "tok_test"));
+
+        assertThatThrownBy(() -> service.checkout(command))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Product not found");
+        verify(orderRepository, never()).save(any());
+    }
+}

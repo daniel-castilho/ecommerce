@@ -2,6 +2,7 @@
                 xmlns:ui="jakarta.faces.facelets"
                 xmlns:h="jakarta.faces.html"
                 xmlns:f="jakarta.faces.core"
+                xmlns:my="https://loja.com/design-system"
                 template="/WEB-INF/templates/main.xhtml">
 
     <ui:define name="title">Checkout</ui:define>
@@ -10,33 +11,168 @@
         <h1 class="page-title">Checkout</h1>
         <h:messages showDetail="true" showSummary="false" styleClass="messages" />
 
-        <div class="card">
-            <h:outputText value="You need to log in before placing an order."
-                          rendered="#{not userBean.isLoggedIn()}" />
-
-            <h:form rendered="#{userBean.isLoggedIn()}">
-                <h:dataTable value="#{checkoutBean.cartLines}" var="line" styleClass="data-table">
-                    <h:column>
-                        <f:facet name="header">Product ID</f:facet>
-                        <h:inputText value="#{line.productId}" />
-                    </h:column>
-                    <h:column>
-                        <f:facet name="header">Quantity</f:facet>
-                        <h:inputText value="#{line.quantity}" />
-                    </h:column>
-                    <h:column>
-                        <f:facet name="header">Remove</f:facet>
-                        <h:commandButton value="Remove" action="#{checkoutBean.removeLine(line)}"
-                                         styleClass="button button-secondary" />
-                    </h:column>
-                </h:dataTable>
-
-                <h:commandButton value="Add product" action="#{checkoutBean.addLine}"
-                                 styleClass="button button-secondary" />
-                <h:commandButton value="Place order" action="#{checkoutBean.checkout}"
-                                 styleClass="button" />
-            </h:form>
+        <div class="card" rendered="#{not userBean.isLoggedIn()}">
+            <p>You need to log in before placing an order.</p>
         </div>
+
+        <ui:fragment rendered="#{userBean.isLoggedIn()}">
+            <div class="card">
+                <p>Step <strong>#{checkoutBean.step}</strong> of 4: #{checkoutBean.stepLabel}</p>
+            </div>
+
+            <h:form rendered="#{checkoutBean.step == 1}">
+                <div class="card">
+                    <h3>Your cart</h3>
+                    <h:dataTable value="#{checkoutBean.cartLines}" var="line" styleClass="data-table">
+                        <h:column>
+                            <f:facet name="header">Product ID</f:facet>
+                            <h:inputText value="#{line.productId}" />
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Quantity</f:facet>
+                            <h:inputText value="#{line.quantity}" />
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Remove</f:facet>
+                            <h:commandButton value="Remove" action="#{checkoutBean.removeLine(line)}"
+                                             styleClass="button button-secondary" />
+                        </h:column>
+                    </h:dataTable>
+                    <h:commandButton value="Add product" action="#{checkoutBean.addLine}"
+                                     styleClass="button button-secondary" />
+                </div>
+
+                <div class="card">
+                    <h3>Review</h3>
+                    <h:dataTable value="#{checkoutBean.reviewLines}" var="view" styleClass="data-table">
+                        <h:column>
+                            <f:facet name="header">Product</f:facet>
+                            #{view.name}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Quantity</f:facet>
+                            #{view.quantity}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Unit price</f:facet>
+                            #{view.unitPrice.amount}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Subtotal</f:facet>
+                            #{view.lineTotal.amount}
+                        </h:column>
+                    </h:dataTable>
+                    <p>Subtotal: <strong>#{checkoutBean.subtotal.amount}</strong></p>
+                    <h:commandButton value="Continue to shipping" action="#{checkoutBean.goToShipping}"
+                                     styleClass="button" />
+                </div>
+            </h:form>
+
+            <h:form rendered="#{checkoutBean.step == 2}">
+                <div class="card">
+                    <h3>Shipping address</h3>
+
+                    <ui:fragment rendered="#{empty checkoutBean.shippingOptions}">
+                        <div class="form-grid">
+                            <my:formFieldGroup label="Recipient" for="recipient">
+                                <h:inputText id="recipient" value="#{checkoutBean.recipientName}" required="true" />
+                            </my:formFieldGroup>
+                            <my:formFieldGroup label="Street" for="street">
+                                <h:inputText id="street" value="#{checkoutBean.street}" required="true" />
+                            </my:formFieldGroup>
+                            <my:formFieldGroup label="Number" for="number">
+                                <h:inputText id="number" value="#{checkoutBean.number}" required="true" />
+                            </my:formFieldGroup>
+                            <my:formFieldGroup label="Complement" for="complement">
+                                <h:inputText id="complement" value="#{checkoutBean.complement}" />
+                            </my:formFieldGroup>
+                            <my:formFieldGroup label="Neighborhood" for="neighborhood">
+                                <h:inputText id="neighborhood" value="#{checkoutBean.neighborhood}" />
+                            </my:formFieldGroup>
+                            <my:formFieldGroup label="City" for="city">
+                                <h:inputText id="city" value="#{checkoutBean.city}" required="true" />
+                            </my:formFieldGroup>
+                            <my:formFieldGroup label="State" for="state">
+                                <h:inputText id="state" value="#{checkoutBean.state}" required="true" />
+                            </my:formFieldGroup>
+                            <my:formFieldGroup label="Postal code (CEP)" for="postalCode">
+                                <h:inputText id="postalCode" value="#{checkoutBean.postalCode}" required="true" />
+                            </my:formFieldGroup>
+                            <my:formFieldGroup label="Phone" for="phoneNumber">
+                                <h:inputText id="phoneNumber" value="#{checkoutBean.phoneNumber}" />
+                            </my:formFieldGroup>
+                        </div>
+                        <h:commandButton value="Check shipping rates" action="#{checkoutBean.loadShippingOptions}"
+                                         styleClass="button" />
+                        <h:commandButton value="Back" action="#{checkoutBean.backFromShipping}"
+                                         styleClass="button button-secondary" />
+                    </ui:fragment>
+
+                    <ui:fragment rendered="#{not empty checkoutBean.shippingOptions}">
+                        <h3>Choose a shipping method</h3>
+                        <div class="form-field">
+                            <h:selectOneRadio id="method" value="#{checkoutBean.shippingMethod}" required="true">
+                                <f:selectItems value="#{checkoutBean.shippingOptions}" var="option"
+                                               itemValue="#{option.method}"
+                                               itemLabel="#{option.description} - #{option.cost.amount}" />
+                            </h:selectOneRadio>
+                        </div>
+                        <p>Shipping cost will be added to your order total.</p>
+                        <h:commandButton value="Continue to payment" action="#{checkoutBean.nextFromShipping}"
+                                         styleClass="button" />
+                        <h:commandButton value="Back" action="#{checkoutBean.backFromShipping}"
+                                         styleClass="button button-secondary" />
+                    </ui:fragment>
+                </div>
+            </h:form>
+
+            <h:form rendered="#{checkoutBean.step == 3}">
+                <div class="card">
+                    <h3>Payment</h3>
+                    <my:formFieldGroup label="Email" for="email">
+                        <h:inputText id="email" value="#{checkoutBean.customerEmail}" required="true" />
+                    </my:formFieldGroup>
+                    <my:formFieldGroup label="Payment token" for="paymentToken">
+                        <h:inputText id="paymentToken" value="#{checkoutBean.paymentToken}" required="true" />
+                    </my:formFieldGroup>
+                    <p>Card details are tokenized by your payment provider in the browser; only the token reaches the server.</p>
+                    <h:commandButton value="Continue to confirm" action="#{checkoutBean.nextFromPayment}"
+                                     styleClass="button" />
+                    <h:commandButton value="Back" action="#{checkoutBean.backFromPayment}"
+                                     styleClass="button button-secondary" />
+                </div>
+            </h:form>
+
+            <h:form rendered="#{checkoutBean.step == 4}">
+                <div class="card">
+                    <h3>Confirm your order</h3>
+                    <h:dataTable value="#{checkoutBean.reviewLines}" var="view" styleClass="data-table">
+                        <h:column>
+                            <f:facet name="header">Product</f:facet>
+                            #{view.name}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Quantity</f:facet>
+                            #{view.quantity}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Subtotal</f:facet>
+                            #{view.lineTotal.amount}
+                        </h:column>
+                    </h:dataTable>
+                    <p>Shipping (#{checkoutBean.shippingMethod}): #{checkoutBean.shippingCost.amount}</p>
+                    <p>Total: <strong>#{checkoutBean.orderTotal.amount}</strong></p>
+                    <p>
+                        Deliver to: #{checkoutBean.recipientName}, #{checkoutBean.street}
+                        #{checkoutBean.number}, #{checkoutBean.city} - #{checkoutBean.state}
+                        #{checkoutBean.postalCode}
+                    </p>
+                    <h:commandButton value="Place Order" action="#{checkoutBean.placeOrder}" styleClass="button" />
+                    <h:commandButton value="Back" action="#{checkoutBean.backFromConfirm}"
+                                     styleClass="button button-secondary" />
+                </div>
+            </h:form>
+        </ui:fragment>
 
         <p><h:link outcome="/product-catalog/catalog" value="Back to catalog" /></p>
     </ui:define>
