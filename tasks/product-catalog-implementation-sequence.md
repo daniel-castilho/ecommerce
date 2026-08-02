@@ -202,7 +202,7 @@ Corresponds to backlog story **S6**. Can be done in parallel with Steps 3–4 by
 4. Add the `testcontainers-localstack` test dependency (consistent with the existing Testcontainers setup from `user-account`) and write `ProductImageStorageS3AdapterTest` against it — covering upload/delete/content-type-rejection/size-rejection/endpoint-override-unset-in-prod-profile.
 5. **HTML sanitizer (resolved):** add `com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer` (this is the real groupId; `org.owasp:owasp-java-html-sanitizer` does not exist on Central) when implementing the `description` sanitization rule (spec §9) in Step 6.
 
-**Done when:** the test suite from backlog S6 passes in CI (not just locally) — confirm the CI pipeline (if one exists) can run Testcontainers (Docker-in-Docker or equivalent); if no CI pipeline exists yet, note this as a gap to raise with the human rather than silently skipping CI verification.
+**Done when:** the test suite from backlog S6 passes in CI (not just locally) — confirm the CI pipeline can run Testcontainers (Docker-in-Docker or equivalent); the CI pipeline exists since 2026-08-01 (`.github/workflows/ci.yml`, `integration-tests` job runs `*IT` on Docker runners).
 
 ---
 

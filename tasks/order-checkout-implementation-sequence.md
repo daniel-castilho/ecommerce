@@ -681,7 +681,7 @@ In `catalog-adapters/src/test/java/.../order/`:
 **Done when:**
 - [ ] All 6 ArchUnit tests pass
 - [ ] No architectural violations detected
-- [ ] Tests integrated into CI pipeline
+- [x] Tests integrated into CI pipeline (`.github/workflows/ci.yml`, added 2026-08-01)
 
 ---
 

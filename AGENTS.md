@@ -70,6 +70,9 @@ adapter/out/persistence   JPA entities + mapper (toDomain/fromDomain) + port imp
   - Every adapter operation needs an **explicit transaction** (`inTx(...)`) — mirrors the production `@Transactional`.
   - **Close the `EntityManager` in `@AfterEach`** — an orphaned `idle in transaction` connection blocks the next test's `TRUNCATE`.
   - Pagination: `getResultList()`, **never** `getResultStream()` (it ignores `setFirstResult`/`setMaxResults`).
+- **CI** (`.github/workflows/ci.yml`, GitHub Actions) is the PR gate: `unit-and-archunit` (unit + ArchUnit,
+  `javax.*` guard, WAR packaging) then `integration-tests` (Testcontainers, Docker on the runner). Keep the
+  fast checks green before pushing; the two status checks must pass on `main` (branch protection).
 
 ## JPA gotchas (docs/lessons.md #1)
 

@@ -173,7 +173,7 @@ Each story is sized to be completable and demoable independently (INVEST's "Smal
 - [x] **Given** a product that already has 8 images, **when** a 9th upload is attempted, **then** it is rejected with a clear "maximum images reached" message — *business rule in Step 6*.
 - [x] **Given** the same adapter code, **when** the `s3.endpoint-override` config is unset, **then** the `S3Client` is built without an endpoint override (verified by inspecting the client config in a unit test, not by actually hitting real AWS in CI).
 
-**Definition of Done:** `ProductImageStorageS3AdapterTest` runs against a `testcontainers-localstack` instance in CI (not just local dev) — this is the story that proves the LocalStack setup is CI-reproducible, not just a developer's laptop convenience. *(no CI pipeline in the repo — gap noted in the sequence doc.)*
+**Definition of Done:** `ProductImageStorageS3AdapterTest` runs against a `testcontainers-localstack` instance in CI (not just local dev) — this is the story that proves the LocalStack setup is CI-reproducible, not just a developer's laptop convenience. *(CI pipeline added 2026-08-01: `.github/workflows/ci.yml`, `integration-tests` job runs `*IT` incl. LocalStack on Docker runners.)*
 
 **Story points:** 8
 
