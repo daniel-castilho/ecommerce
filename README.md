@@ -221,7 +221,22 @@ Backlog / radar (kept here so these are not forgotten; each gets its own work it
 
 - **Real providers** for payment / shipping / notification (mock adapters today — see
   `docs/notification-system-guide.md`)
-- **admin-dashboard metrics** (module still composes no real metrics from the other modules)
+- **admin-dashboard full epic** — the basic user/product/order counts are now real (see below),
+  but the rest of the 27-story epic in `tasks/admin-dashboard-*.md` (revenue/conversion metrics,
+  order/product/customer management, refunds, PDF/CSV reports, charts, 5-min cache) is still
+  ahead. Requires new dependencies (Guava, PrimeFaces Charts, Flying Saucer, Commons CSV) —
+  human approval needed before adding them.
+
+Completed (2026-08-02): **admin-dashboard metrics now real** — `DashboardMetricsService.getSummary()`
+composes `totalUsers`/`totalProducts`/`totalOrders` from the other modules' input ports instead of
+hardcoded zeroes: product count via `SearchProductsUseCase.findAll()`, user count via the new
+`CountUsersUseCase` (user-account, backed by `UserRepositoryPort.count()`), order count via the new
+`AdminOrderMetricsUseCase` (order-checkout, backed by `OrderRepositoryPort.countAll()`). Each count
+is a single `SELECT COUNT` (no row materialization). Tests: `UserMetricsServiceTest`,
+`AdminOrderMetricsServiceTest`, updated `DashboardMetricsServiceTest`, plus `count()`/`countAll()`
+IT cases. The 4 admin-dashboard epic planning docs (`tasks/admin-dashboard-backlog.md`,
+`admin-dashboard-module-spec.md`, `admin-dashboard-implementation-sequence.md`,
+`ai-software-engineer-prompt-admin-dashboard.md`) are now versioned in git.
 
 Applied (2026-07-31): `V8__order_checkout_schema.sql` on the running `shop_db`
 (Postgres 15) and registered in `flyway_schema_history` (rank 7, checksum NULL,

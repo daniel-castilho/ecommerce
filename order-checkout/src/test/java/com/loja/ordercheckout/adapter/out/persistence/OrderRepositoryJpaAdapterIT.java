@@ -212,6 +212,24 @@ class OrderRepositoryJpaAdapterIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void shouldCountAllOrders() {
+        inTx(() -> adapter.save(confirmedOrder("count-1", "user-1")));
+        inTx(() -> adapter.save(confirmedOrder("count-2", "user-2")));
+        inTx(() -> adapter.save(confirmedOrder("count-3", "user-3")));
+
+        long total = inTx(adapter::countAll);
+
+        assertThat(total).isEqualTo(3);
+    }
+
+    @Test
+    void shouldCountAllOrdersReturnZeroWhenEmpty() {
+        long total = inTx(adapter::countAll);
+
+        assertThat(total).isZero();
+    }
+
+    @Test
     void shouldPersistLinesSortedByPosition() {
         Order order = new Order("order-20", "user-20");
         order.addItem(line("c", "Product C", 1, new Money(new BigDecimal("1.00")), 2));

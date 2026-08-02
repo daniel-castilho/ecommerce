@@ -11,4 +11,7 @@ public interface OrderRepositoryPort {
     Optional<Order> findById(String id);
     PageResult<Order> findByCustomerId(String customerId, int page, int pageSize);
     List<Order> findByStatus(OrderStatus status);
+
+    /** Total number of persisted orders (admin metrics). */
+    long countAll();
 }

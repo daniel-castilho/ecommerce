@@ -13,4 +13,7 @@ public interface UserRepositoryPort {
     Optional<User> findByResetToken(String token);
     PageResult<User> findAll(int page, int pageSize, UserSearchCriteria criteria);
     void delete(String userId);
+
+    /** Total number of registered users (admin metrics). */
+    long count();
 }

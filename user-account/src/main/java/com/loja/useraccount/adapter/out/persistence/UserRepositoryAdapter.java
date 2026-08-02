@@ -97,6 +97,12 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
         }
     }
 
+    @Override
+    public long count() {
+        return em.createQuery("SELECT COUNT(u) FROM UserJpaEntity u", Long.class)
+                .getSingleResult();
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

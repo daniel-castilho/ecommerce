@@ -71,4 +71,10 @@ public class OrderRepositoryAdapter implements OrderRepositoryPort {
                 .map(OrderJpaEntity::toDomain)
                 .toList();
     }
+
+    @Override
+    public long countAll() {
+        return em.createQuery("SELECT COUNT(o) FROM OrderJpaEntity o", Long.class)
+                .getSingleResult();
+    }
 }

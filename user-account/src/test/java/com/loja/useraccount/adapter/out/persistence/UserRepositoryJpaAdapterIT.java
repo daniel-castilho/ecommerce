@@ -154,6 +154,22 @@ class UserRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         assertThat(found.get().getFailedLoginAttempts()).isEqualTo(5);
     }
 
+    @Test
+    void shouldCountAllUsers() {
+        long before = adapter.count();
+
+        EntityTransaction tx = em.getTransaction();
+        tx.begin();
+        adapter.save(createUser("count-1@example.com", "Count One"));
+        adapter.save(createUser("count-2@example.com", "Count Two"));
+        tx.commit();
+        em.clear();
+
+        long total = adapter.count();
+
+        assertThat(total).isEqualTo(before + 2);
+    }
+
     private User createUser(String email, String fullName) {
         return User.create(
                 new Email(email),
