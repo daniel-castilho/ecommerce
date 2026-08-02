@@ -4,19 +4,9 @@
 
 **Purpose of this document:** the technical spec answers "how do we build it." This document answers "what are the independently valuable, shippable slices, in what order, and how do we know each one is done." It follows INVEST, Given/When/Then acceptance criteria, and explicit Definition of Ready / Definition of Done — the things the technical spec deliberately does not cover (see the earlier conversation's gap analysis).
 
-> ## ⚠️ WRITTEN FOR THE LEGACY `java-ee-online-shop` REPO — EPIC NOT YET IMPLEMENTED (July 30, 2026)
+> ## ✅ EPIC DELIVERED (2026-07-31)
 >
-> This backlog is still a **forward plan** — none of S1–S9 is implemented in the `ecommerce` repo yet. The story names, dependencies, and acceptance criteria remain valid as a build order; only the *targets* differ from the body's wording. Read the banner in `product-catalog-module-spec.md` first — it is authoritative. Key mapping for this file:
->
-> - All code lands in the single `product-catalog` Maven module (root `com.loja.productcatalog`; hex packages `domain/model`, `domain/port/in|out`, `application/service`, `application/dto`, `adapter/in/web`, `adapter/out/persistence`, `adapter/out/storage`), with pages in `web/.../webapp/product-catalog/`. The `user-account` module is the convention reference.
-> - S1: `Money` already exists in `shared-kernel` (`com.loja.shared.domain.Money`) — reuse; only `Sku`/`Slug` are new value objects. IDs are String UUID, not Long.
-> - S2: the entity to extend is the existing `ProductJpaEntity` (table `tb_product`); migration is `V7__product_catalog_extension.sql` in `flyway/sql/` (manual `flyway_schema_history` registration, no runner). There is no `ProductDao` to port and no old class to delete.
-> - S3: extends the existing `ProductRepositoryAdapter` (today: `findByName`/`findAll`/`findById`/`save`) + new `ProductJpaMapper`; `order-checkout` must keep compiling against `ProductRepositoryPort` and `Product.reserveStock`.
-> - S4: **there is no `Category` model and no `CategoryCacheEjb` anywhere** — the category tree is built from scratch (the legacy cache/EJB references in S4's Definition of Done do not apply; an `@ApplicationScoped` invalidation-on-mutation cache is enough).
-> - S6: `docker/docker-compose.yaml` already defines `localstack` (s3, 4566); only the bucket bootstrap script is missing. Config via env/system-property (no MicroProfile Config). Testcontainers is already the repo standard.
-> - S7: new `ManageProductBean` in `adapter/in/web` (pattern `AdminUsersBean`, `@RolesAllowed("ADMIN")` at bean level — no container IdentityStore); new `manageProduct.xhtml` in the `web` module; plain `<h:inputFile>` (no JSF component library).
-> - S8: extend the existing `ProductCatalogBean` + `catalog.xhtml`.
-> - S9: the concurrency/Testcontainers test infra already exists (from `user-account`) — mirror it.
+> All S1–S9 stories below are implemented and verified in the `product-catalog` module (hexagonal, package root `com.loja.productcatalog`; pages in the `web` module). The per-story **Status** annotations and the story table at the end are authoritative — where a story body conflicts with its Status line, the Status line wins. The story bodies are the original planning text. See `product-catalog-module-spec.md` for the as-built description and `product-catalog-implementation-sequence.md` for the execution record.
 
 ---
 

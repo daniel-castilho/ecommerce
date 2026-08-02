@@ -2,7 +2,7 @@
 
 **Audience:** this document is written for an AI coding agent that will implement the changes directly in the `ecommerce` repository. It assumes the stack and conventions already established in the project's `java-jakarta-ee-coding-standards.md` (Jakarta EE 11, multi-module Maven layout, CDI/hexagonal architecture, JPA, JSF/Facelets, Open Liberty) **and the patterns established by the Product Catalog and Order & Checkout modules**, which serve as reference implementations.
 
-**Status:** draft for implementation. Section 14 lists assumptions the implementer should flag back to the human if they turn out to be wrong. Companion documents: `user-account-backlog.md` (story breakdown) and `user-account-implementation-sequence.md` (step-by-step build order).
+**Status:** implemented and verified. Section 14 lists assumptions the implementer should flag back to the human if they turn out to be wrong. Companion documents: `user-account-backlog.md` (story breakdown) and `user-account-implementation-sequence.md` (session completion record).
 
 > ## ✅ IMPLEMENTED — Read this before the body (July 30, 2026)
 >

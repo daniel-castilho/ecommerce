@@ -1,6 +1,6 @@
 # User Account Module — Agile Backlog Refinement
 
-**Companion to:** `user-account-module-spec.md` (technical design) and `user-account-implementation-sequence.md` (build order).
+**Companion to:** `user-account-module-spec.md` (technical design) and `user-account-implementation-sequence.md` (session completion record).
 
 **Purpose of this document:** Break down the User Account module into independently valuable, shippable stories with Given/When/Then acceptance criteria, Definition of Ready, and Definition of Done — enabling incremental delivery and concurrent work if needed.
 

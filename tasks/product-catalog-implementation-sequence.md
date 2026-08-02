@@ -2,19 +2,9 @@
 
 **Companion to:** `product-catalog-module-spec.md` (what to build) and `product-catalog-backlog.md` (why, sliced into stories). This document is the **execution order** — read it before writing any code. It exists so the implementing agent never has to stop and ask "what do I do first" or produce a half-migrated, non-compiling intermediate state.
 
-> ## ⚠️ WRITTEN FOR THE LEGACY `java-ee-online-shop` REPO — ADAPT BEFORE EXECUTING (July 30, 2026)
+> ## ✅ EPIC DELIVERED (2026-07-31)
 >
-> This sequence names modules/classes that do not exist in this repo (`catalog-core`, `catalog-adapters`, `catalog-web`, `ProductDao`, `ProductEjb`, `CategoryCacheEjb`, GlassFish/Liberty commands). The real repo is the `ecommerce` monolith; see the banner in `product-catalog-module-spec.md` for the authoritative mapping. Apply the following substitutions throughout:
->
-> - `catalog-core` → `product-catalog` module (package root `com.loja.productcatalog`); domain in `domain/model`, ports in `domain/port/in` + `domain/port/out`, DTOs in `application/dto`, services in `application/service`.
-> - `catalog-adapters` → same `product-catalog` module: `adapter/out/persistence` (JPA) and `adapter/out/storage` (S3, new). Verify commands: `mvn -pl product-catalog test` / `mvn test -pl product-catalog -Dtest=...`.
-> - `catalog-web` → `web` module for pages (`web/.../webapp/product-catalog/`); JSF beans stay in `product-catalog/.../adapter/in/web` (pattern: `AdminUsersBean`).
-> - **Step 3e cutover does not apply:** `ProductJpaEntity` already lives in `adapter/out/persistence` (table `tb_product`) and there is no `ProductDao`/`ProductEntity` to delete or migrate. The work is *extending* the existing entity/mapper and adding the Criteria `search()`/`decrementStock()` — `ProductJpaMapper` does not exist yet and must be created.
-> - **Step 4 is from scratch:** no `Category` or `CategoryCacheEjb` exists anywhere — build the category tree/caching fresh (keep it simple; no EJB).
-> - **Step 6 security:** the repo has no `jakarta.security.enterprise` IdentityStore; the established RBAC precedent is session-based (`@CurrentUser`/`UserBean`) with `@RolesAllowed("ADMIN")` on the JSF bean (`AdminUsersBean`). Enforce admin on the `ManageProductBean` and/or a session-role check, matching that pattern.
-> - **Step 9 template:** copy the ArchUnit approach from `user-account/.../UserHexagonalArchitectureTest` (only `domain` framework-free; ports in `domain/port`; adapters isolated).
-> - Migrations: `V7__product_catalog_extension.sql` in `flyway/sql/`, registered manually in `flyway_schema_history` (no runner; see V5/V6).
-> - `docker-compose.yaml` **already contains** a `localstack` (s3) service — Step 0 only needs the bootstrap script + bucket policy, not a new compose block.
+> All steps below are implemented and verified in the `product-catalog` module (hexagonal, package root `com.loja.productcatalog`; pages in the `web` module). The **Progress status** section and the completion checklist at the end are authoritative. The step bodies are the original execution text written against a `catalog-core`/`catalog-web` layout; the actual code follows the layout in the `product-catalog-module-spec.md` banner (single module: `domain/model` + `domain/port/in|out` + `application/*` + `adapter/*`; verify with `mvn -pl product-catalog test`). Two steps reflect the real starting point: **3e (cutover) never applied** — `ProductJpaEntity` already lived in `adapter/out/persistence` and there was nothing to delete or migrate; **Step 4 was from scratch** — no `Category`/cache existed. RBAC follows the user-account precedent (`@RolesAllowed("ADMIN")` + session guard, no container IdentityStore); migration is `V7__product_catalog_extension.sql` registered by hand; `docker/docker-compose.yaml` already defines the `localstack` service.
 
 **Rule for the implementing agent:** work through the steps in order. Do not start step N+1 until step N's "Done when" checklist is fully satisfied. If a step's prerequisites (previous steps) aren't met, stop and report rather than improvising an out-of-order approach.
 
