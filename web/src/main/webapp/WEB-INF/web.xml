@@ -45,6 +45,32 @@
         <tracking-mode>COOKIE</tracking-mode>
     </session-config>
 
+    <!-- Real RBAC at the container level: admin pages are only reachable by callers
+         holding the ADMIN role. Authentication is handled by the registered
+         LoginAuthenticationMechanism (user-account), which redirects anonymous
+         callers to the login page. No <login-config> is needed — the mechanism
+         replaces the built-in form login. -->
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>Admin pages</web-resource-name>
+            <url-pattern>/user-account/admin/*</url-pattern>
+            <url-pattern>/product-catalog/manageProduct.xhtml</url-pattern>
+        </web-resource-collection>
+        <auth-constraint>
+            <role-name>ADMIN</role-name>
+        </auth-constraint>
+    </security-constraint>
+
+    <security-role>
+        <role-name>ADMIN</role-name>
+    </security-role>
+    <security-role>
+        <role-name>CUSTOMER</role-name>
+    </security-role>
+    <security-role>
+        <role-name>VENDOR</role-name>
+    </security-role>
+
     <welcome-file-list>
         <welcome-file>product-catalog/catalog.xhtml</welcome-file>
     </welcome-file-list>

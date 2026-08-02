@@ -39,6 +39,7 @@ import com.loja.useraccount.domain.port.in.ResetPasswordUseCase;
 import com.loja.useraccount.domain.port.in.SetDefaultAddressUseCase;
 import com.loja.useraccount.domain.port.in.UpdateAddressUseCase;
 import com.loja.useraccount.domain.port.in.UpdateProfileUseCase;
+import com.loja.useraccount.domain.port.in.ValidateCredentialsUseCase;
 import com.loja.useraccount.domain.port.out.PasswordHasherPort;
 import com.loja.useraccount.domain.port.out.SessionPort;
 import com.loja.useraccount.domain.port.out.UserRepositoryPort;
@@ -58,6 +59,7 @@ public class UserApplicationService
                    AddAddressUseCase, UpdateAddressUseCase, DeleteAddressUseCase,
                    SetDefaultAddressUseCase, ListAddressesUseCase,
                    AssignRoleUseCase, ListUsersUseCase, CheckUserRoleUseCase,
+                   ValidateCredentialsUseCase,
                    RequestPasswordResetUseCase, ResetPasswordUseCase {
 
     private final UserRepositoryPort userRepository;
@@ -109,7 +111,30 @@ public class UserApplicationService
             throw new InvalidPasswordException("Invalid email or password");
         }
 
-        user = userRepository.save(user);
+        return completeLogin(userRepository.save(user));
+    }
+
+    @Override
+    public Optional<User> validateCredentials(String email, String plainPassword) {
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null || !user.canLogin()) {
+            return Optional.empty();
+        }
+        if (!user.authenticate(plainPassword, passwordHasher)) {
+            userRepository.save(user);
+            return Optional.empty();
+        }
+        return Optional.of(userRepository.save(user));
+    }
+
+    @Override
+    public void establishSession(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new InvalidPasswordException("Invalid email or password"));
+        completeLogin(user);
+    }
+
+    private User completeLogin(User user) {
         session.createSession(user);
         eventPublisher.publish(new UserLoggedInEvent(user.getId(), user.getEmail().getValue()));
         return user;

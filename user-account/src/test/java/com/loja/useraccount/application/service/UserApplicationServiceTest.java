@@ -4,6 +4,7 @@ import com.loja.shared.event.DomainEventPublisherPort;
 import com.loja.useraccount.domain.event.PasswordChangedEvent;
 import com.loja.useraccount.domain.event.PasswordResetRequestedEvent;
 import com.loja.useraccount.domain.event.RoleAssignedEvent;
+import com.loja.useraccount.domain.event.UserLoggedInEvent;
 import com.loja.useraccount.domain.exception.InsufficientPermissionException;
 import com.loja.useraccount.domain.exception.InvalidPasswordException;
 import com.loja.useraccount.domain.model.Email;
@@ -42,6 +43,10 @@ class UserApplicationServiceTest {
         service = new UserApplicationService(userRepository, passwordHasher, session, eventPublisher);
         when(passwordHasher.hash(any(String.class)))
                 .thenAnswer(inv -> "hash:" + inv.getArgument(0, String.class));
+        when(passwordHasher.verify(any(String.class), any(String.class)))
+                .thenAnswer(inv -> ("hash:" + inv.getArgument(0, String.class))
+                        .equals(inv.getArgument(1, String.class)));
+        when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
     private static User user(String email) {
@@ -143,6 +148,76 @@ class UserApplicationServiceTest {
 
         assertThat(user.hasRole(Role.ADMIN)).isFalse();
         verify(userRepository, never()).save(any());
+        verify(eventPublisher, never()).publish(any());
+    }
+
+    // ------------------------------------------------------- credential validation
+
+    @Test
+    void validateCredentials_withValidCredentials_returnsUser() {
+        User user = user("login@example.com");
+        when(userRepository.findByEmail("login@example.com")).thenReturn(Optional.of(user));
+
+        assertThat(service.validateCredentials("login@example.com", "password1234"))
+                .containsSame(user);
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void validateCredentials_withWrongPassword_returnsEmpty() {
+        User user = user("login@example.com");
+        when(userRepository.findByEmail("login@example.com")).thenReturn(Optional.of(user));
+
+        assertThat(service.validateCredentials("login@example.com", "wrong-password"))
+                .isEmpty();
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void validateCredentials_withUnknownEmail_returnsEmpty() {
+        when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+
+        assertThat(service.validateCredentials("missing@example.com", "password1234"))
+                .isEmpty();
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void validateCredentials_lockedAccount_returnsEmpty() {
+        User user = user("locked@example.com");
+        for (int i = 0; i < 5; i++) {
+            user.recordLoginFailure();
+        }
+        when(userRepository.findByEmail("locked@example.com")).thenReturn(Optional.of(user));
+
+        assertThat(service.validateCredentials("locked@example.com", "password1234"))
+                .isEmpty();
+        verify(userRepository, never()).save(any());
+    }
+
+    // --------------------------------------------------------------- session setup
+
+    @Test
+    void establishSession_createsSessionAndPublishesEvent() {
+        User user = user("login@example.com");
+        when(userRepository.findByEmail("login@example.com")).thenReturn(Optional.of(user));
+
+        service.establishSession("login@example.com");
+
+        verify(session).createSession(user);
+        ArgumentCaptor<UserLoggedInEvent> captor = ArgumentCaptor.forClass(UserLoggedInEvent.class);
+        verify(eventPublisher).publish(captor.capture());
+        assertThat(captor.getValue().userId()).isEqualTo(user.getId());
+    }
+
+    @Test
+    void establishSession_unknownEmail_throws() {
+        when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.establishSession("missing@example.com"))
+                .isInstanceOf(InvalidPasswordException.class);
+
+        verify(session, never()).createSession(any());
         verify(eventPublisher, never()).publish(any());
     }
 }

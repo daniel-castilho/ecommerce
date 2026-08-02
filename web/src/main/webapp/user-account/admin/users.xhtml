@@ -8,10 +8,20 @@
     <ui:define name="title">Admin - Users</ui:define>
 
     <ui:define name="content">
-        <h1 class="page-title">User Management</h1>
         <h:messages globalOnly="true" styleClass="messages" />
 
-        <div class="card">
+        <ui:fragment rendered="#{not userBean.hasRole('ADMIN')}">
+            <div class="card">
+                <p>Access denied. This page requires the ADMIN role.</p>
+                <h:link outcome="/product-catalog/catalog.xhtml" value="Back to catalog"
+                        styleClass="button" />
+            </div>
+        </ui:fragment>
+
+        <ui:fragment rendered="#{userBean.hasRole('ADMIN')}">
+            <h1 class="page-title">User Management</h1>
+
+            <div class="card">
             <h:form id="filterForm">
                 <div class="form-grid">
                     <h:outputLabel for="emailFilter" value="Email" />
@@ -71,5 +81,6 @@
                                  styleClass="button" />
             </h:form>
         </div>
+        </ui:fragment>
     </ui:define>
 </ui:composition>

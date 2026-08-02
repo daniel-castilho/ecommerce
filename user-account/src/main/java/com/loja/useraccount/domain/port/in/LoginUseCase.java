@@ -13,4 +13,11 @@ public interface LoginUseCase {
      *         if credentials are wrong or the account is locked/inactive
      */
     User login(String email, String password);
+
+    /**
+     * Opens the application session for an already-authenticated user and records
+     * the login event. Used after the container has validated the caller via the
+     * security identity store.
+     */
+    void establishSession(String email);
 }
