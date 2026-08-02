@@ -57,6 +57,7 @@ adapter/out/persistence   JPA entities + mapper (toDomain/fromDomain) + port imp
 - Domain errors use `Result<T, DomainError>` in factories and domain exceptions in methods (`User.tryRegister`, `User.recordLoginFailure`).
 - Mappers: static `toDomain()`/`fromDomain()` on the JPA entity (e.g. `UserJpaEntity`) or in a dedicated mapper (`ProductJpaMapper`).
 - Existing patterns to reuse: Strategy for search filters (`CriteriaStrategy`/`EmailCriteriaStrategy`), observers for domain events (`AuditLogObserver`).
+- UI: before writing/styling any `.xhtml`, read `docs/design-system.md` and `web/src/main/webapp/resources/css/design-tokens.css`. Never hardcode colors/spacing/px in a page; use semantic/component tokens. No new primitive/semantic token without human approval; composite components only after the rule of two (see design-system.md §4–§5).
 
 ## Testing
 

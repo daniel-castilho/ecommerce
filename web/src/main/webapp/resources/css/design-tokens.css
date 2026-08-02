@@ -1,0 +1,169 @@
+/* ============================================================================
+   DESIGN TOKENS — Ecommerce Monolith (Loja)
+   ============================================================================
+   Single source of truth for color, spacing, typography, radius, and shadow
+   across every page of the `web` WAR (product-catalog, order-checkout,
+   user-account, admin-dashboard).
+
+   Architecture: 3-layer token taxonomy (Primitive -> Semantic -> Component).
+   See docs/design-system.md for naming rules, governance, and the
+   "rule of two" that decides when a new component token may exist.
+
+   Rules:
+   - Pages and components reference SEMANTIC or COMPONENT tokens only.
+   - Primitive tokens are never used outside this file.
+   - Never hardcode hex/px values in any .xhtml or .css outside this file.
+   - Strict-tier changes (layers 1 and 2) require human approval and a
+     changelog entry in docs/design-system.md (section 9).
+
+   Changelog:
+   - 2026-08-01 — Initial version. Status tokens mirror the real enums:
+     Order.Status (OPEN/CONFIRMED/CANCELLED), ProductStatus
+     (DRAFT/ACTIVE/INACTIVE/ARCHIVED), UserStatus
+     (ACTIVE/INACTIVE/LOCKED/PENDING). No RefundStatus exists yet; none
+     is defined here.
+   ============================================================================ */
+
+:root {
+
+  /* ==========================================================================
+     LAYER 1 — PRIMITIVE TOKENS
+     Raw values only. Never referenced directly from components or pages.
+     Only semantic tokens (Layer 2) may reference these.
+     ========================================================================== */
+
+  /* --- Color: neutrals --- */
+  --color-primitive-gray-50:  #f9fafb;
+  --color-primitive-gray-100: #ecf0f1;
+  --color-primitive-gray-200: #e1e4e8;
+  --color-primitive-gray-300: #bdc3c7;
+  --color-primitive-gray-400: #95a5a6;
+  --color-primitive-gray-500: #7f8c8d;
+  --color-primitive-gray-700: #34495e;
+  --color-primitive-gray-800: #2c3e50;
+  --color-primitive-gray-900: #1a252f;
+  --color-primitive-white:    #ffffff;
+
+  /* --- Color: brand / action --- */
+  --color-primitive-blue-500: #3498db;
+  --color-primitive-blue-600: #2980b9;
+  --color-primitive-blue-700: #21618c;
+
+  /* --- Color: status palette (mapped to enum values in Layer 2) --- */
+  --color-primitive-amber-500: #f39c12;
+  --color-primitive-green-500: #27ae60;
+  --color-primitive-red-500:   #e74c3c;
+  --color-primitive-red-700:   #c0392b;
+
+  /* --- Spacing --- */
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  16px;
+  --space-lg:  24px;
+  --space-xl:  32px;
+  --space-2xl: 48px;
+
+  /* --- Typography --- */
+  --font-size-caption: 12px;
+  --font-size-body:    14px;
+  --font-size-h5:      14px;
+  --font-size-h4:      16px;
+  --font-size-h3:      20px;
+  --font-size-h2:      26px;
+  --font-size-h1:      32px;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-strong: 700;
+  --font-family-base:   "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+
+  /* --- Radius --- */
+  --radius-control: 6px;
+  --radius-card:    10px;
+
+  /* --- Elevation --- */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+
+  /* ==========================================================================
+     LAYER 2 — SEMANTIC TOKENS
+     Named by ROLE (not by value). The only layer pages may reference
+     directly. Never point a semantic token at a hardcoded hex value.
+     ========================================================================== */
+
+  /* --- Backgrounds --- */
+  --color-bg-page:    var(--color-primitive-gray-100);
+  --color-bg-surface: var(--color-primitive-white);
+  --color-bg-subtle:  var(--color-primitive-gray-50);
+  --color-bg-inverse: var(--color-primitive-gray-800);
+  --color-bg-hover:   var(--color-primitive-gray-700);
+
+  /* --- Text --- */
+  --color-text-primary:   var(--color-primitive-gray-800);
+  --color-text-secondary: var(--color-primitive-gray-500);
+  --color-text-muted:     var(--color-primitive-gray-400);
+  --color-text-inverse:   var(--color-primitive-white);
+
+  /* --- Borders --- */
+  --color-border-default: var(--color-primitive-gray-300);
+  --color-border-strong:  var(--color-primitive-gray-700);
+
+  /* --- Action --- */
+  --color-action-primary:       var(--color-primitive-blue-500);
+  --color-action-primary-hover: var(--color-primitive-blue-600);
+  --color-action-primary-active: var(--color-primitive-blue-700);
+  --color-action-text:          var(--color-primitive-white);
+
+  /* --- Feedback (maps to FacesMessage severities: info/warn/error/fatal) --- */
+  --color-feedback-info:    var(--color-primitive-blue-500);
+  --color-feedback-warning: var(--color-primitive-amber-500);
+  --color-feedback-error:   var(--color-primitive-red-500);
+  --color-feedback-success: var(--color-primitive-green-500);
+
+  /* --- Status: enum values only, named after the enum value verbatim
+         (see docs/design-system.md section 2).
+         Order.Status:  OPEN, CONFIRMED, CANCELLED
+         ProductStatus: DRAFT, ACTIVE, INACTIVE, ARCHIVED
+         UserStatus:    ACTIVE, INACTIVE, LOCKED, PENDING
+         Values shared across enums (ACTIVE, INACTIVE) map to the same
+         semantic token on purpose. --- */
+  --color-status-open:      var(--color-primitive-blue-500);
+  --color-status-confirmed: var(--color-primitive-blue-600);
+  --color-status-cancelled: var(--color-primitive-red-500);
+  --color-status-draft:     var(--color-primitive-gray-400);
+  --color-status-active:    var(--color-primitive-green-500);
+  --color-status-inactive:  var(--color-primitive-gray-400);
+  --color-status-archived:  var(--color-primitive-gray-500);
+  --color-status-locked:    var(--color-primitive-red-700);
+  --color-status-pending:   var(--color-primitive-amber-500);
+
+  /* ==========================================================================
+     LAYER 3 — COMPONENT TOKENS
+     Scoped to a single component. May reference Layer 1 and Layer 2.
+     Existence is governed by the rule of two (docs/design-system.md
+     section 5) — do not add a block for a component that appears in
+     fewer than two real pages.
+     ========================================================================== */
+
+  /* --- status-badge.xhtml (extracted — rule of two met:
+         order-confirmed.xhtml, manageProduct.xhtml, admin/users.xhtml) --- */
+  --badge-padding-block:  2px;
+  --badge-padding-inline: var(--space-sm);
+  --badge-radius:         var(--radius-control);
+  --badge-font-size:      var(--font-size-caption);
+  --badge-font-weight:    var(--font-weight-strong);
+
+  /* --- form-field-group.xhtml (extracted — rule of two met:
+         login, register, password-reset, password-reset-confirm, profile,
+         address-book, checkout, manageProduct) --- */
+  --form-field-gap:          var(--space-sm);
+  --form-field-border:       var(--color-border-default);
+  --form-field-radius:       var(--radius-control);
+  --form-field-padding:      var(--space-sm) var(--space-md);
+  --form-field-error-color:  var(--color-feedback-error);
+
+  /* NOTE: admin-data-table and metric-card component-token blocks are NOT
+     defined yet — they are candidates only (docs/design-system.md sections 3
+     and 5): admin-data-table has a single real occurrence
+     (admin/users.xhtml) and metric-card has zero (no dashboard page exists).
+     Do not reference --admin-data-table-* or --metric-card-* in new pages.
+     Add these blocks only once the rule of two is met. */
+}
