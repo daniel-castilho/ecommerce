@@ -123,6 +123,12 @@ and driven by `ReservationExpiryScheduler` (`@ApplicationScoped`, single daemon 
 `reserve` of the same product. `InventoryReservationExpiryServiceTest` + 2 new IT cases
 (`InventoryReservationJpaAdapterIT`).
 
+Completed (2026-08-01): **`jdbc/EcommerceDS` datasource** (the `ecommercePU` JTA data source) is
+configured in `server.xml` with the connection host/port/db/user/password **externalized to
+`${env.DB_*}`**; dev defaults live in `web/src/main/liberty/config/server.env` (matching the docker
+`shop` Postgres), and a real deployment overrides them with OS environment variables — no
+credentials hardcoded in the server config anymore.
+
 Completed (2026-07-31): **Bean Validation** on the JSF adapter beans (`adapter/in/web`) —
 constraints mirror the domain rules, keeping `domain/` and `application/` free of
 `jakarta.validation` (ArchUnit still green). **No new runtime dependency**: the API ships in
@@ -207,11 +213,8 @@ Backlog / radar (kept here so these are not forgotten; each gets its own work it
 
 - **Real providers** for payment / shipping / notification (mock adapters today — see
   `docs/notification-system-guide.md`)
-- **Real `DataSource`** (`java:/EcommerceDS`) configured in the application server
 - **CI pipeline** (ArchUnit + tests as a PR gate; noted as missing in the backlog specs)
 - **admin-dashboard metrics** (module still composes no real metrics from the other modules)
-
-- Set up a real `DataSource` (`java:/EcommerceDS`) in the application server.
 
 Applied (2026-07-31): `V8__order_checkout_schema.sql` on the running `shop_db`
 (Postgres 15) and registered in `flyway_schema_history` (rank 7, checksum NULL,

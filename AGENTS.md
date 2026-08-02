@@ -45,7 +45,9 @@ adapter/out/persistence   JPA entities + mapper (toDomain/fromDomain) + port imp
 
 - `shared-kernel`: base, depends on nothing (`Money`, `Result`, `DomainEvent`).
 - `admin-dashboard`: only composes use cases from other modules; zero business rules.
-- `web/`: final WAR (`persistence.xml` JTA `java:/EcommerceDS`), `.xhtml` pages, Facelets templates.
+- `web/`: final WAR (`persistence.xml` JTA `jdbc/EcommerceDS`; dev DB credentials live in
+  `web/src/main/liberty/config/server.env`, overridable via OS env `DB_*`), `.xhtml` pages,
+  Facelets templates.
 
 ## Conventions
 

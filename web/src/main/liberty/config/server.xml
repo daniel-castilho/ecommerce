@@ -18,8 +18,9 @@
 
     <dataSource id="EcommerceDS" jndiName="jdbc/EcommerceDS">
         <jdbcDriver libraryRef="postgresLib"/>
-        <properties.postgresql serverName="localhost" portNumber="5432"
-                               databaseName="shop" user="user" password="password"/>
+        <properties.postgresql serverName="${env.DB_HOST}" portNumber="${env.DB_PORT}"
+                               databaseName="${env.DB_NAME}" user="${env.DB_USER}"
+                               password="${env.DB_PASSWORD}"/>
     </dataSource>
 
     <mailSession id="EcommerceMail" mailSessionID="EcommerceMail" jndiName="java:app/env/mail/Session"

@@ -427,7 +427,8 @@ and still owns ports 9080/9443, so the new start can't bind.
 ### Fix applied
 - `web/src/main/liberty/config/server.xml` declares a dev-only
   `<keyStore id="defaultKeyStore" password="keystore-password-dev"/>` so the keystore
-  auto-generates on start (dev credential only; the datasource password already lives here).
+  auto-generates on start (dev credential only; the datasource connection is externalized via
+  `${env.DB_*}` with dev defaults in `server.env`, see the README datasource note).
 - `scripts/run-liberty.sh` makes a fresh install reproducible: `mvn package` (no `clean`,
   keeps an existing install), and if the `webProfile-11.0` feature manifest is missing it
   runs `mvn -pl web liberty:create` + `featureUtility installServerFeatures defaultServer
