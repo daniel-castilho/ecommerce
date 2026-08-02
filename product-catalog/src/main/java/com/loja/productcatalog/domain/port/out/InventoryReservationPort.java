@@ -10,8 +10,10 @@ import java.util.List;
  * with an expiry time; the caller either {@link #confirm(String) confirms} it
  * once the order is paid (the units stay decremented) or it is
  * {@link #release(String) released} when the order fails or is cancelled.
- * Expired holds are released lazily, on the next operation touching the same
- * product, so abandoned checkouts free stock without a background scheduler.
+ * Expired holds are released lazily on the next operation touching the same
+ * product, and a scheduled sweep ({@link #expireExpired()}) frees every
+ * abandoned hold once its TTL passes, so stock does not stay locked after a
+ * checkout that is never finished.
  *
  * <p>All operations are expected to run inside the caller's transaction: a
  * reserve either succeeds for every requested line or rolls back entirely.
@@ -50,4 +52,12 @@ public interface InventoryReservationPort {
      * @param reservationId id passed to {@link #reserve(String, List)}
      */
     void release(String reservationId);
+
+    /**
+     * Releases every hold whose expiry time has passed, returning the units to
+     * available stock and removing the hold rows. Idempotent: holds already
+     * released (or confirmed) are not matched again. Returns how many holds
+     * were released (0 when there is nothing expired).
+     */
+    int expireExpired();
 }

@@ -18,9 +18,10 @@ import java.util.List;
  * hold rows only remember how much to give back on release/expiry.
  *
  * <p>Expired holds are released lazily for exactly the products touched by the
- * current operation — no scheduler required. Callers must run these methods
- * inside a transaction (production: a {@code @Transactional} service; tests:
- * {@code inTx(...)}).
+ * current operation and globally by the scheduled {@link #expireExpired()}
+ * sweep (see {@code ReservationExpiryScheduler}). Callers must run these
+ * methods inside a transaction (production: a {@code @Transactional} service;
+ * tests: {@code inTx(...)}).
  */
 @ApplicationScoped
 public class InventoryReservationJpaAdapter implements InventoryReservationPort {
@@ -75,12 +76,21 @@ public class InventoryReservationJpaAdapter implements InventoryReservationPort 
                 .setParameter("id", reservationId)
                 .getResultList();
         for (InventoryReservationJpaEntity hold : holds) {
-            em.createQuery("UPDATE ProductJpaEntity p SET p.stock = p.stock + :qty WHERE p.id = :id")
-                    .setParameter("qty", hold.getQuantity())
-                    .setParameter("id", hold.getProductId())
-                    .executeUpdate();
-            em.remove(hold);
+            releaseHold(hold);
         }
+    }
+
+    @Override
+    public int expireExpired() {
+        List<InventoryReservationJpaEntity> expired = em.createQuery(
+                        "SELECT r FROM InventoryReservationJpaEntity r WHERE r.expiresAt < :now",
+                        InventoryReservationJpaEntity.class)
+                .setParameter("now", Instant.now())
+                .getResultList();
+        for (InventoryReservationJpaEntity hold : expired) {
+            releaseHold(hold);
+        }
+        return expired.size();
     }
 
     private void releaseExpiredFor(String productId) {
@@ -92,12 +102,16 @@ public class InventoryReservationJpaAdapter implements InventoryReservationPort 
                 .setParameter("now", Instant.now())
                 .getResultList();
         for (InventoryReservationJpaEntity hold : expired) {
-            em.createQuery("UPDATE ProductJpaEntity p SET p.stock = p.stock + :qty WHERE p.id = :id")
-                    .setParameter("qty", hold.getQuantity())
-                    .setParameter("id", productId)
-                    .executeUpdate();
-            em.remove(hold);
+            releaseHold(hold);
         }
+    }
+
+    private void releaseHold(InventoryReservationJpaEntity hold) {
+        em.createQuery("UPDATE ProductJpaEntity p SET p.stock = p.stock + :qty WHERE p.id = :id")
+                .setParameter("qty", hold.getQuantity())
+                .setParameter("id", hold.getProductId())
+                .executeUpdate();
+        em.remove(hold);
     }
 
     private boolean exists(String reservationId) {

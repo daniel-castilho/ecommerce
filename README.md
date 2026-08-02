@@ -115,6 +115,14 @@ and `/product-catalog/manageProduct.xhtml` (security-roles `ADMIN`/`CUSTOMER`/`V
 See `docs/lessons.md` #8 for the Security 4.0 API migration. 46 user-account unit tests green
 (incl. new `UserIdentityStoreTest`), `mvn -pl web -am test-compile` green.
 
+Completed (2026-08-01): **scheduled inventory-reservation expiry** in product-catalog —
+`InventoryReservationPort.expireExpired()` (global sweep, indexed on `expires_at`) implemented in
+`InventoryReservationJpaAdapter`, wrapped by `@Transactional` `InventoryReservationExpiryService`,
+and driven by `ReservationExpiryScheduler` (`@ApplicationScoped`, single daemon thread,
+`scheduleWithFixedDelay` every 60s). Stock is now freed proactively, not only lazily on the next
+`reserve` of the same product. `InventoryReservationExpiryServiceTest` + 2 new IT cases
+(`InventoryReservationJpaAdapterIT`).
+
 Completed (2026-07-31): **Bean Validation** on the JSF adapter beans (`adapter/in/web`) —
 constraints mirror the domain rules, keeping `domain/` and `application/` free of
 `jakarta.validation` (ArchUnit still green). **No new runtime dependency**: the API ships in
@@ -201,8 +209,6 @@ Backlog / radar (kept here so these are not forgotten; each gets its own work it
   `docs/notification-system-guide.md`)
 - **Real `DataSource`** (`java:/EcommerceDS`) configured in the application server
 - **CI pipeline** (ArchUnit + tests as a PR gate; noted as missing in the backlog specs)
-- **Scheduled inventory-reservation expiry** (today it is lazy: released on the next `reserve`
-  of the same product)
 - **admin-dashboard metrics** (module still composes no real metrics from the other modules)
 
 - Set up a real `DataSource` (`java:/EcommerceDS`) in the application server.

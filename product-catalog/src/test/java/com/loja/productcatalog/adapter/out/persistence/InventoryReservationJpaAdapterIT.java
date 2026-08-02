@@ -213,6 +213,45 @@ class InventoryReservationJpaAdapterIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void expireExpired_releasesEveryExpiredHoldAcrossProducts() {
+        save(product("p-1", 10));
+        save(product("p-2", 5));
+        em.getTransaction().begin();
+        em.persist(new InventoryReservationJpaEntity(
+                "expired-1", "p-1", 2, Instant.now().minusSeconds(60)));
+        em.persist(new InventoryReservationJpaEntity(
+                "expired-2", "p-2", 3, Instant.now().minusSeconds(60)));
+        em.persist(new InventoryReservationJpaEntity(
+                "active-1", "p-1", 1, Instant.now().plusSeconds(3600)));
+        em.getTransaction().commit();
+        em.clear();
+
+        int released = inTx(() -> reservationAdapter.expireExpired());
+
+        assertThat(released).isEqualTo(2);
+        assertThat(stockOf("p-1")).isEqualTo(12);
+        assertThat(stockOf("p-2")).isEqualTo(8);
+        assertThat(holdCount("expired-1")).isZero();
+        assertThat(holdCount("expired-2")).isZero();
+        assertThat(holdCount("active-1")).isEqualTo(1);
+    }
+
+    @Test
+    void expireExpired_nothingExpired_returnsZeroAndKeepsStockHeld() {
+        save(product("p-1", 10));
+        inTx(() -> {
+            reservationAdapter.reserve("active-1", List.of(new ReservationRequest("p-1", 1)));
+            return null;
+        });
+
+        int released = inTx(() -> reservationAdapter.expireExpired());
+
+        assertThat(released).isZero();
+        assertThat(stockOf("p-1")).isEqualTo(9);
+        assertThat(holdCount("active-1")).isEqualTo(1);
+    }
+
+    @Test
     void reserve_twoConcurrentReservationsForLastUnits_onlyOneSucceeds() throws Exception {
         save(product("p-race", 1));
 

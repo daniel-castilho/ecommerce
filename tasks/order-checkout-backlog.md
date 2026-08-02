@@ -300,7 +300,7 @@ Each story is sized to be completable and demoable independently, but dependenci
 
 - **Given** a product with 10 units in stock, **when** a checkout reserves 5 units, **then** the reservation succeeds and stock-available becomes 5 (for other browsers).
 - **Given** an active reservation, **when** another customer tries to checkout with the same product, **then** they see only the remaining 5 units available (reserved units hidden).
-- **Given** a checkout is abandoned (user closes browser), **when** the reservation TTL expires, **then** the reserved units are released back to available stock.
+- **Given** a checkout is abandoned (user closes browser), **when** the reservation TTL expires, **then** the reserved units are released back to available stock. — *delivered two ways: lazily on the next `reserve` of the same product, and proactively by the scheduled sweep `InventoryReservationExpiryService`/`ReservationExpiryScheduler` (60s interval) added 2026-08-01.*
 - **Given** a successful order confirmation, **when** the inventory decrement is applied, **then** reserved units become permanently decremented (not just reserved).
 - **Given** two simultaneous checkouts for the last 2 units of a product, **when** both try to confirm, **then** one succeeds and one fails with "Insufficient inventory" (no overselling).
 
