@@ -58,11 +58,14 @@ auto-generated keystore), so run `scripts/run-liberty.sh` after any clean build:
 the server config, installs the features from `server.xml` (first time only) and deploys the
 WAR into `dropins`. The dev keystore password lives in `web/src/main/liberty/config/server.xml`.
 
-## Current state (2026-07-31)
+## Current state (2026-08-01)
 
+- **Released as `v0.2.0` (2026-08-01)** — completes the `order-checkout` epic (S1–S12: full
+  order state machine, 4-step checkout wizard, order history with cancel/refund, inventory
+  reservation, optimistic locking, ArchUnit guard rails) on top of the `v0.1.0` baseline. See
+  `docs/releases/v0.2.0.md` and the "Releases and tags" ritual in `AGENTS.md`.
 - **Released as `v0.1.0` (2026-08-01)** — baseline snapshot of the monolith (user account +
-  catalog storefront + order checkout MVP). See `docs/releases/v0.1.0.md` and the
-  "Releases and tags" ritual in `AGENTS.md`.
+  catalog storefront + order checkout MVP). See `docs/releases/v0.1.0.md`.
 - `user-account` — reference module, complete.
 - `product-catalog` — epic in progress (see `tasks/product-catalog-implementation-sequence.md`
   and `tasks/product-catalog-backlog.md`). **Done:** Steps 1–3 (domain model, ports, persistence

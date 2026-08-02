@@ -288,6 +288,67 @@ through the domain**:
 
 ---
 
+## 7. ArchUnit `ports_should_be_interfaces` counts nested records — DTOs live in `application.dto`; make concurrent ITs deterministic
+
+> Context: S10/S12 of the order epic (2026-08-01). Two ArchUnit failures from the same trap,
+> plus two concurrency tests that needed a specific harness.
+
+### Symptom / root cause 1 — records nested in a port
+
+`ProductHexagonalArchitectureTest.ports_should_be_interfaces` failed with
+`com.loja.productcatalog.domain.port.out.InventoryReservationPort$ReservationRequest` reported
+as a violation. ArchUnit treats a `record` nested inside an interface as a **class** in
+`domain.port`, so "everything in `..domain.port..` must be an interface" breaks.
+`CreateOrderFromCartUseCase` had the same problem (`CheckoutCommand`, `ItemCheckoutRequest`
+nested in `port/in`) — it only surfaced when the order module got its own ArchUnit test (S12).
+
+**Fix:** DTO records that travel through a port live in `application/dto`, never nested in the
+port (`ReservationRequest`, `CheckoutCommand`, `ItemCheckoutRequest` moved). The `domain`
+allowed-dependencies whitelist already includes `application.dto`, so ports referencing them
+stay architecture-clean.
+
+**Golden rule 1:** under ArchUnit `ports_should_be_interfaces`, any nested `record` in a port
+is a violation. Keep command/query DTOs in `application/dto` from day one.
+
+### Root cause 2 — the concurrent-checkout IT was flaky-by-design
+
+Two new concurrency tests (S11) needed to be deterministic, not "sometimes green":
+
+1. **Two checkouts, same cart, one must win.** Both workers run the real `OrderRepositoryAdapter`
+   against the shared Postgres, each with its **own** `EntityManager` (`emf.createEntityManager()` —
+   a single shared `em` is not thread-safe). A `CyclicBarrier(2)` installed via
+   `doAnswer(...)` on the mocked `InventoryReservationPort.reserve` guarantees both threads are
+   past the `findById` (empty) check before either commits, so the loser reliably hits the PK
+   constraint at `save`.
+2. **Two status updates, one must win.** The `@Version` round-trip makes the loser throw
+   `OptimisticLockException`, wrapped by the adapter as `OrderConcurrentModificationException`.
+   Barrier placed **inside** the transaction (after `findById`, before `save`) so both hold the
+   same version when they race.
+
+**Assertion trap:** `verify(inventoryReservation).confirm("e2e-race")` with `times(1)` failed —
+**both** workers legitimately call `confirm` before `save` (the mock records both; the real
+reservation is idempotent by `reservationId`). The deterministic assertion is the **DB row
+count** (`SELECT COUNT(*) ...`), not the mock call count.
+
+**Golden rules:**
+1. Concurrent ITs: one `EntityManager` per worker thread; a `CyclicBarrier` inside a mocked
+   port call (or inside the transaction) makes the race deterministic.
+2. Assert the durable effect (row counts, versions, stock) rather than how many times a mock
+   was invoked — idempotent real-world operations are invoked by every contender.
+3. `@Version` on a JPA entity must round-trip through the domain mapper (lesson #1) for
+   `OptimisticLockException` to surface reliably on `merge`+`flush`.
+
+### Files involved
+
+- `product-catalog/.../application/dto/ReservationRequest.java` (moved out of the port)
+- `order-checkout/.../application/dto/CheckoutCommand.java`, `ItemCheckoutRequest.java`
+- `order-checkout/.../domain/model/Order.java`, `OrderJpaEntity.java` (`version` round-trip)
+- `order-checkout/.../adapter/out/persistence/OrderRepositoryAdapter.java` (`OptimisticLockException` → `OrderConcurrentModificationException`)
+- `order-checkout/.../OrderHexagonalArchitectureTest.java`
+- `order-checkout/src/test/.../OrderApplicationServiceIT.java`, `OrderRepositoryJpaAdapterIT.java`
+
+---
+
 ## 6. `mvn clean package` wipes the Open Liberty install under `web/target`
 
 ### Symptom
