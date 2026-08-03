@@ -58,8 +58,13 @@ auto-generated keystore), so run `scripts/run-liberty.sh` after any clean build:
 the server config, installs the features from `server.xml` (first time only) and deploys the
 WAR into `dropins`. The dev keystore password lives in `web/src/main/liberty/config/server.xml`.
 
-## Current state (2026-08-01)
+## Current state (2026-08-02)
 
+- **Released as `v0.4.0` (2026-08-02)** — bugfix milestone on `v0.3.0`'s RBAC: login now
+  verifies the password exactly once per attempt (single container check + `establishSession()`,
+  no more 2× Argon2id / 2× save), and the status-badge CSS is realigned with all three status
+  enums, guarded by a new `StatusBadgeCssCoverageTest` (web module). See
+  `docs/releases/v0.4.0.md`.
 - **Released as `v0.3.0` (2026-08-01)** — real Jakarta Security RBAC for user-account
   (`UserIdentityStore` + `LoginAuthenticationMechanism` + `HttpServletRequest.login()`,
   ADMIN `web.xml` security-constraint, `SecurityContext`-backed `UserBean`). See

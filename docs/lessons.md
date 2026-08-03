@@ -6,6 +6,83 @@ top, with date and context.
 
 ---
 
+## 10. Design-code drift (enum ↔ CSS tokens) needs an automated guard, not just a documented convention
+
+> Context: `OrderStatus` grew from 3 values to 7 while the status-badge CSS still mirrored the old
+> set (2026-08-02). `PROCESSING`, `SHIPPED`, `DELIVERED` and `REFUNDED` rendered with no color;
+> the dead `--color-status-open` / `.status-OPEN` lingered for weeks. No test or CI step noticed —
+> it breaks nothing functionally, only the visual reinforcement of status.
+
+### Symptom
+
+A `status-badge` for one enum value renders without color while another value that no longer
+exists keeps a stale CSS rule.
+
+### Root cause
+
+The design system has a governance doc (`docs/design-system.md` §0, "design-code drift") but no
+executable check tying the domain enums (`OrderStatus`, `ProductStatus`, `UserStatus`) to the CSS
+that renders them. The enum evolved, the tokens did not follow, and nothing enforced the invariant.
+
+### Golden rules
+
+1. Whenever a Status enum changes, `StatusBadgeCssCoverageTest` (web module) must stay green: it
+   checks every enum constant has a `.status-badge.status-<NAME>` rule and a declared
+   `--color-status-*` token, and that no rule/token survives without a matching enum constant.
+2. New semantic status tokens are Strict tier — reuse existing primitives until the human signs
+   off on a new hex value.
+3. The web module now has a working test setup (junit-jupiter + assertj + surefire 3.2.5); the
+   Maven-bundled surefire 2.12.4 silently reports "Tests run: 0" for JUnit 5 — always pin a modern
+   surefire in a module that adds JUnit 5 tests.
+
+### Files involved
+
+- `web/src/test/java/com/loja/web/StatusBadgeCssCoverageTest.java`
+- `web/src/main/webapp/resources/css/design-tokens.css`
+- `web/src/main/webapp/resources/css/base.css`
+
+---
+
+## 9. When real container auth is layered over a hand-rolled auth path, remove the old path in the same change set
+
+> Context: `v0.3.0` added real Jakarta Security RBAC (`UserIdentityStore` +
+> `LoginAuthenticationMechanism` + `HttpServletRequest.login()`) on top of the pre-existing
+> `LoginUseCase.login()` + `SessionPort` path without deleting it (2026-08-02). Every successful
+> login then ran the domain check twice: two Argon2id comparisons (deliberately expensive) and two
+> separate persists, plus two coexisting sources of truth about "who is logged in"
+> (`SessionPort` vs `SecurityContext`).
+
+### Symptom
+
+A successful login takes twice the expected CPU (two Argon2id hashes) and issues two `INSERT`/
+`UPDATE` saves for the same event.
+
+### Root cause
+
+Migration added the container path but left `LoginBean` calling `loginUseCase.login()` *and*
+`request.login()`. Nothing documented the old call as obsolete, so the duplication looked
+intentional.
+
+### Golden rules
+
+1. When the container becomes the credential-verification point, the web layer must call
+   `HttpServletRequest.login()` only, and open the app-level session via
+   `establishSession()` (no password re-check).
+2. Keep a cheap read-only pre-flight (`findByEmail().canLogin()`, no hashing) when you still want
+   a precise "account locked/inactive" message without a second Argon2id call — and let unknown
+   emails fall through to the generic error so the bean never reveals whether an email is
+   registered.
+3. Guard the invariant with a regression test (`LoginBeanTest`): assert `request.login()` ran
+   exactly once and `LoginUseCase.login()` was never called.
+
+### Files involved
+
+- `user-account/.../adapter/in/web/LoginBean.java`
+- `user-account/src/test/java/com/loja/useraccount/adapter/in/web/LoginBeanTest.java`
+- `user-account/.../domain/port/in/LoginUseCase.java`
+
+---
+
 ## 8. Jakarta Security 4.0 removed `HttpMessageContext.authenticate(Credential)` — programmatic login needs `isAuthenticationRequest()` + `notifyContainerAboutLogin()`
 
 > Context: migrating login/RBAC to real Jakarta Security (2026-08-01). Compilation failed with
