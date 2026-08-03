@@ -11,29 +11,40 @@ import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
+import jakarta.security.enterprise.AuthenticationStatus;
+import jakarta.security.enterprise.SecurityContext;
+import jakarta.security.enterprise.authentication.mechanism.http.AuthenticationParameters;
+import jakarta.security.enterprise.credential.UsernamePasswordCredential;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.Optional;
 
 /**
  * JSF managed bean for login/logout.
  *
  * <p><b>Single credential check, by design.</b> Password verification happens exactly
- * once per attempt, inside the container: {@link HttpServletRequest#login(String, String)}
- * re-enters {@link LoginAuthenticationMechanism}, which delegates to the Jakarta Security
+ * once per attempt, inside the container: {@link SecurityContext#authenticate} re-enters
+ * {@link LoginAuthenticationMechanism}, which delegates to the Jakarta Security
  * {@code IdentityStoreHandler} (backed by {@code UserIdentityStore} →
  * {@link com.loja.useraccount.domain.port.in.ValidateCredentialsUseCase}). That single
  * call already verifies the Argon2id hash, records the failed/successful attempt, and
  * enforces the 5-strikes lockout — see {@code User.authenticate}.
  *
+ * <p>Note: {@link HttpServletRequest#login(String, String)} must <b>not</b> be used here.
+ * Open Liberty forbids it while a JASPI {@code HttpAuthenticationMechanism} is active
+ * ("The login method may not be invoked while JASPI authentication is active"). The
+ * supported programmatic-login entry point is {@code SecurityContext.authenticate(...)},
+ * which invokes the registered mechanism with {@code isAuthenticationRequest() == true}.
+ *
  * <p>This bean therefore <b>must not</b> call {@link LoginUseCase#login(String, String)}
- * before or after {@code request.login(...)}: that method runs the exact same domain
- * check independently (its own Argon2id comparison + its own save), which used to run
- * back-to-back with the container's check on every successful login — twice the hashing
- * cost (Argon2id is deliberately expensive) and two separate persists for one login.
- * {@link LoginUseCase#login(String, String)} remains the right entry point for
+ * before or after {@code SecurityContext.authenticate(...)}: that method runs the exact
+ * same domain check independently (its own Argon2id comparison + its own save), which
+ * used to run back-to-back with the container's check on every successful login — twice
+ * the hashing cost (Argon2id is deliberately expensive) and two separate persists for one
+ * login. {@link LoginUseCase#login(String, String)} remains the right entry point for
  * non-container callers (a future REST API, a CLI, tests) — the web layer just isn't
  * one of them once real Jakarta Security RBAC is in place.
  *
@@ -64,6 +75,9 @@ public class LoginBean {
     @Inject
     private FindUserUseCase findUserUseCase;
 
+    @Inject
+    private SecurityContext securityContext;
+
     @NotBlank(message = "E-mail is required")
     @Email(message = "Invalid e-mail format")
     private String email;
@@ -76,10 +90,12 @@ public class LoginBean {
     }
 
     /** Test-only constructor: lets unit tests inject mocked use cases without a CDI container. */
-    LoginBean(LoginUseCase loginUseCase, LogoutUseCase logoutUseCase, FindUserUseCase findUserUseCase) {
+    LoginBean(LoginUseCase loginUseCase, LogoutUseCase logoutUseCase, FindUserUseCase findUserUseCase,
+              SecurityContext securityContext) {
         this.loginUseCase = loginUseCase;
         this.logoutUseCase = logoutUseCase;
         this.findUserUseCase = findUserUseCase;
+        this.securityContext = securityContext;
     }
 
     public String login() {
@@ -95,16 +111,17 @@ public class LoginBean {
         HttpServletRequest request = currentRequest();
         request.setAttribute(LoginAuthenticationMechanism.USERNAME_ATTRIBUTE, email);
         request.setAttribute(LoginAuthenticationMechanism.PASSWORD_ATTRIBUTE, password);
-        try {
-            // The ONE password verification for this attempt: re-enters
-            // LoginAuthenticationMechanism -> IdentityStoreHandler -> UserIdentityStore ->
-            // ValidateCredentialsUseCase, which hashes, records the attempt, and saves.
-            request.login(email, password);
-            request.changeSessionId();
-        } catch (ServletException e) {
+        // The ONE password verification for this attempt: SecurityContext.authenticate
+        // re-enters LoginAuthenticationMechanism -> IdentityStoreHandler -> UserIdentityStore ->
+        // ValidateCredentialsUseCase, which hashes, records the attempt, and saves.
+        AuthenticationStatus status = securityContext.authenticate(request, currentResponse(),
+                AuthenticationParameters.withParams()
+                        .credential(new UsernamePasswordCredential(email, password)));
+        if (status != AuthenticationStatus.SUCCESS) {
             addError("Login failed", "Invalid email or password");
             return null;
         }
+        request.changeSessionId();
 
         try {
             // No password check here — the container already established the caller.
@@ -134,6 +151,11 @@ public class LoginBean {
     private static HttpServletRequest currentRequest() {
         return (HttpServletRequest) FacesContext.getCurrentInstance()
                 .getExternalContext().getRequest();
+    }
+
+    private static HttpServletResponse currentResponse() {
+        return (HttpServletResponse) FacesContext.getCurrentInstance()
+                .getExternalContext().getResponse();
     }
 
     private static void addError(String summary, String detail) {

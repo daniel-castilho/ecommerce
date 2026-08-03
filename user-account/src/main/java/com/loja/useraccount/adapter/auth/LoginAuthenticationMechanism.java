@@ -17,13 +17,13 @@ import jakarta.servlet.http.HttpServletResponse;
  * Custom form-based authentication mechanism for the JSF login page.
  *
  * <p>Login is driven programmatically from {@code LoginBean}: it copies the typed
- * credentials into request attributes and calls {@code HttpServletRequest.login()}.
- * The container re-enters this mechanism's {@code validateRequest} with
- * {@link HttpMessageContext#isAuthenticationRequest()} {@code true}; the credentials
- * are validated through {@link IdentityStoreHandler} (backed by {@link UserIdentityStore})
- * and the caller is established with {@code notifyContainerAboutLogin}. Keeping the
- * challenge in the bean means a failed login renders the inline FacesMessage instead
- * of a container 401.</p>
+ * credentials into request attributes and calls
+ * {@code SecurityContext.authenticate(...)}. The container re-enters this mechanism's
+ * {@code validateRequest} with {@link HttpMessageContext#isAuthenticationRequest()}
+ * {@code true}; the credentials are validated through {@link IdentityStoreHandler}
+ * (backed by {@link UserIdentityStore}) and the caller is established with
+ * {@code notifyContainerAboutLogin}. Keeping the challenge in the bean means a failed
+ * login renders the inline FacesMessage instead of a container 401.</p>
  *
  * <p>For protected resources (admin pages) the mechanism challenges anonymous callers
  * by redirecting them to the login page. {@link AutoApplySession} persists the

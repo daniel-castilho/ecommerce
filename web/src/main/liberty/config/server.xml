@@ -12,6 +12,10 @@
     <!-- Dev-only keystore: Liberty auto-generates key.p12 on first start with this password. -->
     <keyStore id="defaultKeyStore" password="keystore-password-dev"/>
 
+    <!-- Open Liberty 26.0.0.4+ removed the default LTPA keys password (CVE-2025-14917).
+         Without keysPassword the LTPA service fails (CWWKS4118E) and form login breaks. -->
+    <ltpa keysPassword="keystore-password-dev"/>
+
     <library id="postgresLib">
         <fileset dir="${server.config.dir}/lib/global" includes="postgresql.jar"/>
     </library>

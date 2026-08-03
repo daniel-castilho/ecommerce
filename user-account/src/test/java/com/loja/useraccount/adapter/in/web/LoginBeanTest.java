@@ -12,8 +12,12 @@ import com.loja.useraccount.domain.port.out.PasswordHasherPort;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.ExternalContext;
 import jakarta.faces.context.FacesContext;
+import jakarta.security.enterprise.AuthenticationStatus;
+import jakarta.security.enterprise.SecurityContext;
+import jakarta.security.enterprise.credential.UsernamePasswordCredential;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,7 +31,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -40,7 +43,9 @@ import static org.mockito.Mockito.when;
  * {@link #login_validCredentials_authenticatesExactlyOnceThenEstablishesSession()}: it
  * fails if {@code LoginBean} ever goes back to calling both {@code LoginUseCase.login(...)}
  * and {@code HttpServletRequest.login(...)} for the same attempt (the bug this test guards
- * against — two Argon2id verifications and two persists per successful login).
+ * against — two Argon2id verifications and two persists per successful login). Login is
+ * driven through {@code SecurityContext.authenticate(...)}: Open Liberty forbids
+ * {@code request.login()} while the JASPI {@link LoginAuthenticationMechanism} is active.
  */
 class LoginBeanTest {
 
@@ -50,10 +55,12 @@ class LoginBeanTest {
     private final LoginUseCase loginUseCase = mock(LoginUseCase.class);
     private final LogoutUseCase logoutUseCase = mock(LogoutUseCase.class);
     private final FindUserUseCase findUserUseCase = mock(FindUserUseCase.class);
+    private final SecurityContext securityContext = mock(SecurityContext.class);
 
     private final FacesContext facesContext = mock(FacesContext.class);
     private final ExternalContext externalContext = mock(ExternalContext.class);
     private final HttpServletRequest request = mock(HttpServletRequest.class);
+    private final HttpServletResponse response = mock(HttpServletResponse.class);
 
     private MockedStatic<FacesContext> facesContextStatic;
     private LoginBean bean;
@@ -64,8 +71,9 @@ class LoginBeanTest {
         facesContextStatic.when(FacesContext::getCurrentInstance).thenReturn(facesContext);
         when(facesContext.getExternalContext()).thenReturn(externalContext);
         when(externalContext.getRequest()).thenReturn(request);
+        when(externalContext.getResponse()).thenReturn(response);
 
-        bean = new LoginBean(loginUseCase, logoutUseCase, findUserUseCase);
+        bean = new LoginBean(loginUseCase, logoutUseCase, findUserUseCase, securityContext);
         bean.setEmail(EMAIL);
         bean.setPassword(PASSWORD);
     }
@@ -76,17 +84,18 @@ class LoginBeanTest {
     }
 
     @Test
-    void login_validCredentials_authenticatesExactlyOnceThenEstablishesSession() throws ServletException {
+    void login_validCredentials_authenticatesExactlyOnceThenEstablishesSession() {
         when(findUserUseCase.findByEmail(EMAIL)).thenReturn(Optional.of(activeUser()));
+        when(securityContext.authenticate(eq(request), eq(response), any())).thenReturn(AuthenticationStatus.SUCCESS);
 
         String outcome = bean.login();
 
         assertThat(outcome).isEqualTo("/product-catalog/catalog.xhtml?faces-redirect=true");
 
-        // The container path ran exactly once...
+        // The container path ran exactly once, with the typed credentials in the attributes...
         verify(request).setAttribute(LoginAuthenticationMechanism.USERNAME_ATTRIBUTE, EMAIL);
         verify(request).setAttribute(LoginAuthenticationMechanism.PASSWORD_ATTRIBUTE, PASSWORD);
-        verify(request, times(1)).login(EMAIL, PASSWORD);
+        verify(securityContext, times(1)).authenticate(eq(request), eq(response), any());
         verify(request).changeSessionId();
 
         // ...session was established WITHOUT re-checking the password...
@@ -100,30 +109,30 @@ class LoginBeanTest {
     }
 
     @Test
-    void login_unknownEmail_showsGenericMessageAndNeverCallsFindResultDirectly() throws ServletException {
+    void login_unknownEmail_showsGenericMessageAndNeverCallsFindResultDirectly() {
         when(findUserUseCase.findByEmail(EMAIL)).thenReturn(Optional.empty());
-        doThrow(new ServletException("invalid")).when(request).login(EMAIL, PASSWORD);
+        when(securityContext.authenticate(eq(request), eq(response), any())).thenReturn(AuthenticationStatus.SEND_FAILURE);
 
         String outcome = bean.login();
 
         assertThat(outcome).isNull();
         // Falls through to the container attempt exactly like a known user with a wrong
         // password would -- this bean never confirms whether the email is registered.
-        verify(request, times(1)).login(EMAIL, PASSWORD);
+        verify(securityContext, times(1)).authenticate(eq(request), eq(response), any());
         verify(facesContext).addMessage(isNull(),
                 argThat((FacesMessage m) -> "Invalid email or password".equals(m.getDetail())));
         verify(loginUseCase, never()).establishSession(anyString());
     }
 
     @Test
-    void login_wrongPassword_containerRejectsAndSessionIsNeverEstablished() throws ServletException {
+    void login_wrongPassword_containerRejectsAndSessionIsNeverEstablished() {
         when(findUserUseCase.findByEmail(EMAIL)).thenReturn(Optional.of(activeUser()));
-        doThrow(new ServletException("invalid")).when(request).login(EMAIL, PASSWORD);
+        when(securityContext.authenticate(eq(request), eq(response), any())).thenReturn(AuthenticationStatus.SEND_FAILURE);
 
         String outcome = bean.login();
 
         assertThat(outcome).isNull();
-        verify(request, times(1)).login(EMAIL, PASSWORD);
+        verify(securityContext, times(1)).authenticate(eq(request), eq(response), any());
         verify(facesContext).addMessage(isNull(),
                 argThat((FacesMessage m) -> "Invalid email or password".equals(m.getDetail())));
         verify(loginUseCase, never()).establishSession(anyString());
@@ -131,7 +140,7 @@ class LoginBeanTest {
     }
 
     @Test
-    void login_lockedAccount_shortCircuitsBeforeTouchingTheContainer() throws ServletException {
+    void login_lockedAccount_shortCircuitsBeforeTouchingTheContainer() {
         User locked = activeUser();
         // Five failed attempts flip the domain status to LOCKED (see UserTest for the
         // domain-level assertion); here we only need canLogin() == false.
@@ -146,9 +155,9 @@ class LoginBeanTest {
         verify(facesContext).addMessage(isNull(),
                 argThat((FacesMessage m) -> "Account is locked or inactive".equals(m.getDetail())));
 
-        // The whole point of the pre-flight check: no Argon2id verification is even
+        // The whole point of the pre-flight check: no container authentication is even
         // attempted for an account we already know cannot log in.
-        verify(request, never()).login(anyString(), anyString());
+        verify(securityContext, never()).authenticate(any(), any(), any());
         verify(loginUseCase, never()).establishSession(anyString());
     }
 
