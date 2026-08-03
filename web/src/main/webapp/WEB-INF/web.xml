@@ -55,6 +55,7 @@
             <web-resource-name>Admin pages</web-resource-name>
             <url-pattern>/user-account/admin/*</url-pattern>
             <url-pattern>/product-catalog/manageProduct.xhtml</url-pattern>
+            <url-pattern>/admin-dashboard/*</url-pattern>
         </web-resource-collection>
         <auth-constraint>
             <role-name>ADMIN</role-name>

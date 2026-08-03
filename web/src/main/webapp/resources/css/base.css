@@ -394,6 +394,40 @@ a:hover {
     margin-top: var(--space-md);
 }
 
+/* --- Dashboard KPI cards (admin-dashboard/dashboard.xhtml) ---
+   Single occurrence so far — layout classes consuming existing tokens only.
+   No new primitive/semantic/component token was added (design-system.md
+   sections 4 and 5). Extract a metric-card composite component only when a
+   second KPI surface exists. */
+
+.dashboard-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.dashboard-kpi {
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: var(--space-md);
+}
+
+.dashboard-kpi-label {
+    font-size: var(--font-size-caption);
+    color: var(--color-text-muted);
+    margin: 0 0 var(--space-xs);
+}
+
+.dashboard-kpi-value {
+    font-size: var(--font-size-h3);
+    font-weight: var(--font-weight-strong);
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
 /* --- Pagination --- */
 
 .pagination {

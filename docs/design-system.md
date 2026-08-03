@@ -90,7 +90,7 @@ Location: `web/src/main/webapp/WEB-INF/tags/` (registered via a
 | Status badge | `WEB-INF/tags/status-badge.xhtml` | **Built** (rule of two met) | `manageProduct.xhtml` (ProductStatus), `order-confirmed.xhtml` (Order.Status), `admin/users.xhtml` (UserStatus) | `--badge-*`, `--color-status-*` |
 | Form field group | `WEB-INF/tags/form-field-group.xhtml` | **Built** (rule of two met) | login, register, password-reset, password-reset-confirm, profile, address-book, manageProduct | `--form-field-*` |
 | Admin data table | `admin-data-table.xhtml` | **Candidate — not yet** (1 occurrence: `admin/users.xhtml`) | — | (not defined yet) |
-| Metric card | `metric-card.xhtml` | **Candidate — not yet** (0 occurrences: no dashboard page) | — | (not defined yet) |
+| Metric card | `metric-card.xhtml` | **Candidate — not yet** (1 occurrence: `admin-dashboard/dashboard.xhtml`) | — | (not defined yet) |
 
 **Usage example** (status badge, referenced from any `.xhtml`):
 
@@ -153,9 +153,10 @@ Current inventory (§3) was derived this way:
 - Admin data table — **only** `admin/users.xhtml` (filters + pagination + row
   action). 1 occurrence → **do not extract yet**; revisit when a second list
   (e.g. an Order list page) exists. ⏳
-- Metric card — **zero** occurrences (the `admin-dashboard` module has a
-  service but no `.xhtml` page). **Do not build until the dashboard page and a
-  second KPI surface exist.** ⏳
+- Metric card — **one** occurrence (`admin-dashboard/dashboard.xhtml`, rendered
+  via the single-occurrence `.dashboard-kpi*` layout classes in `base.css`
+  consuming existing tokens only). **Do not extract until a second KPI surface
+  exists.** ⏳
 
 Do **not** extract a component speculatively for a module that isn't written
 yet. Wait for the second occurrence.

@@ -55,39 +55,39 @@
         <div class="card">
             <h2>Add New Address</h2>
             <h:form>
-                <my:formFieldGroup label="Street" for="street">
+                <my:formFieldGroup label="Street" forId="street">
                     <h:inputText id="street" value="#{addressBookBean.street}" required="true" />
                 </my:formFieldGroup>
 
-                <my:formFieldGroup label="Number" for="number">
+                <my:formFieldGroup label="Number" forId="number">
                     <h:inputText id="number" value="#{addressBookBean.number}" required="true" />
                 </my:formFieldGroup>
 
-                <my:formFieldGroup label="Complement" for="complement">
+                <my:formFieldGroup label="Complement" forId="complement">
                     <h:inputText id="complement" value="#{addressBookBean.complement}" />
                 </my:formFieldGroup>
 
-                <my:formFieldGroup label="Neighborhood" for="neighborhood">
+                <my:formFieldGroup label="Neighborhood" forId="neighborhood">
                     <h:inputText id="neighborhood" value="#{addressBookBean.neighborhood}" />
                 </my:formFieldGroup>
 
-                <my:formFieldGroup label="City" for="city">
+                <my:formFieldGroup label="City" forId="city">
                     <h:inputText id="city" value="#{addressBookBean.city}" required="true" />
                 </my:formFieldGroup>
 
-                <my:formFieldGroup label="State" for="state">
+                <my:formFieldGroup label="State" forId="state">
                     <h:inputText id="state" value="#{addressBookBean.state}" required="true" />
                 </my:formFieldGroup>
 
-                <my:formFieldGroup label="Postal Code" for="postalCode">
+                <my:formFieldGroup label="Postal Code" forId="postalCode">
                     <h:inputText id="postalCode" value="#{addressBookBean.postalCode}" required="true" />
                 </my:formFieldGroup>
 
-                <my:formFieldGroup label="Label (e.g. Home, Work)" for="label">
+                <my:formFieldGroup label="Label (e.g. Home, Work)" forId="label">
                     <h:inputText id="label" value="#{addressBookBean.label}" />
                 </my:formFieldGroup>
 
-                <my:formFieldGroup label="Set as default" for="setAsDefault">
+                <my:formFieldGroup label="Set as default" forId="setAsDefault">
                     <h:selectBooleanCheckbox id="setAsDefault" value="#{addressBookBean.setAsDefault}" />
                 </my:formFieldGroup>
 

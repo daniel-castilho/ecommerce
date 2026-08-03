@@ -1,0 +1,76 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:my="https://loja.com/design-system"
+                template="/WEB-INF/templates/main.xhtml">
+
+    <ui:define name="title">Admin - Dashboard</ui:define>
+
+    <ui:define name="content">
+        <h1 class="page-title">Dashboard</h1>
+
+        <div class="dashboard-kpi-grid">
+            <div class="dashboard-kpi">
+                <p class="dashboard-kpi-label">Total Products</p>
+                <p class="dashboard-kpi-value">#{dashboardBean.totalProducts}</p>
+            </div>
+            <div class="dashboard-kpi">
+                <p class="dashboard-kpi-label">Total Users</p>
+                <p class="dashboard-kpi-value">#{dashboardBean.totalUsers}</p>
+            </div>
+            <div class="dashboard-kpi">
+                <p class="dashboard-kpi-label">New Customers Today</p>
+                <p class="dashboard-kpi-value">#{dashboardBean.newCustomersToday}</p>
+            </div>
+            <div class="dashboard-kpi">
+                <p class="dashboard-kpi-label">New Customers This Month</p>
+                <p class="dashboard-kpi-value">#{dashboardBean.newCustomersThisMonth}</p>
+            </div>
+        </div>
+
+        <div class="dashboard-kpi-grid">
+            <div class="dashboard-kpi">
+                <p class="dashboard-kpi-label">Total Orders</p>
+                <p class="dashboard-kpi-value">#{dashboardBean.totalOrders}</p>
+            </div>
+            <div class="dashboard-kpi">
+                <p class="dashboard-kpi-label">Orders Today</p>
+                <p class="dashboard-kpi-value">#{dashboardBean.ordersToday}</p>
+            </div>
+            <div class="dashboard-kpi">
+                <p class="dashboard-kpi-label">Orders This Month</p>
+                <p class="dashboard-kpi-value">#{dashboardBean.ordersThisMonth}</p>
+            </div>
+            <div class="dashboard-kpi">
+                <p class="dashboard-kpi-label">Revenue Today</p>
+                <p class="dashboard-kpi-value">#{dashboardBean.revenueTodayFormatted}</p>
+            </div>
+            <div class="dashboard-kpi">
+                <p class="dashboard-kpi-label">Revenue This Month</p>
+                <p class="dashboard-kpi-value">#{dashboardBean.revenueThisMonthFormatted}</p>
+            </div>
+            <div class="dashboard-kpi">
+                <p class="dashboard-kpi-label">Avg Order Value (Month)</p>
+                <p class="dashboard-kpi-value">#{dashboardBean.averageOrderValueFormatted}</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Orders by Status</h2>
+            <h:dataTable value="#{dashboardBean.ordersByStatus}" var="row"
+                         styleClass="data-table"
+                         rendered="#{not empty dashboardBean.ordersByStatus}">
+                <h:column>
+                    <f:facet name="header">Status</f:facet>
+                    <my:statusBadge status="#{row.status}" />
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Orders</f:facet>
+                    #{row.count}
+                </h:column>
+            </h:dataTable>
+            <p rendered="#{empty dashboardBean.ordersByStatus}">No orders yet.</p>
+        </div>
+    </ui:define>
+</ui:composition>

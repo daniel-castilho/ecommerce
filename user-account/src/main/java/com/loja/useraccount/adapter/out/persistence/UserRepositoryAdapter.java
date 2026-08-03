@@ -11,6 +11,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -100,6 +101,14 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     @Override
     public long count() {
         return em.createQuery("SELECT COUNT(u) FROM UserJpaEntity u", Long.class)
+                .getSingleResult();
+    }
+
+    @Override
+    public long countCreatedSince(Instant since) {
+        return em.createQuery(
+                        "SELECT COUNT(u) FROM UserJpaEntity u WHERE u.createdAt >= :since", Long.class)
+                .setParameter("since", since)
                 .getSingleResult();
     }
 

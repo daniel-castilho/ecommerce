@@ -34,6 +34,12 @@ public class DashboardMetricsService implements DashboardMetricsUseCase {
         long totalProducts = searchProductsUseCase.findAll().size();
         long totalUsers = countUsersUseCase.countAll();
         long totalOrders = adminOrderMetricsUseCase.countAllOrders();
-        return new DashboardSummary(totalUsers, totalProducts, totalOrders);
+        return new DashboardSummary(
+                totalUsers,
+                totalProducts,
+                totalOrders,
+                countUsersUseCase.countRegisteredToday(),
+                countUsersUseCase.countRegisteredThisMonth(),
+                adminOrderMetricsUseCase.getOrderMetrics());
     }
 }

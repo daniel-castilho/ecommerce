@@ -14,11 +14,11 @@
             <h:form>
                 <h:messages showDetail="true" showSummary="false" styleClass="messages" />
 
-                <my:formFieldGroup label="Email" for="email">
+                <my:formFieldGroup label="Email" forId="email">
                     <h:inputText id="email" value="#{loginBean.email}" required="true" />
                 </my:formFieldGroup>
 
-                <my:formFieldGroup label="Password" for="password">
+                <my:formFieldGroup label="Password" forId="password">
                     <h:inputSecret id="password" value="#{loginBean.password}" required="true" />
                 </my:formFieldGroup>
 

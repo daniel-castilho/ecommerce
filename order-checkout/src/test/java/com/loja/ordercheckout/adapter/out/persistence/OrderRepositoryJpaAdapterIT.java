@@ -17,8 +17,10 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -189,6 +191,12 @@ class OrderRepositoryJpaAdapterIT extends AbstractIntegrationTest {
                 List.of(), null, null, null, null, createdAt);
     }
 
+    private Order orderAt(String id, String userId, Instant createdAt, OrderStatus status,
+                          List<OrderLine> lines, Money shippingCost) {
+        return Order.restore(id, userId, "customer@example.com", createdAt, status,
+                lines, null, shippingCost, null, null, createdAt);
+    }
+
 
     @Test
     void shouldFindByStatusReturnOnlyMatchingOrders() {
@@ -227,6 +235,62 @@ class OrderRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         long total = inTx(adapter::countAll);
 
         assertThat(total).isZero();
+    }
+
+    @Test
+    void shouldSumRevenueSinceExcludingCancelledAndRefunded() {
+        Instant today = Instant.now().truncatedTo(ChronoUnit.DAYS);
+        inTx(() -> adapter.save(orderAt("rev-1", "u1", today, OrderStatus.CONFIRMED,
+                List.of(line("p1", "A", 2, new Money(new BigDecimal("10.00")), 0)),
+                new Money(new BigDecimal("5.00")))));
+        inTx(() -> adapter.save(orderAt("rev-2", "u2", today, OrderStatus.PENDING,
+                List.of(line("p1", "A", 1, new Money(new BigDecimal("7.00")), 0)), Money.zero())));
+        inTx(() -> adapter.save(orderAt("rev-3", "u3", today, OrderStatus.CANCELLED,
+                List.of(line("p1", "A", 3, new Money(new BigDecimal("10.00")), 0)), Money.zero())));
+        inTx(() -> adapter.save(orderAt("rev-4", "u4", today.minus(2, ChronoUnit.DAYS), OrderStatus.CONFIRMED,
+                List.of(line("p1", "A", 1, new Money(new BigDecimal("99.00")), 0)), Money.zero())));
+
+        Money revenue = inTx(() -> adapter.revenueSince(today));
+
+        assertThat(revenue).isEqualTo(new Money(new BigDecimal("32.00")));
+    }
+
+    @Test
+    void shouldSumRevenueSinceReturnZeroWhenNoMatchingOrders() {
+        Instant yesterday = Instant.now().truncatedTo(ChronoUnit.DAYS).minus(1, ChronoUnit.DAYS);
+        inTx(() -> adapter.save(orderAt("rev-empty", "u1", yesterday, OrderStatus.CONFIRMED,
+                List.of(line("p1", "A", 1, new Money(new BigDecimal("10.00")), 0)), Money.zero())));
+
+        Money revenue = inTx(() -> adapter.revenueSince(Instant.now().truncatedTo(ChronoUnit.DAYS)));
+
+        assertThat(revenue).isEqualTo(Money.zero());
+    }
+
+    @Test
+    void shouldCountOrdersCreatedSince() {
+        Instant today = Instant.now().truncatedTo(ChronoUnit.DAYS);
+        inTx(() -> adapter.save(orderAt("cnt-1", "u1", today, OrderStatus.CONFIRMED, List.of(), Money.zero())));
+        inTx(() -> adapter.save(orderAt("cnt-2", "u2", today.plusSeconds(60), OrderStatus.PENDING, List.of(), Money.zero())));
+        inTx(() -> adapter.save(orderAt("cnt-3", "u3", today.minus(3, ChronoUnit.DAYS), OrderStatus.CONFIRMED, List.of(), Money.zero())));
+
+        long count = inTx(() -> adapter.countCreatedSince(today));
+
+        assertThat(count).isEqualTo(2);
+    }
+
+    @Test
+    void shouldCountOrdersByStatusWithZeroFill() {
+        Instant today = Instant.now().truncatedTo(ChronoUnit.DAYS);
+        inTx(() -> adapter.save(orderAt("st-1", "u1", today, OrderStatus.CONFIRMED, List.of(), Money.zero())));
+        inTx(() -> adapter.save(orderAt("st-2", "u2", today, OrderStatus.CONFIRMED, List.of(), Money.zero())));
+        inTx(() -> adapter.save(orderAt("st-3", "u3", today, OrderStatus.PENDING, List.of(), Money.zero())));
+
+        Map<OrderStatus, Long> counts = inTx(adapter::countByStatus);
+
+        assertThat(counts.get(OrderStatus.CONFIRMED)).isEqualTo(2);
+        assertThat(counts.get(OrderStatus.PENDING)).isEqualTo(1);
+        assertThat(counts.get(OrderStatus.DELIVERED)).isZero();
+        assertThat(counts).hasSize(OrderStatus.values().length);
     }
 
     @Test

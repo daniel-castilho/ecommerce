@@ -5,15 +5,22 @@ import com.loja.ordercheckout.domain.exception.OrderConcurrentModificationExcept
 import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.OrderStatus;
 import com.loja.ordercheckout.domain.port.out.OrderRepositoryPort;
+import com.loja.shared.domain.Money;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.OptimisticLockException;
 import jakarta.persistence.PersistenceContext;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @ApplicationScoped
 public class OrderRepositoryAdapter implements OrderRepositoryPort {
+
+    private static final List<OrderStatus> EXCLUDED_FROM_REVENUE = List.of(OrderStatus.CANCELLED, OrderStatus.REFUNDED);
 
     @PersistenceContext(unitName = "ecommercePU")
     EntityManager em;
@@ -76,5 +83,49 @@ public class OrderRepositoryAdapter implements OrderRepositoryPort {
     public long countAll() {
         return em.createQuery("SELECT COUNT(o) FROM OrderJpaEntity o", Long.class)
                 .getSingleResult();
+    }
+
+    @Override
+    public Money revenueSince(Instant since) {
+        BigDecimal itemsRevenue = em.createQuery(
+                        "SELECT COALESCE(SUM(ol.quantity * ol.unitPrice), 0) " +
+                                "FROM OrderJpaEntity o JOIN o.items ol " +
+                                "WHERE o.createdAt >= :since AND o.status NOT IN :excluded",
+                        BigDecimal.class)
+                .setParameter("since", since)
+                .setParameter("excluded", EXCLUDED_FROM_REVENUE)
+                .getSingleResult();
+        BigDecimal shippingRevenue = em.createQuery(
+                        "SELECT COALESCE(SUM(o.shippingCost), 0) " +
+                                "FROM OrderJpaEntity o " +
+                                "WHERE o.createdAt >= :since AND o.status NOT IN :excluded",
+                        BigDecimal.class)
+                .setParameter("since", since)
+                .setParameter("excluded", EXCLUDED_FROM_REVENUE)
+                .getSingleResult();
+        return new Money(itemsRevenue.add(shippingRevenue));
+    }
+
+    @Override
+    public long countCreatedSince(Instant since) {
+        return em.createQuery(
+                        "SELECT COUNT(o) FROM OrderJpaEntity o WHERE o.createdAt >= :since", Long.class)
+                .setParameter("since", since)
+                .getSingleResult();
+    }
+
+    @Override
+    public Map<OrderStatus, Long> countByStatus() {
+        Map<OrderStatus, Long> counts = new EnumMap<>(OrderStatus.class);
+        for (OrderStatus status : OrderStatus.values()) {
+            counts.put(status, 0L);
+        }
+        List<Object[]> rows = em.createQuery(
+                        "SELECT o.status, COUNT(o) FROM OrderJpaEntity o GROUP BY o.status", Object[].class)
+                .getResultList();
+        for (Object[] row : rows) {
+            counts.put((OrderStatus) row[0], (Long) row[1]);
+        }
+        return counts;
     }
 }

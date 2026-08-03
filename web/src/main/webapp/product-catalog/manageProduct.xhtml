@@ -57,7 +57,7 @@
                 <h:form id="productForm">
                     <h2>#{manageProductBean.editMode ? 'Edit product' : 'New product'}</h2>
 
-                    <my:formFieldGroup label="SKU" for="sku">
+                    <my:formFieldGroup label="SKU" forId="sku">
                         <ui:fragment rendered="#{manageProductBean.editMode}">
                             <h:outputText value="#{manageProductBean.sku}" />
                         </ui:fragment>
@@ -66,49 +66,49 @@
                         </ui:fragment>
                     </my:formFieldGroup>
 
-                    <my:formFieldGroup label="Name" for="name">
+                    <my:formFieldGroup label="Name" forId="name">
                         <h:inputText id="name" value="#{manageProductBean.name}" />
                     </my:formFieldGroup>
 
-                    <my:formFieldGroup label="Slug (blank = auto-generate on create)" for="slug">
+                    <my:formFieldGroup label="Slug (blank = auto-generate on create)" forId="slug">
                         <h:inputText id="slug" value="#{manageProductBean.slug}" />
                     </my:formFieldGroup>
 
-                    <my:formFieldGroup label="Short description" for="shortDescription">
+                    <my:formFieldGroup label="Short description" forId="shortDescription">
                         <h:inputText id="shortDescription" value="#{manageProductBean.shortDescription}" />
                     </my:formFieldGroup>
 
-                    <my:formFieldGroup label="Description (HTML)" for="description">
+                    <my:formFieldGroup label="Description (HTML)" forId="description">
                         <h:inputTextarea id="description" value="#{manageProductBean.description}"
                                          rows="5" cols="40" />
                     </my:formFieldGroup>
 
-                    <my:formFieldGroup label="Price" for="price">
+                    <my:formFieldGroup label="Price" forId="price">
                         <h:inputText id="price" value="#{manageProductBean.price}" />
                     </my:formFieldGroup>
 
-                    <my:formFieldGroup label="Compare-at price" for="compareAtPrice">
+                    <my:formFieldGroup label="Compare-at price" forId="compareAtPrice">
                         <h:inputText id="compareAtPrice" value="#{manageProductBean.compareAtPrice}" />
                     </my:formFieldGroup>
 
-                    <my:formFieldGroup label="Stock" for="stock">
+                    <my:formFieldGroup label="Stock" forId="stock">
                         <h:inputText id="stock" value="#{manageProductBean.stock}" />
                     </my:formFieldGroup>
 
-                    <my:formFieldGroup label="Weight (grams)" for="weightGrams">
+                    <my:formFieldGroup label="Weight (grams)" forId="weightGrams">
                         <h:inputText id="weightGrams" value="#{manageProductBean.weightGrams}" />
                     </my:formFieldGroup>
 
-                    <my:formFieldGroup label="SEO title" for="metaTitle">
+                    <my:formFieldGroup label="SEO title" forId="metaTitle">
                         <h:inputText id="metaTitle" value="#{manageProductBean.metaTitle}" />
                     </my:formFieldGroup>
 
-                    <my:formFieldGroup label="SEO description" for="metaDescription">
+                    <my:formFieldGroup label="SEO description" forId="metaDescription">
                         <h:inputTextarea id="metaDescription" value="#{manageProductBean.metaDescription}"
                                          rows="2" cols="40" />
                     </my:formFieldGroup>
 
-                    <my:formFieldGroup label="Categories" for="categories">
+                    <my:formFieldGroup label="Categories" forId="categories">
                         <h:selectManyCheckbox id="categories" value="#{manageProductBean.selectedCategoryIds}">
                             <f:selectItems value="#{manageProductBean.categories}" var="c"
                                            itemValue="#{c.id}" itemLabel="#{c.name}" />
@@ -116,13 +116,13 @@
                     </my:formFieldGroup>
 
                     <ui:fragment rendered="#{not manageProductBean.editMode}">
-                        <my:formFieldGroup label="Image file (optional)" for="createFile">
+                        <my:formFieldGroup label="Image file (optional)" forId="createFile">
                             <h:inputFile id="createFile" value="#{manageProductBean.file}" />
                         </my:formFieldGroup>
-                        <my:formFieldGroup label="Image alt text" for="createUploadAltText">
+                        <my:formFieldGroup label="Image alt text" forId="createUploadAltText">
                             <h:inputText id="createUploadAltText" value="#{manageProductBean.uploadAltText}" />
                         </my:formFieldGroup>
-                        <my:formFieldGroup label="Make primary" for="createUploadPrimary">
+                        <my:formFieldGroup label="Make primary" forId="createUploadPrimary">
                             <h:selectBooleanCheckbox id="createUploadPrimary"
                                                      value="#{manageProductBean.uploadPrimary}" />
                         </my:formFieldGroup>

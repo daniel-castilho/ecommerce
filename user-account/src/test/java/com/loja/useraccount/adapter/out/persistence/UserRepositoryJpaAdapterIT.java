@@ -12,6 +12,7 @@ import jakarta.persistence.EntityTransaction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -168,6 +169,22 @@ class UserRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         long total = adapter.count();
 
         assertThat(total).isEqualTo(before + 2);
+    }
+
+    @Test
+    void shouldCountUsersCreatedSince() {
+        Instant start = Instant.now().minusSeconds(1);
+
+        EntityTransaction tx = em.getTransaction();
+        tx.begin();
+        adapter.save(createUser("since-1@example.com", "Since One"));
+        adapter.save(createUser("since-2@example.com", "Since Two"));
+        tx.commit();
+        em.clear();
+
+        long count = adapter.countCreatedSince(start);
+
+        assertThat(count).isGreaterThanOrEqualTo(2);
     }
 
     private User createUser(String email, String fullName) {

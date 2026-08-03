@@ -86,7 +86,7 @@
             <div class="card" rendered="#{orderHistoryBean.canRequestRefund(orderHistoryBean.selectedOrder)}">
                 <h:form>
                     <h3>Request refund</h3>
-                    <my:formFieldGroup label="Reason" for="refundReason">
+                    <my:formFieldGroup label="Reason" forId="refundReason">
                         <h:inputTextarea id="refundReason" rows="3" cols="40"
                                          value="#{orderHistoryBean.refundReason}" />
                     </my:formFieldGroup>

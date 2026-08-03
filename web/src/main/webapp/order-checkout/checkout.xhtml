@@ -74,31 +74,31 @@
 
                     <ui:fragment rendered="#{empty checkoutBean.shippingOptions}">
                         <div class="form-grid">
-                            <my:formFieldGroup label="Recipient" for="recipient">
+                            <my:formFieldGroup label="Recipient" forId="recipient">
                                 <h:inputText id="recipient" value="#{checkoutBean.recipientName}" required="true" />
                             </my:formFieldGroup>
-                            <my:formFieldGroup label="Street" for="street">
+                            <my:formFieldGroup label="Street" forId="street">
                                 <h:inputText id="street" value="#{checkoutBean.street}" required="true" />
                             </my:formFieldGroup>
-                            <my:formFieldGroup label="Number" for="number">
+                            <my:formFieldGroup label="Number" forId="number">
                                 <h:inputText id="number" value="#{checkoutBean.number}" required="true" />
                             </my:formFieldGroup>
-                            <my:formFieldGroup label="Complement" for="complement">
+                            <my:formFieldGroup label="Complement" forId="complement">
                                 <h:inputText id="complement" value="#{checkoutBean.complement}" />
                             </my:formFieldGroup>
-                            <my:formFieldGroup label="Neighborhood" for="neighborhood">
+                            <my:formFieldGroup label="Neighborhood" forId="neighborhood">
                                 <h:inputText id="neighborhood" value="#{checkoutBean.neighborhood}" />
                             </my:formFieldGroup>
-                            <my:formFieldGroup label="City" for="city">
+                            <my:formFieldGroup label="City" forId="city">
                                 <h:inputText id="city" value="#{checkoutBean.city}" required="true" />
                             </my:formFieldGroup>
-                            <my:formFieldGroup label="State" for="state">
+                            <my:formFieldGroup label="State" forId="state">
                                 <h:inputText id="state" value="#{checkoutBean.state}" required="true" />
                             </my:formFieldGroup>
-                            <my:formFieldGroup label="Postal code (CEP)" for="postalCode">
+                            <my:formFieldGroup label="Postal code (CEP)" forId="postalCode">
                                 <h:inputText id="postalCode" value="#{checkoutBean.postalCode}" required="true" />
                             </my:formFieldGroup>
-                            <my:formFieldGroup label="Phone" for="phoneNumber">
+                            <my:formFieldGroup label="Phone" forId="phoneNumber">
                                 <h:inputText id="phoneNumber" value="#{checkoutBean.phoneNumber}" />
                             </my:formFieldGroup>
                         </div>
@@ -129,10 +129,10 @@
             <h:form rendered="#{checkoutBean.step == 3}">
                 <div class="card">
                     <h3>Payment</h3>
-                    <my:formFieldGroup label="Email" for="email">
+                    <my:formFieldGroup label="Email" forId="email">
                         <h:inputText id="email" value="#{checkoutBean.customerEmail}" required="true" />
                     </my:formFieldGroup>
-                    <my:formFieldGroup label="Payment token" for="paymentToken">
+                    <my:formFieldGroup label="Payment token" forId="paymentToken">
                         <h:inputText id="paymentToken" value="#{checkoutBean.paymentToken}" required="true" />
                     </my:formFieldGroup>
                     <p>Card details are tokenized by your payment provider in the browser; only the token reaches the server.</p>

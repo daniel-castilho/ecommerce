@@ -14,15 +14,15 @@
             <h:form>
                 <h:messages showDetail="true" showSummary="false" styleClass="messages" />
 
-                <my:formFieldGroup label="Email" for="email">
+                <my:formFieldGroup label="Email" forId="email">
                     <h:inputText id="email" value="#{registerBean.email}" required="true" />
                 </my:formFieldGroup>
 
-                <my:formFieldGroup label="Full Name" for="fullName">
+                <my:formFieldGroup label="Full Name" forId="fullName">
                     <h:inputText id="fullName" value="#{registerBean.fullName}" required="true" />
                 </my:formFieldGroup>
 
-                <my:formFieldGroup label="Password" for="password">
+                <my:formFieldGroup label="Password" forId="password">
                     <h:inputSecret id="password" value="#{registerBean.password}" required="true" />
                 </my:formFieldGroup>
 
