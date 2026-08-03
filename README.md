@@ -60,6 +60,11 @@ WAR into `dropins`. The dev keystore password lives in `web/src/main/liberty/con
 
 ## Current state (2026-08-02)
 
+- **Released as `v0.5.0` (2026-08-02)** — admin-dashboard S2 real metrics (live KPIs on
+  `dashboard.xhtml` matching the DB) + the login root-cause fix: programmatic login now goes
+  through `SecurityContext.authenticate(...)` (Open Liberty forbids `request.login()` while a
+  JASPI mechanism is active) and `<ltpa keysPassword>` (default removed in 26.0.0.4+,
+  CVE-2025-14917). See `docs/releases/v0.5.0.md`.
 - **Released as `v0.4.0` (2026-08-02)** — bugfix milestone on `v0.3.0`'s RBAC: login now
   verifies the password exactly once per attempt (single container check + `establishSession()`,
   no more 2× Argon2id / 2× save), and the status-badge CSS is realigned with all three status
