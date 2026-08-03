@@ -233,6 +233,14 @@ here.
 
 ```
 ## Changelog
+- 2026-08-02 — Status token correction (design-code drift fix, Strict tier):
+  `OrderStatus` had grown to PENDING/CONFIRMED/PROCESSING/SHIPPED/DELIVERED/
+  CANCELLED/REFUNDED while the CSS still mirrored the old OPEN/CONFIRMED/
+  CANCELLED set, so PROCESSING, SHIPPED, DELIVERED and REFUNDED rendered without
+  color and the dead `--color-status-open` / `.status-OPEN` lingered. Added the 4
+  missing semantic tokens (reusing existing primitives only) and removed the dead
+  one. Added `StatusBadgeCssCoverageTest` (web module) so enum↔CSS drift fails the
+  build from now on.
 - 2026-08-01 — Initial version. Extracted status-badge and form-field-group
   (rule of two already satisfied: 3 and 8 real occurrences respectively).
   admin-data-table and metric-card are listed as candidates only, not

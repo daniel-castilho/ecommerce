@@ -17,6 +17,12 @@
      changelog entry in docs/design-system.md (section 9).
 
    Changelog:
+   - 2026-08-02 — Status token correction (design-code drift fix): OrderStatus
+     had grown to PENDING/CONFIRMED/PROCESSING/SHIPPED/DELIVERED/CANCELLED/
+     REFUNDED but the tokens still mirrored the old OPEN/CONFIRMED/CANCELLED
+     set. Added --color-status-processing/shipped/delivered/refunded (existing
+     primitives only) and removed the dead --color-status-open. Coverage is
+     now enforced by StatusBadgeCssCoverageTest (web module).
    - 2026-08-01 — Initial version. Status tokens mirror the real enums:
      Order.Status (OPEN/CONFIRMED/CANCELLED), ProductStatus
      (DRAFT/ACTIVE/INACTIVE/ARCHIVED), UserStatus
@@ -120,20 +126,29 @@
 
   /* --- Status: enum values only, named after the enum value verbatim
          (see docs/design-system.md section 2).
-         Order.Status:  OPEN, CONFIRMED, CANCELLED
+         OrderStatus:   PENDING, CONFIRMED, PROCESSING, SHIPPED, DELIVERED,
+                        CANCELLED, REFUNDED
          ProductStatus: DRAFT, ACTIVE, INACTIVE, ARCHIVED
          UserStatus:    ACTIVE, INACTIVE, LOCKED, PENDING
-         Values shared across enums (ACTIVE, INACTIVE) map to the same
-         semantic token on purpose. --- */
-  --color-status-open:      var(--color-primitive-blue-500);
-  --color-status-confirmed: var(--color-primitive-blue-600);
-  --color-status-cancelled: var(--color-primitive-red-500);
-  --color-status-draft:     var(--color-primitive-gray-400);
-  --color-status-active:    var(--color-primitive-green-500);
-  --color-status-inactive:  var(--color-primitive-gray-400);
-  --color-status-archived:  var(--color-primitive-gray-500);
-  --color-status-locked:    var(--color-primitive-red-700);
-  --color-status-pending:   var(--color-primitive-amber-500);
+         Values shared across enums (ACTIVE, INACTIVE, PENDING) map to the
+         same semantic token on purpose -- PENDING specifically means "in
+         limbo, action awaited" in both OrderStatus and UserStatus, so one
+         token is correct, not a coincidence.
+         Coverage for this block is enforced by StatusBadgeCssCoverageTest
+         (web module) -- it fails the build if an enum constant has no
+         matching --color-status-* token, or vice versa. --- */
+  --color-status-pending:    var(--color-primitive-amber-500);
+  --color-status-confirmed:  var(--color-primitive-blue-600);
+  --color-status-processing: var(--color-primitive-blue-500);
+  --color-status-shipped:    var(--color-primitive-blue-700);
+  --color-status-delivered:  var(--color-primitive-green-500);
+  --color-status-cancelled:  var(--color-primitive-red-500);
+  --color-status-refunded:   var(--color-primitive-gray-500);
+  --color-status-draft:      var(--color-primitive-gray-400);
+  --color-status-active:     var(--color-primitive-green-500);
+  --color-status-inactive:   var(--color-primitive-gray-400);
+  --color-status-archived:   var(--color-primitive-gray-500);
+  --color-status-locked:     var(--color-primitive-red-700);
 
   /* ==========================================================================
      LAYER 3 — COMPONENT TOKENS

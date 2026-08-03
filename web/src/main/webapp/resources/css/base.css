@@ -187,7 +187,9 @@ a:hover {
    The CSS class is built from the enum value's rendered name (uppercase), so
    the class list mirrors the enum values verbatim (status-ACTIVE, ...). The
    color maps to the matching --color-status-* semantic token. Status is always
-   also rendered as text, never by color alone. */
+   also rendered as text, never by color alone.
+   Coverage enforced by StatusBadgeCssCoverageTest (web module) -- see that
+   test before adding a new Status enum value anywhere in the project. */
 
 .status-badge {
     display: inline-block;
@@ -197,15 +199,18 @@ a:hover {
     font-weight: var(--badge-font-weight);
 }
 
-.status-badge.status-OPEN       { color: var(--color-status-open); }
+.status-badge.status-PENDING    { color: var(--color-status-pending); }
 .status-badge.status-CONFIRMED  { color: var(--color-status-confirmed); }
+.status-badge.status-PROCESSING { color: var(--color-status-processing); }
+.status-badge.status-SHIPPED    { color: var(--color-status-shipped); }
+.status-badge.status-DELIVERED  { color: var(--color-status-delivered); }
 .status-badge.status-CANCELLED  { color: var(--color-status-cancelled); }
+.status-badge.status-REFUNDED   { color: var(--color-status-refunded); }
 .status-badge.status-DRAFT      { color: var(--color-status-draft); }
 .status-badge.status-ACTIVE     { color: var(--color-status-active); }
 .status-badge.status-INACTIVE   { color: var(--color-status-inactive); }
 .status-badge.status-ARCHIVED   { color: var(--color-status-archived); }
 .status-badge.status-LOCKED     { color: var(--color-status-locked); }
-.status-badge.status-PENDING    { color: var(--color-status-pending); }
 
 /* --- Public catalog product cards --- */
 
