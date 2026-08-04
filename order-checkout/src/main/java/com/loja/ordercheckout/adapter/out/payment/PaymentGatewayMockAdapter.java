@@ -6,6 +6,7 @@ import com.loja.ordercheckout.domain.model.PaymentAuthorization;
 import com.loja.ordercheckout.domain.model.PaymentCapture;
 import com.loja.ordercheckout.domain.model.PaymentMethod;
 import com.loja.ordercheckout.domain.model.PaymentRefund;
+import com.loja.ordercheckout.domain.model.RefundRequest;
 import com.loja.ordercheckout.domain.port.out.PaymentGatewayPort;
 import com.loja.shared.domain.Money;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -111,6 +112,17 @@ public class PaymentGatewayMockAdapter implements PaymentGatewayPort {
         }
         return new PaymentRefund(captureId, "mock-ref-" + UUID.randomUUID(), amount,
                 "mock-tx-" + UUID.randomUUID(), Instant.now());
+    }
+
+    @Override
+    public boolean processRefund(RefundRequest request) {
+        try {
+            // we simulate finding the capture id, since the mock doesn't persist captures
+            refund("mock_capture_id", request.getAmount());
+            return true;
+        } catch (PaymentFailedException e) {
+            return false;
+        }
     }
 
     private void audit(String operation, String detail) {

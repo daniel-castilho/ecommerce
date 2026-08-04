@@ -182,14 +182,27 @@ public final class Order {
         return switch (status) {
             case PENDING -> target == OrderStatus.CONFIRMED || target == OrderStatus.CANCELLED;
             case CONFIRMED -> target == OrderStatus.PROCESSING || target == OrderStatus.SHIPPED
-                    || target == OrderStatus.CANCELLED || target == OrderStatus.REFUNDED;
+                    || target == OrderStatus.CANCELLED || target == OrderStatus.REFUNDED
+                    || target == OrderStatus.REFUND_REQUESTED;
             case PROCESSING -> target == OrderStatus.SHIPPED || target == OrderStatus.CANCELLED
-                    || target == OrderStatus.REFUNDED;
+                    || target == OrderStatus.REFUNDED || target == OrderStatus.REFUND_REQUESTED;
             case SHIPPED -> target == OrderStatus.DELIVERED || target == OrderStatus.CANCELLED
-                    || target == OrderStatus.REFUNDED;
-            case DELIVERED -> target == OrderStatus.REFUNDED;
+                    || target == OrderStatus.REFUNDED || target == OrderStatus.REFUND_REQUESTED;
+            case DELIVERED -> target == OrderStatus.REFUNDED || target == OrderStatus.REFUND_REQUESTED;
+            case REFUND_REQUESTED -> target == OrderStatus.REFUNDED || target == OrderStatus.DELIVERED;
             case CANCELLED, REFUNDED -> false;
         };
+    }
+
+    /**
+     * Moves the order to {@code target}, enforcing the state machine
+     * ({@link #canTransitionTo(OrderStatus)}). Used by the refund workflow to
+     * mark an order as awaiting a refund decision and to apply the outcome.
+     *
+     * @throws InvalidOrderStateException if the transition is not allowed
+     */
+    public void updateStatus(OrderStatus target) {
+        transitionTo(target);
     }
 
     private void transitionTo(OrderStatus target) {

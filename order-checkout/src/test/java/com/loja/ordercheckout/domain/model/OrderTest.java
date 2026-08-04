@@ -119,12 +119,13 @@ class OrderTest {
     void canTransitionTo_obeysTransitionMatrix() {
         assertTransitions(OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.CANCELLED);
         assertTransitions(OrderStatus.CONFIRMED, OrderStatus.PROCESSING, OrderStatus.SHIPPED,
-                OrderStatus.CANCELLED, OrderStatus.REFUNDED);
+                OrderStatus.CANCELLED, OrderStatus.REFUNDED, OrderStatus.REFUND_REQUESTED);
         assertTransitions(OrderStatus.PROCESSING, OrderStatus.SHIPPED, OrderStatus.CANCELLED,
-                OrderStatus.REFUNDED);
+                OrderStatus.REFUNDED, OrderStatus.REFUND_REQUESTED);
         assertTransitions(OrderStatus.SHIPPED, OrderStatus.DELIVERED, OrderStatus.CANCELLED,
-                OrderStatus.REFUNDED);
-        assertTransitions(OrderStatus.DELIVERED, OrderStatus.REFUNDED);
+                OrderStatus.REFUNDED, OrderStatus.REFUND_REQUESTED);
+        assertTransitions(OrderStatus.DELIVERED, OrderStatus.REFUNDED, OrderStatus.REFUND_REQUESTED);
+        assertTransitions(OrderStatus.REFUND_REQUESTED, OrderStatus.REFUNDED, OrderStatus.DELIVERED);
         assertTransitions(OrderStatus.CANCELLED);
         assertTransitions(OrderStatus.REFUNDED);
     }

@@ -6,6 +6,7 @@ import com.loja.ordercheckout.domain.model.PaymentAuthorization;
 import com.loja.ordercheckout.domain.model.PaymentCapture;
 import com.loja.ordercheckout.domain.model.PaymentMethod;
 import com.loja.ordercheckout.domain.model.PaymentRefund;
+import com.loja.ordercheckout.domain.model.RefundRequest;
 import com.loja.shared.domain.Money;
 
 /**
@@ -45,4 +46,16 @@ public interface PaymentGatewayPort {
      * @throws PaymentFailedException if the capture id is unknown or the refund fails
      */
     PaymentRefund refund(String captureId, Money amount) throws PaymentFailedException;
+
+    /**
+     * Processes an approved refund request by reversing the charge at the provider.
+     *
+     * <p>Coarse-grained variant used by the admin refund workflow: the provider
+     * decides how to locate the capture for the request's order and amount.
+     *
+     * @param request the approved refund request to reverse
+     * @return {@code true} when the reversal succeeded, {@code false} when the
+     *         provider rejected it
+     */
+    boolean processRefund(RefundRequest request);
 }
