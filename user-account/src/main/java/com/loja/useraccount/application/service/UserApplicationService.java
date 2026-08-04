@@ -9,8 +9,10 @@ import com.loja.useraccount.domain.event.AddressRemovedEvent;
 import com.loja.useraccount.domain.event.PasswordChangedEvent;
 import com.loja.useraccount.domain.event.PasswordResetRequestedEvent;
 import com.loja.useraccount.domain.event.RoleAssignedEvent;
+import com.loja.useraccount.domain.event.UserBlockedEvent;
 import com.loja.useraccount.domain.event.UserLoggedInEvent;
 import com.loja.useraccount.domain.event.UserRegisteredEvent;
+import com.loja.useraccount.domain.event.UserUnblockedEvent;
 import com.loja.useraccount.domain.exception.EmailAlreadyRegisteredException;
 import com.loja.useraccount.domain.exception.InsufficientPermissionException;
 import com.loja.useraccount.domain.exception.InvalidPasswordException;
@@ -60,22 +62,27 @@ public class UserApplicationService
                    SetDefaultAddressUseCase, ListAddressesUseCase,
                    AssignRoleUseCase, ListUsersUseCase, CheckUserRoleUseCase,
                    ValidateCredentialsUseCase,
-                   RequestPasswordResetUseCase, ResetPasswordUseCase {
+                   RequestPasswordResetUseCase, ResetPasswordUseCase,
+                   com.loja.useraccount.domain.port.in.ChangeUserStatusUseCase,
+                   com.loja.useraccount.domain.port.in.ListAuditLogsUseCase {
 
     private final UserRepositoryPort userRepository;
     private final PasswordHasherPort passwordHasher;
     private final SessionPort session;
     private final DomainEventPublisherPort eventPublisher;
+    private final com.loja.useraccount.domain.port.out.AuditLogQueryPort auditLogQueryPort;
 
     @Inject
     public UserApplicationService(UserRepositoryPort userRepository,
                                    PasswordHasherPort passwordHasher,
                                    SessionPort session,
-                                   DomainEventPublisherPort eventPublisher) {
+                                   DomainEventPublisherPort eventPublisher,
+                                   com.loja.useraccount.domain.port.out.AuditLogQueryPort auditLogQueryPort) {
         this.userRepository = userRepository;
         this.passwordHasher = passwordHasher;
         this.session = session;
         this.eventPublisher = eventPublisher;
+        this.auditLogQueryPort = auditLogQueryPort;
     }
 
     @Override
@@ -287,5 +294,31 @@ public class UserApplicationService
             return Result.failure(new DomainError.EmailAlreadyTaken("Email already registered: " + email));
         }
         return User.tryRegister(email, password, fullName, passwordHasher);
+    }
+
+    @Override
+    public void blockUser(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
+        user.deactivate();
+        userRepository.save(user);
+        eventPublisher.publish(new UserBlockedEvent(user.getId()));
+    }
+
+    @Override
+    public void unblockUser(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
+        user.activate();
+        userRepository.save(user);
+        eventPublisher.publish(new UserUnblockedEvent(user.getId()));
+    }
+
+    @Override
+    public PageResult<com.loja.useraccount.domain.model.AuditLogEvent> listAuditLogs(int page, int pageSize) {
+        if (!currentUserHasRole(Role.ADMIN)) {
+            throw new InsufficientPermissionException("Only admins can view audit logs");
+        }
+        return auditLogQueryPort.findAuditLogs(page, pageSize);
     }
 }

@@ -1,0 +1,127 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:my="https://loja.com/design-system"
+                template="/WEB-INF/templates/main.xhtml">
+
+    <ui:define name="metadata">
+        <f:metadata>
+            <f:viewParam name="customerId" value="#{adminCustomerDetailBean.customerId}" />
+            <f:viewAction action="#{adminCustomerDetailBean.loadCustomer}" />
+        </f:metadata>
+    </ui:define>
+
+    <ui:define name="title">Admin - Customer Details</ui:define>
+
+    <ui:define name="content">
+        <h:messages globalOnly="true" styleClass="messages" />
+        
+        <ui:fragment rendered="#{not userBean.hasRole('ADMIN')}">
+            <div class="card">
+                <p>Access denied. This page requires the ADMIN role.</p>
+                <h:link outcome="/product-catalog/catalog.xhtml" value="Back to catalog" styleClass="button" />
+            </div>
+        </ui:fragment>
+        
+        <ui:fragment rendered="#{userBean.hasRole('ADMIN')}">
+            <h1 class="page-title">Customer Details</h1>
+            <h:link outcome="/user-account/admin/users.xhtml" value="&#8592; Back to Users" styleClass="back-link" />
+
+            <ui:fragment rendered="#{empty adminCustomerDetailBean.customer}">
+                <div class="card">
+                    <p>Customer not found.</p>
+                </div>
+            </ui:fragment>
+
+            <ui:fragment rendered="#{not empty adminCustomerDetailBean.customer}">
+                <div class="card">
+                    <h2>Profile Information</h2>
+                    <p><strong>Name:</strong> #{adminCustomerDetailBean.customer.fullName}</p>
+                    <p><strong>Email:</strong> #{adminCustomerDetailBean.customer.email.value}</p>
+                    <p><strong>Status:</strong> <my:statusBadge status="#{adminCustomerDetailBean.customer.status}" /></p>
+                    <p><strong>Member Since:</strong> 
+                        <h:outputText value="#{adminCustomerDetailBean.customer.createdAt}">
+                            <f:convertDateTime type="both" timeZone="UTC" />
+                        </h:outputText>
+                    </p>
+                    <p><strong>Last Login:</strong> 
+                        <h:outputText value="#{adminCustomerDetailBean.customer.lastLoginAt}">
+                            <f:convertDateTime type="both" timeZone="UTC" />
+                        </h:outputText>
+                    </p>
+                </div>
+
+                <div class="card">
+                    <h2>Account Actions</h2>
+                    <h:form>
+                        <h:commandButton value="Block Account"
+                                         action="#{adminCustomerDetailBean.block}"
+                                         rendered="#{not adminCustomerDetailBean.blocked}"
+                                         styleClass="button button-secondary"
+                                         onclick="return confirm('Are you sure you want to block this customer? They will no longer be able to log in or place orders.');" />
+                        <h:commandButton value="Unblock Account"
+                                         action="#{adminCustomerDetailBean.unblock}"
+                                         rendered="#{adminCustomerDetailBean.blocked}"
+                                         styleClass="button button-primary" />
+                    </h:form>
+                </div>
+
+                <div class="card">
+                    <h2>Addresses</h2>
+                    <h:dataTable value="#{adminCustomerDetailBean.customer.addresses.toArray()}" var="address"
+                                 styleClass="data-table" rendered="#{not empty adminCustomerDetailBean.customer.addresses}">
+                        <h:column>
+                            <f:facet name="header">Label</f:facet>
+                            #{address.label}
+                            <h:outputText value=" (Default)" rendered="#{address.default}" style="color: green;" />
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Street</f:facet>
+                            #{address.street}, #{address.number} #{address.complement}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">City/State</f:facet>
+                            #{address.city} - #{address.state}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Zip Code</f:facet>
+                            #{address.postalCode}
+                        </h:column>
+                    </h:dataTable>
+                    <p rendered="#{empty adminCustomerDetailBean.customer.addresses}">No addresses registered.</p>
+                </div>
+
+                <div class="card">
+                    <h2>Recent Orders</h2>
+                    <h:dataTable value="#{adminCustomerDetailBean.recentOrders}" var="order"
+                                 styleClass="data-table" rendered="#{not empty adminCustomerDetailBean.recentOrders}">
+                        <h:column>
+                            <f:facet name="header">Order #</f:facet>
+                            <h:link outcome="/admin-dashboard/order-detail.xhtml" value="#{order.id}">
+                                <f:param name="orderId" value="#{order.id}" />
+                            </h:link>
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Date</f:facet>
+                            <h:outputText value="#{order.createdAt}">
+                                <f:convertDateTime type="both" timeZone="UTC" />
+                            </h:outputText>
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Total</f:facet>
+                            R$ <h:outputText value="#{order.total}">
+                                <f:convertNumber pattern="#,##0.00" />
+                            </h:outputText>
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Status</f:facet>
+                            <my:statusBadge status="#{order.status}" />
+                        </h:column>
+                    </h:dataTable>
+                    <p rendered="#{empty adminCustomerDetailBean.recentOrders}">No recent orders.</p>
+                </div>
+            </ui:fragment>
+        </ui:fragment>
+    </ui:define>
+</ui:composition>

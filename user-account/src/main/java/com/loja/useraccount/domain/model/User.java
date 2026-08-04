@@ -161,6 +161,13 @@ public class User {
         this.updatedAt = Instant.now();
     }
 
+    public void activate() {
+        this.active = true;
+        this.status = UserStatus.ACTIVE;
+        this.failedLoginAttempts = 0;
+        this.updatedAt = Instant.now();
+    }
+
     /** Restores a previously persisted password-reset request when reconstructing the aggregate. */
     public void restorePasswordReset(String token, Instant expiresAt) {
         this.passwordResetToken = token;

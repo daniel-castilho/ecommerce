@@ -6,6 +6,7 @@ import com.loja.useraccount.domain.model.Role;
 import com.loja.useraccount.domain.model.User;
 import com.loja.useraccount.domain.model.UserStatus;
 import com.loja.useraccount.domain.port.in.AssignRoleUseCase;
+import com.loja.useraccount.domain.port.in.ChangeUserStatusUseCase;
 import com.loja.useraccount.domain.port.in.ListUsersUseCase;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.security.RolesAllowed;
@@ -33,6 +34,9 @@ public class AdminUsersBean implements Serializable {
 
     @Inject
     private AssignRoleUseCase assignRoleUseCase;
+
+    @Inject
+    private ChangeUserStatusUseCase changeUserStatusUseCase;
 
     private List<User> users;
     private long totalElements;
@@ -78,6 +82,22 @@ public class AdminUsersBean implements Serializable {
         FacesContext.getCurrentInstance().addMessage(null,
                 new FacesMessage(FacesMessage.SEVERITY_INFO, "Role assigned",
                         user.getEmail() + " is now " + role));
+        refresh();
+    }
+
+    public void blockUser(User user) {
+        changeUserStatusUseCase.blockUser(user.getId());
+        FacesContext.getCurrentInstance().addMessage(null,
+                new FacesMessage(FacesMessage.SEVERITY_INFO, "User Blocked",
+                        user.getEmail() + " has been blocked."));
+        refresh();
+    }
+
+    public void unblockUser(User user) {
+        changeUserStatusUseCase.unblockUser(user.getId());
+        FacesContext.getCurrentInstance().addMessage(null,
+                new FacesMessage(FacesMessage.SEVERITY_INFO, "User Unblocked",
+                        user.getEmail() + " has been activated."));
         refresh();
     }
 

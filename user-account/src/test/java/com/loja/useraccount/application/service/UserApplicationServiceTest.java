@@ -35,12 +35,13 @@ class UserApplicationServiceTest {
     private final PasswordHasherPort passwordHasher = mock(PasswordHasherPort.class);
     private final SessionPort session = mock(SessionPort.class);
     private final DomainEventPublisherPort eventPublisher = mock(DomainEventPublisherPort.class);
+    private final com.loja.useraccount.domain.port.out.AuditLogQueryPort auditLogQueryPort = mock(com.loja.useraccount.domain.port.out.AuditLogQueryPort.class);
 
     private UserApplicationService service;
 
     @BeforeEach
     void setUp() {
-        service = new UserApplicationService(userRepository, passwordHasher, session, eventPublisher);
+        service = new UserApplicationService(userRepository, passwordHasher, session, eventPublisher, auditLogQueryPort);
         when(passwordHasher.hash(any(String.class)))
                 .thenAnswer(inv -> "hash:" + inv.getArgument(0, String.class));
         when(passwordHasher.verify(any(String.class), any(String.class)))

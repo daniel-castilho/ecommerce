@@ -43,7 +43,9 @@
                          rendered="#{not empty adminUsersBean.users}">
                 <h:column>
                     <f:facet name="header">Email</f:facet>
-                    #{user.email.value}
+                    <h:link outcome="/admin-dashboard/customer-detail.xhtml" value="#{user.email.value}">
+                        <f:param name="customerId" value="#{user.id}" />
+                    </h:link>
                 </h:column>
                 <h:column>
                     <f:facet name="header">Name</f:facet>
@@ -56,6 +58,20 @@
                 <h:column>
                     <f:facet name="header">Roles</f:facet>
                     <h:outputText value="#{user.roles}" />
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Status Actions</f:facet>
+                    <h:form>
+                        <h:commandButton value="Block"
+                                         action="#{adminUsersBean.blockUser(user)}"
+                                         rendered="#{user.status eq 'ACTIVE'}"
+                                         styleClass="button button-secondary"
+                                         onclick="return confirm('Are you sure you want to block this user?');" />
+                        <h:commandButton value="Unblock"
+                                         action="#{adminUsersBean.unblockUser(user)}"
+                                         rendered="#{user.status eq 'INACTIVE' or user.status eq 'LOCKED'}"
+                                         styleClass="button button-primary" />
+                    </h:form>
                 </h:column>
                 <h:column>
                     <f:facet name="header">Assign Role</f:facet>
