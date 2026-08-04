@@ -1,7 +1,8 @@
 package com.loja.productcatalog.application.dto;
 
-import com.loja.productcatalog.domain.model.ProductStatus;
 import java.math.BigDecimal;
+
+import com.loja.productcatalog.domain.model.ProductStatus;
 
 /**
  * Search criteria for paginated product queries (spec §4). Every filter field is
@@ -11,15 +12,16 @@ import java.math.BigDecimal;
  * caller explicitly requests it".
  */
 public record ProductSearchCriteria(
-        String nameOrSkuContains,
-        Long categoryId,
-        BigDecimal minPrice,
-        BigDecimal maxPrice,
-        ProductStatus status,
-        int page,
-        int pageSize,
-        ProductSortField sortField,
-        SortDirection sortDirection) {
+    String nameOrSkuContains,
+    Long categoryId,
+    BigDecimal minPrice,
+    BigDecimal maxPrice,
+    ProductStatus status,
+    int page,
+    int pageSize,
+    boolean includeArchived,
+    ProductSortField sortField,
+    SortDirection sortDirection) {
 
     public static final int DEFAULT_PAGE_SIZE = 20;
     public static final int MAX_PAGE_SIZE = 100;

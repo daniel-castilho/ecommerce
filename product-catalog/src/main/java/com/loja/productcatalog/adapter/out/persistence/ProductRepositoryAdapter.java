@@ -1,5 +1,13 @@
 package com.loja.productcatalog.adapter.out.persistence;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import com.loja.productcatalog.application.dto.PageResult;
 import com.loja.productcatalog.application.dto.ProductSearchCriteria;
 import com.loja.productcatalog.application.dto.SortDirection;
@@ -9,6 +17,7 @@ import com.loja.productcatalog.domain.model.ProductStatus;
 import com.loja.productcatalog.domain.model.Sku;
 import com.loja.productcatalog.domain.model.Slug;
 import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
+
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityGraph;
 import jakarta.persistence.EntityManager;
@@ -20,13 +29,6 @@ import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Output adapter: implements ProductRepositoryPort using JPA.
@@ -165,7 +167,10 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
         if (criteria.status() != null) {
             predicates.add(cb.equal(root.get("status"), criteria.status()));
         } else {
-            predicates.add(cb.notEqual(root.get("status"), ProductStatus.ARCHIVED));
+            if (!criteria.includeArchived()) {
+                predicates.add(cb.notEqual(root.get("status"), ProductStatus.ARCHIVED));
+            }
+            // when includeArchived==true and status==null, do not filter by status at all
         }
         return predicates;
     }

@@ -1,5 +1,9 @@
 package com.loja.productcatalog.adapter.in.web;
 
+import java.io.Serializable;
+import java.math.BigDecimal;
+import java.util.List;
+
 import com.loja.productcatalog.application.dto.PageResult;
 import com.loja.productcatalog.application.dto.ProductSearchCriteria;
 import com.loja.productcatalog.application.dto.ProductSortField;
@@ -11,13 +15,11 @@ import com.loja.productcatalog.domain.model.ProductStatus;
 import com.loja.productcatalog.domain.port.in.SearchProductsUseCase;
 import com.loja.productcatalog.domain.port.out.CategoryRepositoryPort;
 import com.loja.productcatalog.domain.port.out.ProductImageStoragePort;
+
 import jakarta.annotation.PostConstruct;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
-import java.io.Serializable;
-import java.math.BigDecimal;
-import java.util.List;
 
 /**
  * Public catalog bean: search/filter/pagination over ACTIVE products (spec §8).
@@ -79,7 +81,7 @@ public class ProductCatalogBean implements Serializable {
     private void refresh() {
         ProductSearchCriteria criteria = new ProductSearchCriteria(
                 searchTerm, categoryId, minPrice, maxPrice, ProductStatus.ACTIVE,
-                page, PAGE_SIZE, sortField, sortDirection);
+                page, PAGE_SIZE, false, sortField, sortDirection);
         result = searchProductsUseCase.search(criteria);
     }
 

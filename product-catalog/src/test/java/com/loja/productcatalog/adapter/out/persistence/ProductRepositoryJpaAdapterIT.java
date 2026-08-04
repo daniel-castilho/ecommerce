@@ -1,21 +1,7 @@
 package com.loja.productcatalog.adapter.out.persistence;
 
-import com.loja.productcatalog.application.dto.PageResult;
-import com.loja.productcatalog.application.dto.ProductSearchCriteria;
-import com.loja.productcatalog.application.dto.ProductSortField;
-import com.loja.productcatalog.application.dto.SortDirection;
-import com.loja.productcatalog.domain.exception.DuplicateSkuException;
-import com.loja.productcatalog.domain.model.Product;
-import com.loja.productcatalog.domain.model.ProductImage;
-import com.loja.productcatalog.domain.model.ProductStatus;
-import com.loja.productcatalog.domain.model.Sku;
-import com.loja.productcatalog.domain.model.Slug;
-import com.loja.shared.domain.Money;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityTransaction;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -29,8 +15,24 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import com.loja.productcatalog.application.dto.PageResult;
+import com.loja.productcatalog.application.dto.ProductSearchCriteria;
+import com.loja.productcatalog.application.dto.ProductSortField;
+import com.loja.productcatalog.application.dto.SortDirection;
+import com.loja.productcatalog.domain.exception.DuplicateSkuException;
+import com.loja.productcatalog.domain.model.Product;
+import com.loja.productcatalog.domain.model.ProductImage;
+import com.loja.productcatalog.domain.model.ProductStatus;
+import com.loja.productcatalog.domain.model.Sku;
+import com.loja.productcatalog.domain.model.Slug;
+import com.loja.shared.domain.Money;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityTransaction;
 
 class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
 
@@ -181,12 +183,12 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
     void shouldPaginateActiveProducts() {
         saveAll(manyProducts(25));
 
-        PageResult<Product> first = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, 0, 20, null, null)));
+        PageResult<Product> first = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, 0, 20, false, null, null)));
         assertThat(first.items()).hasSize(20);
         assertThat(first.totalElements()).isEqualTo(25);
         assertThat(first.totalPages()).isEqualTo(2);
 
-        PageResult<Product> second = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, 1, 20, null, null)));
+        PageResult<Product> second = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, 1, 20, false, null, null)));
         assertThat(second.items()).hasSize(5);
     }
 
@@ -196,7 +198,7 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         save(product("p-a-2", "SKU-A2", "produto-a-2", "Inativo", "20.00", ProductStatus.INACTIVE, Set.of(5L)));
         save(product("p-a-3", "SKU-A3", "produto-a-3", "Arquivado", "30.00", ProductStatus.ARCHIVED, Set.of(5L)));
 
-        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, 0, 20, null, null)));
+        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, 0, 20, false, null, null)));
         assertThat(page.totalElements()).isEqualTo(2);
         assertThat(page.items()).extracting(Product::getStatus).doesNotContain(ProductStatus.ARCHIVED);
     }
@@ -206,7 +208,7 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         save(product("p-c-1", "SKU-C1", "produto-c-1", "Categoria 5", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
         save(product("p-c-2", "SKU-C2", "produto-c-2", "Categoria 6", "20.00", ProductStatus.ACTIVE, Set.of(6L)));
 
-        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(null, 6L, null, null, null, 0, 20, null, null)));
+        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(null, 6L, null, null, null, 0, 20, false, null, null)));
         assertThat(page.items()).hasSize(1);
         assertThat(page.items().get(0).getName()).isEqualTo("Categoria 6");
     }
@@ -216,11 +218,11 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         save(product("p-t-1", "SKU-TENIS", "produto-t-1", "Tenis de Corrida", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
         save(product("p-t-2", "SKU-CAM", "produto-t-2", "Camiseta", "20.00", ProductStatus.ACTIVE, Set.of(5L)));
 
-        PageResult<Product> byName = inTx(() -> adapter.search(new ProductSearchCriteria("tenis", null, null, null, null, 0, 20, null, null)));
+        PageResult<Product> byName = inTx(() -> adapter.search(new ProductSearchCriteria("tenis", null, null, null, null, 0, 20, false, null, null)));
         assertThat(byName.items()).hasSize(1);
         assertThat(byName.items().get(0).getName()).isEqualTo("Tenis de Corrida");
 
-        PageResult<Product> bySku = inTx(() -> adapter.search(new ProductSearchCriteria("sku-cam", null, null, null, null, 0, 20, null, null)));
+        PageResult<Product> bySku = inTx(() -> adapter.search(new ProductSearchCriteria("sku-cam", null, null, null, null, 0, 20, false, null, null)));
         assertThat(bySku.items()).hasSize(1);
         assertThat(bySku.items().get(0).getSkuValue()).isEqualTo("SKU-CAM");
     }
@@ -231,7 +233,7 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         save(product("p-pr-2", "SKU-PR2", "produto-pr-2", "Meio", "20.00", ProductStatus.ACTIVE, Set.of(5L)));
         save(product("p-pr-3", "SKU-PR3", "produto-pr-3", "Caro", "30.00", ProductStatus.ACTIVE, Set.of(5L)));
 
-        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, new BigDecimal("15.00"), new BigDecimal("25.00"), null, 0, 20, null, null)));
+        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, new BigDecimal("15.00"), new BigDecimal("25.00"), null, 0, 20, false, null, null)));
         assertThat(page.items()).hasSize(1);
         assertThat(page.items().get(0).getName()).isEqualTo("Meio");
     }
@@ -242,10 +244,10 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         save(product("p-so-2", "SKU-SO2", "produto-so-2", "Barato", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
         save(product("p-so-3", "SKU-SO3", "produto-so-3", "Meio", "20.00", ProductStatus.ACTIVE, Set.of(5L)));
 
-        PageResult<Product> asc = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, 0, 20, ProductSortField.PRICE, SortDirection.ASC)));
+        PageResult<Product> asc = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, 0, 20, false, ProductSortField.PRICE, SortDirection.ASC)));
         assertThat(asc.items()).extracting(Product::getName).containsExactly("Barato", "Meio", "Caro");
 
-        PageResult<Product> desc = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, 0, 20, ProductSortField.PRICE, SortDirection.DESC)));
+        PageResult<Product> desc = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, 0, 20, false, ProductSortField.PRICE, SortDirection.DESC)));
         assertThat(desc.items()).extracting(Product::getName).containsExactly("Caro", "Meio", "Barato");
     }
 
@@ -255,7 +257,7 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         save(product("p-sn-2", "SKU-SN2", "produto-sn-2", "Alpha", "20.00", ProductStatus.ACTIVE, Set.of(5L)));
         save(product("p-sn-3", "SKU-SN3", "produto-sn-3", "Charlie", "30.00", ProductStatus.ACTIVE, Set.of(5L)));
 
-        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, 0, 20, ProductSortField.NAME, SortDirection.ASC)));
+        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, 0, 20, false, ProductSortField.NAME, SortDirection.ASC)));
         assertThat(page.items()).extracting(Product::getName).containsExactly("Alpha", "Bravo", "Charlie");
     }
 
@@ -267,7 +269,7 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         Thread.sleep(5);
         save(product("p-sc-3", "SKU-SC3", "produto-sc-3", "Terceiro", "30.00", ProductStatus.ACTIVE, Set.of(5L)));
 
-        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, 0, 20, ProductSortField.CREATED_AT, SortDirection.ASC)));
+        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, 0, 20, false, ProductSortField.CREATED_AT, SortDirection.ASC)));
         assertThat(page.items()).extracting(Product::getName).containsExactly("Primeiro", "Segundo", "Terceiro");
     }
 
@@ -277,11 +279,11 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         save(product("p-st-2", "SKU-ST2", "produto-st-2", "Inativo", "20.00", ProductStatus.INACTIVE, Set.of(5L)));
         save(product("p-st-3", "SKU-ST3", "produto-st-3", "Arquivado", "30.00", ProductStatus.ARCHIVED, Set.of(5L)));
 
-        PageResult<Product> archived = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, ProductStatus.ARCHIVED, 0, 20, null, null)));
+        PageResult<Product> archived = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, ProductStatus.ARCHIVED, 0, 20, false, null, null)));
         assertThat(archived.items()).hasSize(1);
         assertThat(archived.items().get(0).getName()).isEqualTo("Arquivado");
 
-        PageResult<Product> active = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, ProductStatus.ACTIVE, 0, 20, null, null)));
+        PageResult<Product> active = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, ProductStatus.ACTIVE, 0, 20, false, null, null)));
         assertThat(active.items()).extracting(Product::getName).containsExactly("Ativo");
     }
 
@@ -289,7 +291,7 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
     void shouldReturnEmptyWhenNoMatches() {
         save(product("p-nm-1", "SKU-NM1", "produto-nm-1", "Existente", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
 
-        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria("nao existe", null, null, null, null, 0, 20, null, null)));
+        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria("nao existe", null, null, null, null, 0, 20, false, null, null)));
         assertThat(page.items()).isEmpty();
         assertThat(page.totalElements()).isZero();
     }
@@ -298,12 +300,12 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
     void shouldClampPageSizeAndNormalizePage() {
         save(product("p-cl-1", "SKU-CL1", "produto-cl-1", "Clamp", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
 
-        PageResult<Product> defaults = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, -1, 0, null, null)));
+        PageResult<Product> defaults = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, -1, 0, false, null, null)));
         assertThat(defaults.page()).isZero();
         assertThat(defaults.pageSize()).isEqualTo(ProductSearchCriteria.DEFAULT_PAGE_SIZE);
         assertThat(defaults.items()).hasSize(1);
 
-        PageResult<Product> capped = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, 0, 1000, null, null)));
+        PageResult<Product> capped = inTx(() -> adapter.search(new ProductSearchCriteria(null, null, null, null, null, 0, 1000, false, null, null)));
         assertThat(capped.pageSize()).isEqualTo(ProductSearchCriteria.MAX_PAGE_SIZE);
     }
 

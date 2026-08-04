@@ -1,5 +1,27 @@
 package com.loja.productcatalog.application.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import com.loja.productcatalog.application.dto.CreateProductCommand;
 import com.loja.productcatalog.application.dto.PageResult;
 import com.loja.productcatalog.application.dto.ProductSearchCriteria;
@@ -20,39 +42,20 @@ import com.loja.productcatalog.domain.port.out.CategoryRepositoryPort;
 import com.loja.productcatalog.domain.port.out.ProductImageStoragePort;
 import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
 import com.loja.shared.domain.Money;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import com.loja.shared.event.DomainEventPublisherPort;
 
 class ProductApplicationServiceTest {
 
     private final ProductRepositoryPort productRepository = mock(ProductRepositoryPort.class);
     private final CategoryRepositoryPort categoryRepository = mock(CategoryRepositoryPort.class);
     private final ProductImageStoragePort imageStorage = mock(ProductImageStoragePort.class);
+    private final DomainEventPublisherPort eventPublisher = mock(DomainEventPublisherPort.class);
 
     private ProductApplicationService service;
 
     @BeforeEach
     void setUp() {
-        service = new ProductApplicationService(productRepository, categoryRepository, imageStorage);
+        service = new ProductApplicationService(productRepository, categoryRepository, imageStorage, eventPublisher);
         when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
         when(productRepository.existsBySku(any())).thenReturn(false);
         when(productRepository.existsBySlug(any())).thenReturn(false);
@@ -291,13 +294,43 @@ class ProductApplicationServiceTest {
         verify(productRepository, never()).save(any());
     }
 
+    @Test
+    void activate_archivedProduct_becomesActiveAndSaves() {
+        Product product = product(ProductStatus.ARCHIVED);
+        when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+
+        Product saved = service.activate("p1");
+
+        assertThat(saved.getStatus()).isEqualTo(ProductStatus.ACTIVE);
+        verify(productRepository).save(product);
+    }
+
+    @Test
+    void activate_activeProduct_throws() {
+        Product product = product(ProductStatus.ACTIVE);
+        when(productRepository.findById("p1")).thenReturn(Optional.of(product));
+
+        assertThatThrownBy(() -> service.activate("p1"))
+                .isInstanceOf(ProductValidationException.class);
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    void activate_unknownProduct_throwsProductNotFoundException() {
+        when(productRepository.findById("missing")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.activate("missing"))
+                .isInstanceOf(ProductNotFoundException.class);
+    }
+
     // ------------------------------------------------------------------ search
 
     @Test
     void search_delegatesToRepository() {
         PageResult<Product> expected = new PageResult<>(List.of(product()), 1L, 0, 20);
         ProductSearchCriteria criteria = new ProductSearchCriteria(null, null, null, null,
-                null, 0, 20, ProductSortField.NAME, SortDirection.ASC);
+                null, 0, 20, false, ProductSortField.NAME, SortDirection.ASC);
+
         when(productRepository.search(criteria)).thenReturn(expected);
 
         assertThat(service.search(criteria)).isSameAs(expected);

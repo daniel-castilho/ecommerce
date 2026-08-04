@@ -1,6 +1,17 @@
 package com.loja.productcatalog.adapter.in.web;
 
+import java.io.IOException;
+import java.io.Serializable;
+import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import com.loja.productcatalog.application.dto.CreateProductCommand;
+import com.loja.productcatalog.application.dto.PageResult;
+import com.loja.productcatalog.application.dto.ProductSearchCriteria;
 import com.loja.productcatalog.application.dto.UpdateProductCommand;
 import com.loja.productcatalog.application.dto.UploadProductImageCommand;
 import com.loja.productcatalog.application.service.CategoryTreeCache;
@@ -21,6 +32,7 @@ import com.loja.productcatalog.domain.port.in.UploadProductImageUseCase;
 import com.loja.productcatalog.domain.port.out.CategoryRepositoryPort;
 import com.loja.productcatalog.domain.port.out.ProductImageStoragePort;
 import com.loja.shared.domain.Money;
+
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.faces.application.FacesMessage;
@@ -35,14 +47,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import java.io.IOException;
-import java.io.Serializable;
-import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Admin-only JSF bean for product CRUD, image management (upload, alt text, primary
@@ -85,6 +89,8 @@ public class ManageProductBean implements Serializable {
 
     @Inject
     private CategoryTreeCache categoryTreeCache;
+
+    private boolean includeArchived;
 
     private List<Product> products = List.of();
     private List<Category> categories = List.of();
@@ -323,8 +329,11 @@ public class ManageProductBean implements Serializable {
                 stock, weightGrams, metaTitle, metaDescription, selectedCategoryIds);
     }
 
-    private void refreshAll() {
-        products = searchProductsUseCase.findAll();
+    public void refreshAll() {
+        ProductSearchCriteria criteria = new ProductSearchCriteria(null, null, null, null, null,
+                0, 1000, includeArchived, null, null);
+        PageResult<Product> page = searchProductsUseCase.search(criteria);
+        products = page.items();
         categories = categoryTreeCache.getOrLoad(categoryRepository::findAll);
         if (productId != null) {
             currentProduct = products.stream()
@@ -386,6 +395,9 @@ public class ManageProductBean implements Serializable {
     public List<Category> getCategories() { return categories; }
     public Product getCurrentProduct() { return currentProduct; }
     public boolean isEditMode() { return currentProduct != null; }
+
+    public boolean isIncludeArchived() { return includeArchived; }
+    public void setIncludeArchived(boolean includeArchived) { this.includeArchived = includeArchived; }
 
     public String getProductId() { return productId; }
     public void setProductId(String productId) { this.productId = productId; }

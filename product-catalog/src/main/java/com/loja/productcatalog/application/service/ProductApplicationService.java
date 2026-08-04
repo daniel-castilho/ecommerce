@@ -1,5 +1,17 @@
 package com.loja.productcatalog.application.service;
 
+import java.text.Normalizer;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
 import com.loja.productcatalog.application.dto.CreateProductCommand;
 import com.loja.productcatalog.application.dto.PageResult;
 import com.loja.productcatalog.application.dto.ProductSearchCriteria;
@@ -14,8 +26,10 @@ import com.loja.productcatalog.domain.model.ProductImage;
 import com.loja.productcatalog.domain.model.ProductStatus;
 import com.loja.productcatalog.domain.model.Sku;
 import com.loja.productcatalog.domain.model.Slug;
+import com.loja.productcatalog.domain.port.in.ActivateProductUseCase;
 import com.loja.productcatalog.domain.port.in.ArchiveProductUseCase;
 import com.loja.productcatalog.domain.port.in.CreateProductUseCase;
+import com.loja.productcatalog.domain.port.in.FindProductByIdUseCase;
 import com.loja.productcatalog.domain.port.in.GetProductDetailUseCase;
 import com.loja.productcatalog.domain.port.in.PublishProductUseCase;
 import com.loja.productcatalog.domain.port.in.SearchProductsUseCase;
@@ -25,19 +39,12 @@ import com.loja.productcatalog.domain.port.in.UploadProductImageUseCase;
 import com.loja.productcatalog.domain.port.out.CategoryRepositoryPort;
 import com.loja.productcatalog.domain.port.out.ProductImageStoragePort;
 import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
+import com.loja.shared.event.DomainEventPublisherPort;
+import com.loja.shared.event.ProductArchivedEvent;
+
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
-import java.text.Normalizer;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
 
 /**
  * Application service implementing all product-catalog use cases (spec §5, plus image
@@ -50,8 +57,8 @@ import java.util.UUID;
 @Transactional
 public class ProductApplicationService
         implements CreateProductUseCase, UpdateProductUseCase, PublishProductUseCase,
-                   ArchiveProductUseCase, SearchProductsUseCase, GetProductDetailUseCase,
-                   UploadProductImageUseCase, UpdateProductImageUseCase {
+                   ArchiveProductUseCase, ActivateProductUseCase, SearchProductsUseCase, GetProductDetailUseCase,
+                   UploadProductImageUseCase, UpdateProductImageUseCase, FindProductByIdUseCase {
 
     private static final long MAX_IMAGE_BYTES = 5L * 1024 * 1024;
     private static final int MAX_IMAGES_PER_PRODUCT = 8;
@@ -61,14 +68,17 @@ public class ProductApplicationService
     private final ProductRepositoryPort productRepository;
     private final CategoryRepositoryPort categoryRepository;
     private final ProductImageStoragePort imageStorage;
+    private final DomainEventPublisherPort eventPublisher;
 
     @Inject
     public ProductApplicationService(ProductRepositoryPort productRepository,
                                      CategoryRepositoryPort categoryRepository,
-                                     ProductImageStoragePort imageStorage) {
+                                     ProductImageStoragePort imageStorage,
+                                     DomainEventPublisherPort eventPublisher) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.imageStorage = imageStorage;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -151,6 +161,26 @@ public class ProductApplicationService
         }
 
         product.setStatus(ProductStatus.ARCHIVED);
+        Product saved = productRepository.save(product);
+        try {
+            eventPublisher.publish(new ProductArchivedEvent(productId, product.getSkuValue(), product.getName(), Instant.now()));
+        } catch (Exception ignore) {
+            // publishing must not break the use case
+        }
+        return saved;
+    }
+
+    @Override
+    public Product activate(String productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ProductNotFoundException("Product not found: " + productId));
+
+        if (!product.canTransitionTo(ProductStatus.ACTIVE)) {
+            throw new ProductValidationException(
+                    "Product cannot be activated from status " + product.getStatus());
+        }
+
+        product.setStatus(ProductStatus.ACTIVE);
         return productRepository.save(product);
     }
 
@@ -168,6 +198,11 @@ public class ProductApplicationService
     @Override
     public List<Product> findAll() {
         return productRepository.findAll();
+    }
+
+    @Override
+    public Optional<Product> findById(String productId) {
+        return productRepository.findById(productId);
     }
 
     @Override

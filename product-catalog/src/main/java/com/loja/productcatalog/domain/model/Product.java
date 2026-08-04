@@ -1,7 +1,5 @@
 package com.loja.productcatalog.domain.model;
 
-import com.loja.productcatalog.domain.exception.ProductValidationException;
-import com.loja.shared.domain.Money;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -10,6 +8,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import com.loja.productcatalog.domain.exception.ProductValidationException;
+import com.loja.shared.domain.Money;
+
 public class Product {
 
     private static final int NAME_MAX_LENGTH = 200;
@@ -17,7 +18,7 @@ public class Product {
             ProductStatus.DRAFT, Set.of(ProductStatus.ACTIVE, ProductStatus.INACTIVE, ProductStatus.ARCHIVED),
             ProductStatus.ACTIVE, Set.of(ProductStatus.INACTIVE, ProductStatus.DRAFT, ProductStatus.ARCHIVED),
             ProductStatus.INACTIVE, Set.of(ProductStatus.ACTIVE, ProductStatus.DRAFT, ProductStatus.ARCHIVED),
-            ProductStatus.ARCHIVED, Set.of());
+            ProductStatus.ARCHIVED, Set.of(ProductStatus.ACTIVE));
 
     private final String id;
     private final Sku sku;
