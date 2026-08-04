@@ -1,0 +1,112 @@
+<ui:composition
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:f="jakarta.faces.core"
+  xmlns:my="https://loja.com/design-system"
+  template="/WEB-INF/templates/main.xhtml"
+>
+  <ui:define name="title">Admin - Order Details</ui:define>
+
+  <ui:define name="content">
+    <h1 class="page-title">Order Details</h1>
+    <h:messages globalOnly="true" styleClass="messages" />
+
+    <ui:fragment rendered="#{empty adminOrderDetailBean.selectedOrder}">
+      <div class="card">
+        <p>Order not found.</p>
+      </div>
+    </ui:fragment>
+
+    <ui:fragment rendered="#{not empty adminOrderDetailBean.selectedOrder}">
+      <div class="card">
+        <h3>
+          Order
+          <strong>#{adminOrderDetailBean.selectedOrder.id}</strong> &mdash;
+          <my:statusBadge
+            status="#{adminOrderDetailBean.selectedOrder.status}"
+          />
+        </h3>
+        <p>
+          Placed on
+          #{adminOrderDetailBean.formatDate(adminOrderDetailBean.selectedOrder.createdAt)}
+        </p>
+        <p>
+          Email:
+          <strong>#{adminOrderDetailBean.selectedOrder.customerEmail}</strong>
+        </p>
+
+        <h3>Delivery address</h3>
+        <p>
+          #{adminOrderDetailBean.selectedOrder.shippingAddress.recipientName}<br />
+          #{adminOrderDetailBean.selectedOrder.shippingAddress.street}
+          #{adminOrderDetailBean.selectedOrder.shippingAddress.number}
+          <ui:fragment
+            rendered="#{not empty adminOrderDetailBean.selectedOrder.shippingAddress.complement}"
+          >
+            , #{adminOrderDetailBean.selectedOrder.shippingAddress.complement}
+          </ui:fragment>
+          <br />
+          #{adminOrderDetailBean.selectedOrder.shippingAddress.neighborhood}
+          #{adminOrderDetailBean.selectedOrder.shippingAddress.city} -
+          #{adminOrderDetailBean.selectedOrder.shippingAddress.state}
+          #{adminOrderDetailBean.selectedOrder.shippingAddress.postalCode}
+        </p>
+
+        <h3>Items</h3>
+        <h:dataTable
+          value="#{adminOrderDetailBean.selectedOrder.items}"
+          var="item"
+          styleClass="data-table"
+        >
+          <h:column>
+            <f:facet name="header">Product</f:facet>
+            #{item.productName}
+          </h:column>
+          <h:column>
+            <f:facet name="header">Quantity</f:facet>
+            #{item.quantity}
+          </h:column>
+          <h:column>
+            <f:facet name="header">Unit price</f:facet>
+            #{item.unitPrice.amount}
+          </h:column>
+          <h:column>
+            <f:facet name="header">Subtotal</f:facet>
+            #{item.lineTotal.amount}
+          </h:column>
+        </h:dataTable>
+
+        <p>
+          Shipping cost:
+          #{adminOrderDetailBean.selectedOrder.shippingCost.amount}
+        </p>
+        <p>
+          Total:
+          <strong>#{adminOrderDetailBean.selectedOrder.total.amount}</strong>
+        </p>
+
+        <ui:fragment
+          rendered="#{not empty adminOrderDetailBean.selectedOrder.trackingNumber}"
+        >
+          <p>
+            Tracking:
+            <a
+              href="https://www.linkcorreios.com.br/?id=#{adminOrderDetailBean.selectedOrder.trackingNumber}"
+              target="_blank"
+              rel="noopener"
+              >#{adminOrderDetailBean.selectedOrder.trackingNumber}</a
+            >
+          </p>
+        </ui:fragment>
+      </div>
+    </ui:fragment>
+
+    <p>
+      <h:link
+        outcome="/admin-dashboard/dashboard.xhtml"
+        value="Back to dashboard"
+      />
+    </p>
+  </ui:define>
+</ui:composition>

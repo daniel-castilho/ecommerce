@@ -1,76 +1,242 @@
-<ui:composition xmlns="http://www.w3.org/1999/xhtml"
-                xmlns:ui="jakarta.faces.facelets"
-                xmlns:h="jakarta.faces.html"
-                xmlns:f="jakarta.faces.core"
-                xmlns:my="https://loja.com/design-system"
-                template="/WEB-INF/templates/main.xhtml">
+<ui:composition
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:f="jakarta.faces.core"
+  xmlns:my="https://loja.com/design-system"
+  template="/WEB-INF/templates/main.xhtml"
+>
+  <ui:define name="title">Admin - Dashboard</ui:define>
 
-    <ui:define name="title">Admin - Dashboard</ui:define>
+  <ui:define name="content">
+    <h1 class="page-title">Dashboard</h1>
+    <h:messages globalOnly="true" styleClass="messages" />
 
-    <ui:define name="content">
-        <h1 class="page-title">Dashboard</h1>
+    <div class="dashboard-kpi-grid">
+      <div class="dashboard-kpi">
+        <p class="dashboard-kpi-label">Total Products</p>
+        <p class="dashboard-kpi-value">#{dashboardBean.totalProducts}</p>
+      </div>
+      <div class="dashboard-kpi">
+        <p class="dashboard-kpi-label">Total Users</p>
+        <p class="dashboard-kpi-value">#{dashboardBean.totalUsers}</p>
+      </div>
+      <div class="dashboard-kpi">
+        <p class="dashboard-kpi-label">New Customers Today</p>
+        <p class="dashboard-kpi-value">#{dashboardBean.newCustomersToday}</p>
+      </div>
+      <div class="dashboard-kpi">
+        <p class="dashboard-kpi-label">New Customers This Month</p>
+        <p class="dashboard-kpi-value">
+          #{dashboardBean.newCustomersThisMonth}
+        </p>
+      </div>
+    </div>
 
-        <div class="dashboard-kpi-grid">
-            <div class="dashboard-kpi">
-                <p class="dashboard-kpi-label">Total Products</p>
-                <p class="dashboard-kpi-value">#{dashboardBean.totalProducts}</p>
-            </div>
-            <div class="dashboard-kpi">
-                <p class="dashboard-kpi-label">Total Users</p>
-                <p class="dashboard-kpi-value">#{dashboardBean.totalUsers}</p>
-            </div>
-            <div class="dashboard-kpi">
-                <p class="dashboard-kpi-label">New Customers Today</p>
-                <p class="dashboard-kpi-value">#{dashboardBean.newCustomersToday}</p>
-            </div>
-            <div class="dashboard-kpi">
-                <p class="dashboard-kpi-label">New Customers This Month</p>
-                <p class="dashboard-kpi-value">#{dashboardBean.newCustomersThisMonth}</p>
-            </div>
+    <div class="dashboard-kpi-grid">
+      <div class="dashboard-kpi">
+        <p class="dashboard-kpi-label">Total Orders</p>
+        <p class="dashboard-kpi-value">#{dashboardBean.totalOrders}</p>
+      </div>
+      <div class="dashboard-kpi">
+        <p class="dashboard-kpi-label">Orders Today</p>
+        <p class="dashboard-kpi-value">#{dashboardBean.ordersToday}</p>
+      </div>
+      <div class="dashboard-kpi">
+        <p class="dashboard-kpi-label">Orders This Month</p>
+        <p class="dashboard-kpi-value">#{dashboardBean.ordersThisMonth}</p>
+      </div>
+      <div class="dashboard-kpi">
+        <p class="dashboard-kpi-label">Revenue Today</p>
+        <p class="dashboard-kpi-value">
+          #{dashboardBean.revenueTodayFormatted}
+        </p>
+      </div>
+      <div class="dashboard-kpi">
+        <p class="dashboard-kpi-label">Revenue This Month</p>
+        <p class="dashboard-kpi-value">
+          #{dashboardBean.revenueThisMonthFormatted}
+        </p>
+      </div>
+      <div class="dashboard-kpi">
+        <p class="dashboard-kpi-label">Avg Order Value (Month)</p>
+        <p class="dashboard-kpi-value">
+          #{dashboardBean.averageOrderValueFormatted}
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>User Management</h2>
+      <p>
+        Manage all users, view statuses, block/unblock accounts, and assign administrative roles.
+      </p>
+      <h:link
+        outcome="/user-account/admin/users.xhtml"
+        value="Go to user management"
+        styleClass="button button-primary"
+      />
+    </div>
+
+    <div class="card">
+      <h2>Audit Logs</h2>
+      <p>
+        View the security and administration audit trail.
+      </p>
+      <h:link
+        outcome="/admin-dashboard/audit-log/list.xhtml"
+        value="Go to audit logs"
+        styleClass="button button-primary"
+      />
+    </div>
+
+    <div class="card">
+      <h2>Product Management</h2>
+      <p>
+        Manage product catalog, edit product details, and keep inventory up to
+        date.
+      </p>
+      <h:link
+        outcome="/admin-dashboard/products/list.xhtml"
+        value="Go to product management"
+        styleClass="button button-primary"
+      />
+    </div>
+
+    <div class="card">
+      <h2>Recent Orders</h2>
+      <p>
+        View and manage all customer orders, filter by status, and handle fulfillments.
+      </p>
+      <h:link
+        outcome="/admin-dashboard/orders/list.xhtml"
+        value="Go to order management"
+        styleClass="button button-primary"
+      />
+      <br/><br/>
+      <h:form>
+        <div class="dashboard-filters">
+          <label for="statusFilter">Status</label>
+          <h:selectOneMenu
+            id="statusFilter"
+            value="#{dashboardBean.selectedStatus}"
+          >
+            <f:selectItem itemValue="" itemLabel="All" />
+            <f:selectItems
+              value="#{dashboardBean.orderStatuses}"
+              var="status"
+              itemValue="#{status}"
+              itemLabel="#{status}"
+            />
+          </h:selectOneMenu>
+          <h:commandButton
+            value="Apply"
+            action="#{dashboardBean.filterOrders}"
+          />
         </div>
+      </h:form>
 
-        <div class="dashboard-kpi-grid">
-            <div class="dashboard-kpi">
-                <p class="dashboard-kpi-label">Total Orders</p>
-                <p class="dashboard-kpi-value">#{dashboardBean.totalOrders}</p>
-            </div>
-            <div class="dashboard-kpi">
-                <p class="dashboard-kpi-label">Orders Today</p>
-                <p class="dashboard-kpi-value">#{dashboardBean.ordersToday}</p>
-            </div>
-            <div class="dashboard-kpi">
-                <p class="dashboard-kpi-label">Orders This Month</p>
-                <p class="dashboard-kpi-value">#{dashboardBean.ordersThisMonth}</p>
-            </div>
-            <div class="dashboard-kpi">
-                <p class="dashboard-kpi-label">Revenue Today</p>
-                <p class="dashboard-kpi-value">#{dashboardBean.revenueTodayFormatted}</p>
-            </div>
-            <div class="dashboard-kpi">
-                <p class="dashboard-kpi-label">Revenue This Month</p>
-                <p class="dashboard-kpi-value">#{dashboardBean.revenueThisMonthFormatted}</p>
-            </div>
-            <div class="dashboard-kpi">
-                <p class="dashboard-kpi-label">Avg Order Value (Month)</p>
-                <p class="dashboard-kpi-value">#{dashboardBean.averageOrderValueFormatted}</p>
-            </div>
-        </div>
+      <h:dataTable
+        value="#{dashboardBean.recentOrders}"
+        var="order"
+        styleClass="data-table"
+        rendered="#{not empty dashboardBean.recentOrders}"
+      >
+        <h:column>
+          <f:facet name="header">Order</f:facet>
+          <h:link
+            outcome="/admin-dashboard/order-detail.xhtml"
+            value="#{order.id}"
+          >
+            <f:param name="orderId" value="#{order.id}" />
+          </h:link>
+        </h:column>
+        <h:column>
+          <f:facet name="header">Customer</f:facet>
+          #{order.customerEmail}
+        </h:column>
+        <h:column>
+          <f:facet name="header">Status</f:facet>
+          <my:statusBadge status="#{order.status}" />
+        </h:column>
+        <h:column>
+          <f:facet name="header">Action</f:facet>
+          <div class="dashboard-order-action">
+            <h:selectOneMenu value="#{dashboardBean.statusToApply}">
+              <f:selectItem itemValue="" itemLabel="Select" />
+              <f:selectItems
+                value="#{dashboardBean.orderStatuses}"
+                var="status"
+                itemValue="#{status}"
+                itemLabel="#{status}"
+              />
+            </h:selectOneMenu>
+            <h:inputText
+              value="#{dashboardBean.trackingNumber}"
+              placeholder="Tracking #"
+            />
+            <h:commandButton
+              id="updateOrderBtn_#{order.id}"
+              value="Save"
+              action="#{dashboardBean.updateSelectedOrderStatus}"
+              onclick="lojaConfirm.show('#{msg['order.update.confirm']}', 'updateOrderBtn_#{order.id}', '#{msg['order.update.a11y_hint']}'); return false;"
+            >
+              <f:setPropertyActionListener
+                target="#{dashboardBean.selectedOrderId}"
+                value="#{order.id}"
+              />
+            </h:commandButton>
+          </div>
+        </h:column>
+        <h:column>
+          <f:facet name="header">Created</f:facet>
+          <h:outputText value="#{order.createdAt}">
+            <f:convertDateTime type="both" timeZone="UTC" />
+          </h:outputText>
+        </h:column>
+      </h:dataTable>
+      <p rendered="#{empty dashboardBean.recentOrders}">No orders yet.</p>
 
-        <div class="card">
-            <h2>Orders by Status</h2>
-            <h:dataTable value="#{dashboardBean.ordersByStatus}" var="row"
-                         styleClass="data-table"
-                         rendered="#{not empty dashboardBean.ordersByStatus}">
-                <h:column>
-                    <f:facet name="header">Status</f:facet>
-                    <my:statusBadge status="#{row.status}" />
-                </h:column>
-                <h:column>
-                    <f:facet name="header">Orders</f:facet>
-                    #{row.count}
-                </h:column>
-            </h:dataTable>
-            <p rendered="#{empty dashboardBean.ordersByStatus}">No orders yet.</p>
-        </div>
-    </ui:define>
+      <div
+        class="pagination-controls"
+        rendered="#{dashboardBean.orderPage.totalElements > 5}"
+      >
+        <h:form>
+          <h:commandButton
+            value="Previous"
+            action="#{dashboardBean.previousPage}"
+            disabled="#{not dashboardBean.previousPageEnabled}"
+          />
+          <span
+            >Page #{dashboardBean.page + 1} of #{dashboardBean.totalPages}</span
+          >
+          <h:commandButton
+            value="Next"
+            action="#{dashboardBean.nextPage}"
+            disabled="#{not dashboardBean.nextPageEnabled}"
+          />
+        </h:form>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Orders by Status</h2>
+      <h:dataTable
+        value="#{dashboardBean.ordersByStatus}"
+        var="row"
+        styleClass="data-table"
+        rendered="#{not empty dashboardBean.ordersByStatus}"
+      >
+        <h:column>
+          <f:facet name="header">Status</f:facet>
+          <my:statusBadge status="#{row.status}" />
+        </h:column>
+        <h:column>
+          <f:facet name="header">Orders</f:facet>
+          #{row.count}
+        </h:column>
+      </h:dataTable>
+      <p rendered="#{empty dashboardBean.ordersByStatus}">No orders yet.</p>
+    </div>
+  </ui:define>
 </ui:composition>

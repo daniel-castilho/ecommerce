@@ -1,0 +1,125 @@
+<ui:composition
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:f="jakarta.faces.core"
+  xmlns:my="https://loja.com/design-system"
+  template="/WEB-INF/templates/main.xhtml"
+>
+  <ui:define name="title">Admin - Create Product</ui:define>
+
+  <ui:define name="content">
+    <h1 class="page-title">New Product</h1>
+    <h:messages globalOnly="true" styleClass="messages" />
+
+    <div class="card">
+      <h:form id="productCreateForm">
+        <my:formFieldGroup label="SKU" forId="sku">
+          <h:inputText
+            id="sku"
+            value="#{productCreateBean.sku}"
+            required="true"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Name" forId="name">
+          <h:inputText
+            id="name"
+            value="#{productCreateBean.name}"
+            required="true"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Slug" forId="slug">
+          <h:inputText id="slug" value="#{productCreateBean.slug}" />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Short description" forId="shortDescription">
+          <h:inputTextarea
+            id="shortDescription"
+            value="#{productCreateBean.shortDescription}"
+            rows="2"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Description" forId="description">
+          <h:inputTextarea
+            id="description"
+            value="#{productCreateBean.description}"
+            rows="5"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Price" forId="price">
+          <h:inputText
+            id="price"
+            value="#{productCreateBean.price}"
+            required="true"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Compare-at price" forId="compareAtPrice">
+          <h:inputText
+            id="compareAtPrice"
+            value="#{productCreateBean.compareAtPrice}"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Stock" forId="stock">
+          <h:inputText
+            id="stock"
+            value="#{productCreateBean.stock}"
+            required="true"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Weight (grams)" forId="weightGrams">
+          <h:inputText
+            id="weightGrams"
+            value="#{productCreateBean.weightGrams}"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="SEO title" forId="metaTitle">
+          <h:inputText id="metaTitle" value="#{productCreateBean.metaTitle}" />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="SEO description" forId="metaDescription">
+          <h:inputTextarea
+            id="metaDescription"
+            value="#{productCreateBean.metaDescription}"
+            rows="2"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Categories" forId="categories">
+          <h:selectManyCheckbox
+            id="categories"
+            value="#{productCreateBean.selectedCategoryIds}"
+          >
+            <f:selectItems
+              value="#{productCreateBean.categories}"
+              var="category"
+              itemValue="#{category.id}"
+              itemLabel="#{category.name}"
+            />
+          </h:selectManyCheckbox>
+        </my:formFieldGroup>
+
+        <div class="form-actions">
+          <h:commandButton
+            id="createBtn"
+            value="Create product"
+            action="#{productCreateBean.submit}"
+            styleClass="button button-primary"
+            onclick="lojaConfirm.show('#{msg['product.save.confirm']}', 'productCreateForm:createBtn', '#{msg['product.save.a11y_hint']}'); return false;"
+          />
+          <h:link
+            outcome="/admin-dashboard/products/list.xhtml"
+            value="Cancel"
+          />
+        </div>
+      </h:form>
+    </div>
+  </ui:define>
+</ui:composition>

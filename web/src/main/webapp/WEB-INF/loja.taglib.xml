@@ -16,4 +16,8 @@
         <tag-name>formFieldGroup</tag-name>
         <source>tags/form-field-group.xhtml</source>
     </tag>
+    <tag>
+        <tag-name>confirmModal</tag-name>
+        <source>tags/confirm-modal.xhtml</source>
+    </tag>
 </facelet-taglib>

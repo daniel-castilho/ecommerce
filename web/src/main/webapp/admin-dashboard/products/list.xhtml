@@ -1,0 +1,158 @@
+<ui:composition
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:f="jakarta.faces.core"
+  xmlns:my="https://loja.com/design-system"
+  template="/WEB-INF/templates/main.xhtml"
+>
+  <ui:define name="title">Admin - Products</ui:define>
+
+  <ui:define name="content">
+    <h1 class="page-title">Product Management</h1>
+    <h:messages globalOnly="true" styleClass="messages" />
+
+    <div class="card">
+      <h:form id="filtersForm">
+        <div class="form-grid">
+          <my:formFieldGroup label="Search" forId="keyword">
+            <h:inputText
+              id="keyword"
+              value="#{productManagementBean.keyword}"
+            />
+          </my:formFieldGroup>
+
+          <my:formFieldGroup label="Show archived" forId="includeArchived">
+            <h:selectBooleanCheckbox
+              id="includeArchived"
+              value="#{productManagementBean.includeArchived}"
+            />
+          </my:formFieldGroup>
+
+          <my:formFieldGroup label="Category" forId="categoryId">
+            <h:selectOneMenu
+              id="categoryId"
+              value="#{productManagementBean.categoryId}"
+            >
+              <f:selectItem itemValue="" itemLabel="All" />
+              <f:selectItems
+                value="#{productManagementBean.categories}"
+                var="category"
+                itemValue="#{category.id}"
+                itemLabel="#{category.name}"
+              />
+            </h:selectOneMenu>
+          </my:formFieldGroup>
+
+          <div class="form-actions">
+            <h:commandButton
+              value="Search"
+              action="#{productManagementBean.search}"
+              styleClass="button"
+            />
+            <h:commandButton
+              value="New product"
+              action="#{productManagementBean.newProduct}"
+              styleClass="button button-primary"
+            />
+          </div>
+        </div>
+      </h:form>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h:link
+          outcome="/admin-dashboard/dashboard.xhtml"
+          value="Back to dashboard"
+          styleClass="button button-secondary"
+        />
+
+        <h:form id="compactToggleForm" styleClass="compact-toggle">
+          <h:selectBooleanCheckbox
+            id="compactIncludeArchived"
+            value="#{productManagementBean.compactIncludeArchived}"
+          >
+            <f:ajax
+              listener="#{productManagementBean.toggleCompactIncludeArchived}"
+              render="productTableForm filtersForm"
+            />
+          </h:selectBooleanCheckbox>
+          <label for="compactIncludeArchived" class="compact-toggle-label"
+            >Show archived</label
+          >
+        </h:form>
+      </div>
+      <h:form id="productTableForm">
+        <h:dataTable
+          value="#{productManagementBean.products}"
+          var="product"
+          styleClass="data-table"
+          rendered="#{not empty productManagementBean.products}"
+        >
+          <h:column>
+            <f:facet name="header">SKU</f:facet>
+            <h:outputText
+              value="#{product.skuValue}"
+              styleClass="#{product.status eq 'ARCHIVED' ? 'archived' : ''}"
+            />
+          </h:column>
+          <h:column>
+            <f:facet name="header">Name</f:facet>
+            <h:outputText
+              value="#{product.name}"
+              styleClass="#{product.status eq 'ARCHIVED' ? 'archived' : ''}"
+            />
+            <h:outputText
+              value=" [Inactive]"
+              styleClass="archived-label"
+              rendered="#{product.status eq 'ARCHIVED'}"
+            />
+          </h:column>
+          <h:column>
+            <f:facet name="header">Status</f:facet>
+            <my:statusBadge status="#{product.status}" />
+          </h:column>
+          <h:column>
+            <f:facet name="header">Price</f:facet>
+            #{product.price.amount}
+          </h:column>
+          <h:column>
+            <f:facet name="header">Stock</f:facet>
+            #{product.stock}
+          </h:column>
+          <h:column>
+            <f:facet name="header">Action</f:facet>
+            <h:commandLink
+              value="Edit"
+              action="#{productManagementBean.viewProduct(product.id)}"
+            />
+          </h:column>
+        </h:dataTable>
+      </h:form>
+
+      <p rendered="#{empty productManagementBean.products}">
+        No products found.
+      </p>
+
+      <div
+        class="pagination-controls"
+        rendered="#{productManagementBean.hasPreviousPage or productManagementBean.hasNextPage}"
+      >
+        <h:form>
+          <h:commandButton
+            value="Previous"
+            action="#{productManagementBean.previousPage}"
+            disabled="#{not productManagementBean.hasPreviousPage}"
+          />
+          <span>Page #{productManagementBean.page + 1}</span>
+          <h:commandButton
+            value="Next"
+            action="#{productManagementBean.nextPage}"
+            disabled="#{not productManagementBean.hasNextPage}"
+          />
+        </h:form>
+      </div>
+    </div>
+  </ui:define>
+</ui:composition>

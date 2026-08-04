@@ -1,0 +1,219 @@
+<ui:composition
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:f="jakarta.faces.core"
+  xmlns:cc="http://java.sun.com/jsf/composite"
+>
+  <cc:interface>
+    <cc:attribute name="id" />
+    <cc:attribute name="a11yHint" required="false" />
+  </cc:interface>
+
+  <cc:implementation>
+    <div
+      id="#{cc.clientId}_overlay"
+      style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 1000;
+      "
+    ></div>
+
+    <div
+      id="#{cc.clientId}_modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="#{cc.clientId}_message"
+      tabindex="-1"
+      style="
+        display: none;
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        background: #fff;
+        padding: 1.25rem;
+        border-radius: 6px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+        z-index: 1001;
+        min-width: 320px;
+      "
+    >
+      <div
+        id="#{cc.clientId}_message"
+        style="margin-bottom: 1rem; font-weight: 600"
+      ></div>
+      <span
+        id="#{cc.clientId}_a11y"
+        class="visually-hidden"
+        style="
+          position: absolute;
+          left: -10000px;
+          top: auto;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+        "
+        >#{not empty cc.attrs.a11yHint ? cc.attrs.a11yHint :
+        msg['confirm.a11y_hint']}</span
+      >
+
+      <div style="text-align: right">
+        <button
+          type="button"
+          id="#{cc.clientId}_cancel"
+          aria-label="#{msg['confirm.cancel']}"
+        >
+          #{msg['confirm.cancel']}
+        </button>
+        <button
+          type="button"
+          id="#{cc.clientId}_confirm"
+          aria-label="#{msg['confirm.confirm']}"
+          style="
+            background: #0366d6;
+            color: #fff;
+            border: none;
+            padding: 0.5rem 0.75rem;
+            border-radius: 4px;
+          "
+        >
+          #{msg['confirm.confirm']}
+        </button>
+      </div>
+    </div>
+
+    <script>
+      ;(function () {
+        var clientOverlayId = "#{cc.clientId}_overlay"
+        var clientModalId = "#{cc.clientId}_modal"
+        var clientMessageId = "#{cc.clientId}_message"
+        var clientA11yId = "#{cc.clientId}_a11y"
+        var clientConfirmId = "#{cc.clientId}_confirm"
+        var clientCancelId = "#{cc.clientId}_cancel"
+
+        window.lojaConfirm = window.lojaConfirm || {}
+        window.lojaConfirm._lastActive = null
+        window.lojaConfirm._keydownHandler = null
+
+        function focusableElements(container) {
+          var sel =
+            'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])'
+          return Array.prototype.slice
+            .call(container.querySelectorAll(sel))
+            .filter(function (el) {
+              return (
+                el.offsetWidth > 0 ||
+                el.offsetHeight > 0 ||
+                el === document.activeElement
+              )
+            })
+        }
+
+        function trapFocus(modal) {
+          var focusables = focusableElements(modal)
+          if (focusables.length === 0) return function () {}
+          return function (e) {
+            if (e.key !== "Tab") return
+            var first = focusables[0],
+              last = focusables[focusables.length - 1]
+            if (e.shiftKey) {
+              if (document.activeElement === first) {
+                e.preventDefault()
+                last.focus()
+              }
+            } else {
+              if (document.activeElement === last) {
+                e.preventDefault()
+                first.focus()
+              }
+            }
+          }
+        }
+
+        window.lojaConfirm.show = function (message, targetId, hint) {
+          var overlay = document.getElementById(clientOverlayId)
+          var modal = document.getElementById(clientModalId)
+          var msg = document.getElementById(clientMessageId)
+          var a11y = document.getElementById(clientA11yId)
+          var confirmBtn = document.getElementById(clientConfirmId)
+          var cancelBtn = document.getElementById(clientCancelId)
+
+          window.lojaConfirm._lastActive = document.activeElement
+          msg.textContent = message
+          if (a11y) {
+            a11y.textContent = hint || a11y.textContent
+          }
+          overlay.style.display = "block"
+          modal.style.display = "block"
+
+          confirmBtn.focus()
+
+          var keyHandler = function (e) {
+            if (e.key === "Escape") {
+              e.preventDefault()
+              hide()
+            }
+          }
+          var trap = trapFocus(modal)
+          window.lojaConfirm._keydownHandler = function (e) {
+            keyHandler(e)
+            trap(e)
+          }
+          document.addEventListener(
+            "keydown",
+            window.lojaConfirm._keydownHandler,
+          )
+
+          confirmBtn.onclick = function () {
+            try {
+              if (
+                typeof jsf !== "undefined" &&
+                jsf &&
+                jsf.ajax &&
+                jsf.ajax.request
+              ) {
+                var btn = document.getElementById(targetId)
+                try {
+                  jsf.ajax.request(btn, null, {
+                    execute: "@form",
+                    render: "@form",
+                  })
+                } catch (err) {
+                  if (btn) btn.click()
+                }
+              } else {
+                var el = document.getElementById(targetId)
+                if (el) el.click()
+              }
+            } finally {
+              hide()
+            }
+          }
+
+          cancelBtn.onclick = function () {
+            hide()
+          }
+
+          function hide() {
+            document.removeEventListener(
+              "keydown",
+              window.lojaConfirm._keydownHandler,
+            )
+            window.lojaConfirm._keydownHandler = null
+            overlay.style.display = "none"
+            modal.style.display = "none"
+            try {
+              if (window.lojaConfirm._lastActive)
+                window.lojaConfirm._lastActive.focus()
+            } catch (e) {}
+            window.lojaConfirm._lastActive = null
+          }
+        }
+      })()
+    </script>
+  </cc:implementation>
+</ui:composition>

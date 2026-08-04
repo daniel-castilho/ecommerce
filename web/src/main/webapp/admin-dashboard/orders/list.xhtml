@@ -1,0 +1,117 @@
+<ui:composition
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:f="jakarta.faces.core"
+  xmlns:my="https://loja.com/design-system"
+  template="/WEB-INF/templates/main.xhtml"
+>
+  <ui:define name="title">Admin - Orders</ui:define>
+
+  <ui:define name="content">
+    <h1 class="page-title">Order Management</h1>
+    <h:messages globalOnly="true" styleClass="messages" />
+
+    <div class="card">
+      <h:form id="filtersForm">
+        <div class="form-grid">
+          <my:formFieldGroup label="Status" forId="statusId">
+            <h:selectOneMenu
+              id="statusId"
+              value="#{orderManagementBean.selectedStatus}"
+            >
+              <f:selectItem itemValue="" itemLabel="All" />
+              <f:selectItems
+                value="#{orderManagementBean.orderStatuses}"
+                var="status"
+                itemValue="#{status}"
+                itemLabel="#{status}"
+              />
+            </h:selectOneMenu>
+          </my:formFieldGroup>
+
+          <div class="form-actions">
+            <h:commandButton
+              value="Filter"
+              action="#{orderManagementBean.filterOrders}"
+              styleClass="button button-primary"
+            />
+          </div>
+        </div>
+      </h:form>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h:link
+          outcome="/admin-dashboard/dashboard.xhtml"
+          value="Back to dashboard"
+          styleClass="button button-secondary"
+        />
+      </div>
+      <h:form id="orderTableForm">
+        <h:dataTable
+          value="#{orderManagementBean.orders}"
+          var="order"
+          styleClass="data-table"
+          rendered="#{not empty orderManagementBean.orders}"
+        >
+          <h:column>
+            <f:facet name="header">Order #</f:facet>
+            <h:outputText value="#{order.id}" />
+          </h:column>
+          <h:column>
+            <f:facet name="header">Customer</f:facet>
+            <h:outputText value="#{order.customerEmail}" />
+          </h:column>
+          <h:column>
+            <f:facet name="header">Total</f:facet>
+            <h:outputText value="#{order.total.amount}">
+              <f:convertNumber type="currency" currencySymbol="R$" />
+            </h:outputText>
+          </h:column>
+          <h:column>
+            <f:facet name="header">Status</f:facet>
+            <my:statusBadge status="#{order.status}" />
+          </h:column>
+          <h:column>
+            <f:facet name="header">Created At</f:facet>
+            <h:outputText value="#{order.createdAt}" />
+          </h:column>
+          <h:column>
+            <f:facet name="header">Action</f:facet>
+            <h:link
+              value="View Details"
+              outcome="/admin-dashboard/order-detail.xhtml"
+            >
+              <f:param name="orderId" value="#{order.id}" />
+            </h:link>
+          </h:column>
+        </h:dataTable>
+      </h:form>
+
+      <p rendered="#{empty orderManagementBean.orders}">
+        No orders found.
+      </p>
+
+      <div
+        class="pagination-controls"
+        rendered="#{orderManagementBean.previousPageEnabled or orderManagementBean.nextPageEnabled}"
+      >
+        <h:form>
+          <h:commandButton
+            value="Previous"
+            action="#{orderManagementBean.previousPage}"
+            disabled="#{not orderManagementBean.previousPageEnabled}"
+          />
+          <span>Page #{orderManagementBean.page + 1}</span>
+          <h:commandButton
+            value="Next"
+            action="#{orderManagementBean.nextPage}"
+            disabled="#{not orderManagementBean.nextPageEnabled}"
+          />
+        </h:form>
+      </div>
+    </div>
+  </ui:define>
+</ui:composition>

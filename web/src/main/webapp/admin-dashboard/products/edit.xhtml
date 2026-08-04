@@ -1,0 +1,267 @@
+<ui:composition
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:f="jakarta.faces.core"
+  xmlns:my="https://loja.com/design-system"
+  template="/WEB-INF/templates/main.xhtml"
+>
+  <ui:define name="title">Admin - Edit Product</ui:define>
+
+  <ui:define name="content">
+    <h1 class="page-title">Edit Product</h1>
+    <h:messages globalOnly="true" styleClass="messages" />
+
+    <div class="card" rendered="#{not empty productEditBean.currentProduct}">
+      <h:form id="productEditForm">
+        <my:formFieldGroup label="SKU" forId="sku">
+          <h:outputText
+            id="sku"
+            value="#{productEditBean.sku}"
+            styleClass="#{not empty productEditBean.currentProduct and productEditBean.currentProduct.status eq 'ARCHIVED' ? 'archived' : ''}"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Name" forId="name">
+          <h:inputText
+            id="name"
+            value="#{productEditBean.name}"
+            required="true"
+            styleClass="#{not empty productEditBean.currentProduct and productEditBean.currentProduct.status eq 'ARCHIVED' ? 'archived' : ''}"
+          />
+          <h:outputText
+            value=" [Inactive]"
+            styleClass="archived-label"
+            rendered="#{not empty productEditBean.currentProduct and productEditBean.currentProduct.status eq 'ARCHIVED'}"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Slug" forId="slug">
+          <h:inputText id="slug" value="#{productEditBean.slug}" />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Short description" forId="shortDescription">
+          <h:inputTextarea
+            id="shortDescription"
+            value="#{productEditBean.shortDescription}"
+            rows="2"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Description" forId="description">
+          <h:inputTextarea
+            id="description"
+            value="#{productEditBean.description}"
+            rows="5"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Price" forId="price">
+          <h:inputText
+            id="price"
+            value="#{productEditBean.price}"
+            required="true"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Compare-at price" forId="compareAtPrice">
+          <h:inputText
+            id="compareAtPrice"
+            value="#{productEditBean.compareAtPrice}"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Stock" forId="stock">
+          <h:inputText
+            id="stock"
+            value="#{productEditBean.stock}"
+            required="true"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Weight (grams)" forId="weightGrams">
+          <h:inputText
+            id="weightGrams"
+            value="#{productEditBean.weightGrams}"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="SEO title" forId="metaTitle">
+          <h:inputText id="metaTitle" value="#{productEditBean.metaTitle}" />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="SEO description" forId="metaDescription">
+          <h:inputTextarea
+            id="metaDescription"
+            value="#{productEditBean.metaDescription}"
+            rows="2"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Categories" forId="categories">
+          <h:selectManyCheckbox
+            id="categories"
+            value="#{productEditBean.selectedCategoryIds}"
+          >
+            <f:selectItems
+              value="#{productEditBean.categories}"
+              var="category"
+              itemValue="#{category.id}"
+              itemLabel="#{category.name}"
+            />
+          </h:selectManyCheckbox>
+        </my:formFieldGroup>
+
+        <div class="form-actions">
+          <h:commandButton
+            id="saveBtn"
+            value="Save changes"
+            action="#{productEditBean.submit}"
+            styleClass="button button-primary"
+            onclick="lojaConfirm.show('#{msg['product.save.confirm']}', 'productEditForm:saveBtn', '#{msg['product.save.a11y_hint']}'); return false;"
+          />
+          <h:commandButton
+            id="deactivateBtn"
+            value="Deactivate"
+            rendered="#{productEditBean.canDeactivate()}"
+            action="#{productEditBean.deactivate}"
+            styleClass="button button-warning"
+            onclick="lojaConfirm.show('#{msg['product.deactivate.confirm']}', 'productEditForm:deactivateBtn', '#{msg['product.deactivate.a11y_hint']}'); return false;"
+          >
+            <f:ajax execute="@form" render="@form" />
+          </h:commandButton>
+          <h:commandButton
+            id="activateBtn"
+            value="Activate"
+            rendered="#{productEditBean.canActivate()}"
+            action="#{productEditBean.activate}"
+            styleClass="button button-primary"
+            onclick="lojaConfirm.show('#{msg['product.activate.confirm']}', 'productEditForm:activateBtn', '#{msg['product.activate.a11y_hint']}'); return false;"
+          >
+            <f:ajax execute="@form" render="@form" />
+          </h:commandButton>
+          <h:link
+            outcome="/admin-dashboard/products/list.xhtml"
+            value="Cancel"
+          />
+        </div>
+      </h:form>
+    </div>
+
+    <ui:fragment rendered="#{not empty productEditBean.currentProduct}">
+      <div class="card">
+        <h:form id="imageForm" enctype="multipart/form-data">
+          <h2>Images</h2>
+
+          <h:dataTable
+            value="#{productEditBean.currentProduct.images}"
+            var="image"
+            styleClass="data-table"
+            rendered="#{not empty productEditBean.currentProduct.images}"
+          >
+            <h:column>
+              <f:facet name="header">Image</f:facet>
+              <h:graphicImage
+                value="#{productEditBean.imageUrl(image)}"
+                width="80"
+                height="80"
+              />
+            </h:column>
+            <h:column>
+              <f:facet name="header">Alt text</f:facet>
+              <h:inputText value="#{image.altText}" />
+            </h:column>
+            <h:column>
+              <f:facet name="header">Primary</f:facet>
+              <h:selectOneRadio
+                value="#{productEditBean.primaryImageId}"
+                layout="pageDirection"
+              >
+                <f:selectItem itemValue="#{image.id}" itemLabel="Primary" />
+              </h:selectOneRadio>
+            </h:column>
+            <h:column>
+              <f:facet name="header">Order</f:facet>
+              <h:commandButton
+                id="moveUpBtn_#{image.id}"
+                value="Up"
+                action="#{productEditBean.moveUp(image)}"
+                disabled="#{not productEditBean.canMoveUp(image)}"
+                onclick="lojaConfirm.show('#{msg['image.move.confirm']}', 'imageForm:moveUpBtn_#{image.id}', '#{msg['image.move.a11y_hint']}'); return false;"
+              >
+                <f:ajax execute="@form" render="@form" />
+              </h:commandButton>
+              <h:commandButton
+                id="moveDownBtn_#{image.id}"
+                value="Down"
+                action="#{productEditBean.moveDown(image)}"
+                disabled="#{not productEditBean.canMoveDown(image)}"
+                onclick="lojaConfirm.show('#{msg['image.move.confirm']}', 'imageForm:moveDownBtn_#{image.id}', '#{msg['image.move.a11y_hint']}'); return false;"
+              >
+                <f:ajax execute="@form" render="@form" />
+              </h:commandButton>
+
+              <h:commandButton
+                id="deleteBtn_#{image.id}"
+                value="Delete"
+                action="#{productEditBean.deleteImage(image)}"
+                styleClass="button button-danger"
+                onclick="lojaConfirm.show('#{msg['image.delete.confirm']}', 'imageForm:deleteBtn_#{image.id}', '#{msg['image.delete.a11y_hint']}'); return false;"
+              >
+                <f:ajax execute="@form" render="@form" />
+              </h:commandButton>
+            </h:column>
+          </h:dataTable>
+
+          <h:commandButton
+            id="applyBtn"
+            value="Apply image changes"
+            action="#{productEditBean.applyImageChanges}"
+            rendered="#{not empty productEditBean.currentProduct.images}"
+            styleClass="button"
+            onclick="lojaConfirm.show('#{msg['image.apply.confirm']}', 'imageForm:applyBtn', '#{msg['image.apply.a11y_hint']}'); return false;"
+          >
+            <f:ajax execute="@form" render="@form" />
+          </h:commandButton>
+
+          <h:panelGrid columns="2" styleClass="form-grid">
+            <h:outputLabel
+              for="file"
+              value="Image file (jpeg/png/webp, max 5 MB)"
+            />
+            <h:inputFile id="file" value="#{productEditBean.file}" />
+            <h:outputLabel for="uploadAltText" value="Alt text" />
+            <h:inputText
+              id="uploadAltText"
+              value="#{productEditBean.uploadAltText}"
+            />
+            <h:outputLabel for="uploadPrimary" value="Make primary" />
+            <h:selectBooleanCheckbox
+              id="uploadPrimary"
+              value="#{productEditBean.uploadPrimary}"
+            />
+          </h:panelGrid>
+          <h:commandButton
+            id="uploadBtn"
+            value="Upload image"
+            action="#{productEditBean.uploadImage}"
+            styleClass="button"
+            onclick="lojaConfirm.show('#{msg['image.upload.confirm']}', 'imageForm:uploadBtn', '#{msg['image.upload.a11y_hint']}'); return false;"
+          >
+            <f:ajax execute="@form" render="@form" />
+          </h:commandButton>
+        </h:form>
+      </div>
+    </ui:fragment>
+
+    <div class="card" rendered="#{empty productEditBean.currentProduct}">
+      <p>Product not found or no product selected.</p>
+      <h:link
+        outcome="/admin-dashboard/products/list.xhtml"
+        value="Back to products"
+      />
+    </div>
+  </ui:define>
+
+  <my:confirmModal />
+</ui:composition>
