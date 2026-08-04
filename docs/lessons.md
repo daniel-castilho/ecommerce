@@ -6,6 +6,49 @@ top, with date and context.
 
 ---
 
+## 16. Changing a domain state-machine rule breaks pre-existing transition-matrix tests that assert the old invariant
+
+> Context: v0.6.0 release gate (2026-08-03). Commit `c6800ea` made `ARCHIVED → ACTIVE` legal for
+> product reactivation but left `ProductTest.shouldNotTransitionArchivedToDraft` asserting that
+> ARCHIVED was terminal (no transitions at all). The module's suite was red at the release gate.
+
+### Symptom
+
+`mvn -pl admin-dashboard -am test` failed in `product-catalog` domain tests at
+`ProductTest.shouldNotTransitionArchivedToDraft:167` — `canTransitionTo(ACTIVE)` returned `true`
+but the test asserted `false`. The domain and its transition-matrix test disagreed.
+
+### Root cause
+
+The transition map and the transition-matrix test had drifted. The domain map said
+`ARCHIVED → {ACTIVE}` (reactivation via `ProductApplicationService.activate()` → `canTransitionTo(ACTIVE)`),
+while the test (from the original baseline, where ARCHIVED was terminal) still asserted all three
+targets were forbidden.
+
+### Fix applied
+
+```java
+// ProductTest — renamed + corrected to match the reactivation rule
+void shouldOnlyAllowReactivatingArchivedToActive() {
+    // ARCHIVED → DRAFT: false, ARCHIVED → ACTIVE: true, ARCHIVED → INACTIVE: false
+}
+```
+
+### Golden rules
+
+1. When editing a state-machine rule (e.g. `ALLOWED_TRANSITIONS`), grep the domain tests for
+   assertions on the **old** behavior and update them in the same commit — a red suite at release
+   time means a transition rule changed without its matrix test.
+2. Don't tag a milestone on "committed" alone — run the touched module's fast unit suite
+   (`mvn -pl <module> test -Dtest='...'`) before the annotated tag.
+
+### Files involved
+
+- `product-catalog/src/test/java/com/loja/productcatalog/domain/model/ProductTest.java`
+- `product-catalog/src/main/java/com/loja/productcatalog/domain/model/Product.java`
+
+---
+
 ## 15. Cross-module test classpath uses the *installed* dependency jar — run the consumer with `-am`
 
 > Context: admin-dashboard `RefundManagementBeanTest` (2026-08-03). After adding a bean test
