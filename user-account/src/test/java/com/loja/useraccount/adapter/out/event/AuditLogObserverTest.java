@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import com.loja.shared.event.ProductArchivedEvent;
+import com.loja.shared.event.RefundProcessedEvent;
+import com.loja.shared.event.RefundRejectedEvent;
 import com.loja.useraccount.domain.event.RoleAssignedEvent;
 import com.loja.useraccount.domain.model.Role;
 import com.loja.useraccount.domain.port.out.AuditLogPort;
@@ -42,6 +44,26 @@ class AuditLogObserverTest {
         observer.onRoleAssigned(new RoleAssignedEvent("user-1", Role.ADMIN, "admin-9"));
 
         verify(auditLog).logEvent("user-1", "admin-9", "ROLE_ASSIGNED", null, null, "Role assigned: ADMIN");
+    }
+
+    @Test
+    void shouldLogRefundProcessed_withActor() {
+        when(session.getCurrentUser()).thenReturn(java.util.Optional.of(new com.loja.useraccount.domain.model.User("a1", null, null, null)));
+
+        observer.onRefundProcessed(new RefundProcessedEvent("r-1", "o-1", java.time.Instant.now()));
+
+        verify(auditLog).logEvent("a1", null, "REFUND_PROCESSED", null, null,
+                "Refund processed: id=r-1, order=o-1");
+    }
+
+    @Test
+    void shouldLogRefundRejected_withActorAndReason() {
+        when(session.getCurrentUser()).thenReturn(java.util.Optional.of(new com.loja.useraccount.domain.model.User("a1", null, null, null)));
+
+        observer.onRefundRejected(new RefundRejectedEvent("r-1", "o-1", "Policy violation", java.time.Instant.now()));
+
+        verify(auditLog).logEvent("a1", null, "REFUND_REJECTED", null, null,
+                "Refund rejected: id=r-1, order=o-1, reason=Policy violation");
     }
 
     private void injectField(String fieldName, Object value) throws Exception {

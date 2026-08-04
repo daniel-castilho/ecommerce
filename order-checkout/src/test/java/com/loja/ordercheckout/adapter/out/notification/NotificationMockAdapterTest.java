@@ -1,9 +1,14 @@
 package com.loja.ordercheckout.adapter.out.notification;
 
 import com.loja.ordercheckout.domain.model.Order;
+import com.loja.ordercheckout.domain.model.RefundRequest;
+import com.loja.ordercheckout.domain.model.RefundStatus;
+import com.loja.shared.domain.Money;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,15 +58,42 @@ class NotificationMockAdapterTest {
     }
 
     @Test
+    void notifyRefundApproved_includesRefundIdAmountAndReason() {
+        adapter.notifyRefundApproved(order(), refund(RefundStatus.APPROVED, null));
+
+        assertThat(adapter.getNotifications()).hasSize(1);
+        assertThat(adapter.getNotifications().get(0))
+                .contains("REFUND_APPROVED", "order=order-1", "email=ana@example.com",
+                        "refund=r-1", "amount=$ 50.00", "reason=Damaged item");
+    }
+
+    @Test
+    void notifyRefundRejected_includesRejectionReason() {
+        adapter.notifyRefundRejected(order(), refund(RefundStatus.REJECTED, "Policy violation"));
+
+        assertThat(adapter.getNotifications()).hasSize(1);
+        assertThat(adapter.getNotifications().get(0))
+                .contains("REFUND_REJECTED", "order=order-1", "email=ana@example.com",
+                        "refund=r-1", "reason=Policy violation");
+    }
+
+    @Test
     void allNotifications_includeEmailAndOrderId() {
         adapter.notifyOrderConfirmed(order());
         adapter.notifyOrderShipped(order(), "AA123456789BR");
         adapter.notifyRefundRequested(order(), "Changed my mind");
+        adapter.notifyRefundApproved(order(), refund(RefundStatus.PROCESSED, null));
+        adapter.notifyRefundRejected(order(), refund(RefundStatus.REJECTED, "Policy violation"));
 
         List<String> entries = adapter.getNotifications();
-        assertThat(entries).hasSize(3);
+        assertThat(entries).hasSize(5);
         assertThat(entries).allSatisfy(entry -> {
             assertThat(entry).contains("order=order-1", "email=ana@example.com");
         });
+    }
+
+    private static RefundRequest refund(RefundStatus status, String rejectionReason) {
+        return RefundRequest.reconstitute("r-1", "order-1", new Money(new BigDecimal("50.00")),
+                "Damaged item", status, rejectionReason, Instant.now(), null);
     }
 }

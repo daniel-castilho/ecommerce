@@ -2,6 +2,7 @@ package com.loja.ordercheckout.domain.port.out;
 
 import com.loja.ordercheckout.domain.exception.NotificationException;
 import com.loja.ordercheckout.domain.model.Order;
+import com.loja.ordercheckout.domain.model.RefundRequest;
 
 /**
  * Outbound port for customer notifications (email/SMS). Every notification must
@@ -35,4 +36,22 @@ public interface NotificationPort {
      * @throws NotificationException if the notification cannot be delivered
      */
     void notifyRefundRequested(Order order, String reason) throws NotificationException;
+
+    /**
+     * Notifies the customer that their refund was approved and the charge reversed.
+     *
+     * @param order   the order being refunded
+     * @param request the approved and processed refund request
+     * @throws NotificationException if the notification cannot be delivered
+     */
+    void notifyRefundApproved(Order order, RefundRequest request) throws NotificationException;
+
+    /**
+     * Notifies the customer that their refund request was rejected.
+     *
+     * @param order   the order for which the refund was requested
+     * @param request the rejected refund request (carries the rejection reason)
+     * @throws NotificationException if the notification cannot be delivered
+     */
+    void notifyRefundRejected(Order order, RefundRequest request) throws NotificationException;
 }

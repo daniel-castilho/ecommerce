@@ -765,8 +765,8 @@
 **Definition of Ready:**
 - [x] S17 merged
 - [x] ApproveRefundUseCase defined (RefundManagementUseCase.approveRefund)
-- [ ] PaymentGatewayPort available (processRefund method) — deferred, no payment gateway integration yet
-- [ ] Payment reversal strategy confirmed — deferred
+- [x] PaymentGatewayPort available (processRefund method) — mock adapter
+- [x] Payment reversal strategy confirmed — reverse via `processRefund` in the same transaction
 
 **Acceptance Criteria:**
 
@@ -782,13 +782,13 @@
 - [x] ApproveRefundUseCase implemented (RefundApplicationService.approveRefund)
 - [x] refunds/detail.xhtml page with "Approve" button and confirmation (browser confirm dialog, consistent with S16)
 - [x] Confirmation asks for confirmation (yes/no)
-- [ ] On confirm: calls PaymentGatewayPort.processRefund() — deferred
-- [ ] On success: refund status = PROCESSED, customer notified, audit logged, order timeline updated — status becomes APPROVED only (see notes)
-- [x] On failure: error message shown, status stays PENDING
-- [x] Refund status badge updated after the action (PENDING → APPROVED on reload)
+- [x] On confirm: calls PaymentGatewayPort.processRefund() (mock adapter)
+- [x] On success: refund status = PROCESSED and order → REFUNDED; customer notification email sent (via NotificationPort) and REFUND_PROCESSED audit event published — notification/audit added in the S18/S19 follow-up
+- [x] On failure: `PaymentFailedException` shown, transaction rolls back, request stays PENDING
+- [x] Refund status badge updated after the action (PENDING → PROCESSED on reload)
 - [x] Success/error messages clear
 
-**Implementation notes:** No payment gateway integration exists yet, so approving a refund transitions the request PENDING → APPROVED (the `RefundRequest.approve()` domain rule) but does NOT reverse a charge or mark it PROCESSED. PROCESSED, customer notification email, audit logging, and the order timeline entry remain future work. The confirmation dialog is the browser-native `confirm()` used for block/unblock in S16, not the custom `confirm-modal` component.
+**Implementation notes:** Approving a refund reverses the charge through `PaymentGatewayPort.processRefund` (mock adapter) and marks the request PROCESSED in the same transaction; on reversal failure the transaction rolls back and the request stays PENDING (per the acceptance criteria). The customer notification email (`notifyRefundApproved`) and the `REFUND_PROCESSED` audit-log entry were wired in the follow-up commit. Order-timeline/payment-transactions UI section still not implemented. The confirmation dialog is the browser-native `confirm()` used for block/unblock in S16, not the custom `confirm-modal` component.
 
 **Story Points:** 8
 
@@ -818,11 +818,11 @@
 - [x] RejectRefundUseCase implemented (RefundApplicationService.rejectRefund)
 - [x] Reject button on refund detail page
 - [ ] Modal form with reason dropdown + optional text — implemented as a free-text textarea (see notes)
-- [ ] On submit: refund status = REJECTED, customer notified, audit logged — status becomes REJECTED; notification/audit not implemented
+- [x] On submit: refund status = REJECTED; customer notification email sent (via NotificationPort) and REFUND_REJECTED audit event published — notification/audit added in the S18/S19 follow-up
 - [x] No payment reversal (only approval processes refunds)
 - [x] Refund status badge updated (PENDING → REJECTED, red colored)
 
-**Implementation notes:** The rejection reason is a free-text textarea (blank reasons are rejected with a validation message). The dropdown of policy-violation reasons is deferred. Customer notification email and audit logging remain future work (no notification/audit modules wired yet).
+**Implementation notes:** The rejection reason is a free-text textarea (blank reasons are rejected with a validation message). The dropdown of policy-violation reasons is deferred. The customer notification email (`notifyRefundRejected`) and the `REFUND_REJECTED` audit-log entry were wired in the follow-up commit. The order returns to DELIVERED on rejection.
 
 **Story Points:** 3
 

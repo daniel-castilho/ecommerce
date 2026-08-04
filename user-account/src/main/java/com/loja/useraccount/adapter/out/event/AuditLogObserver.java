@@ -1,6 +1,8 @@
 package com.loja.useraccount.adapter.out.event;
 
 import com.loja.shared.event.ProductArchivedEvent;
+import com.loja.shared.event.RefundProcessedEvent;
+import com.loja.shared.event.RefundRejectedEvent;
 import com.loja.useraccount.domain.event.AddressAddedEvent;
 import com.loja.useraccount.domain.event.AddressRemovedEvent;
 import com.loja.useraccount.domain.event.PasswordChangedEvent;
@@ -89,5 +91,18 @@ public class AuditLogObserver {
         }
         String details = String.format("Product archived: id=%s, sku=%s, name=%s", event.productId(), event.sku(), event.name());
         auditLog.logEvent(actorId, null, "PRODUCT_ARCHIVED", ip, userAgent, details);
+    }
+
+    void onRefundProcessed(@Observes RefundProcessedEvent event) {
+        String actorId = session.getCurrentUser().map(u -> u.getId()).orElse(null);
+        auditLog.logEvent(actorId, null, "REFUND_PROCESSED", null, null,
+                "Refund processed: id=" + event.refundId() + ", order=" + event.orderId());
+    }
+
+    void onRefundRejected(@Observes RefundRejectedEvent event) {
+        String actorId = session.getCurrentUser().map(u -> u.getId()).orElse(null);
+        auditLog.logEvent(actorId, null, "REFUND_REJECTED", null, null,
+                "Refund rejected: id=" + event.refundId() + ", order=" + event.orderId()
+                        + ", reason=" + event.reason());
     }
 }

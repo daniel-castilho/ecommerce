@@ -1,6 +1,7 @@
 package com.loja.ordercheckout.adapter.out.notification;
 
 import com.loja.ordercheckout.domain.model.Order;
+import com.loja.ordercheckout.domain.model.RefundRequest;
 import com.loja.ordercheckout.domain.port.out.NotificationPort;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.ArrayList;
@@ -45,6 +46,17 @@ public class NotificationMockAdapter implements NotificationPort {
     @Override
     public void notifyRefundRequested(Order order, String reason) {
         record("REFUND_REQUESTED", order, "reason=" + reason);
+    }
+
+    @Override
+    public void notifyRefundApproved(Order order, RefundRequest request) {
+        record("REFUND_APPROVED", order, "refund=" + request.getId() + " amount=" + request.getAmount()
+                + " reason=" + request.getReason());
+    }
+
+    @Override
+    public void notifyRefundRejected(Order order, RefundRequest request) {
+        record("REFUND_REJECTED", order, "refund=" + request.getId() + " reason=" + request.getRejectionReason());
     }
 
     private void record(String type, Order order, String details) {

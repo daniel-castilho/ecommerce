@@ -9,26 +9,34 @@ import static org.mockito.Mockito.when;
 
 import com.loja.ordercheckout.application.dto.PageResult;
 import com.loja.ordercheckout.domain.exception.OrderNotFoundException;
+import com.loja.ordercheckout.domain.exception.PaymentFailedException;
 import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.OrderStatus;
 import com.loja.ordercheckout.domain.model.RefundRequest;
 import com.loja.ordercheckout.domain.model.RefundStatus;
+import com.loja.ordercheckout.domain.port.out.NotificationPort;
 import com.loja.ordercheckout.domain.port.out.OrderRepositoryPort;
 import com.loja.ordercheckout.domain.port.out.PaymentGatewayPort;
 import com.loja.ordercheckout.domain.port.out.RefundRequestRepositoryPort;
 import com.loja.shared.domain.Money;
+import com.loja.shared.event.DomainEventPublisherPort;
+import com.loja.shared.event.RefundProcessedEvent;
+import com.loja.shared.event.RefundRejectedEvent;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class RefundApplicationServiceTest {
 
     private RefundRequestRepositoryPort refundRepository;
     private OrderRepositoryPort orderRepository;
     private PaymentGatewayPort paymentGateway;
+    private NotificationPort notificationPort;
+    private DomainEventPublisherPort eventPublisher;
     private RefundApplicationService service;
 
     @BeforeEach
@@ -36,7 +44,10 @@ class RefundApplicationServiceTest {
         refundRepository = mock(RefundRequestRepositoryPort.class);
         orderRepository = mock(OrderRepositoryPort.class);
         paymentGateway = mock(PaymentGatewayPort.class);
-        service = new RefundApplicationService(refundRepository, orderRepository, paymentGateway);
+        notificationPort = mock(NotificationPort.class);
+        eventPublisher = mock(DomainEventPublisherPort.class);
+        service = new RefundApplicationService(refundRepository, orderRepository, paymentGateway,
+                notificationPort, eventPublisher);
     }
 
     @Test
@@ -63,7 +74,7 @@ class RefundApplicationServiceTest {
     @Test
     void approveRefund_whenGatewaySucceeds_marksProcessedAndOrderRefunded() {
         Order order = orderIn(OrderStatus.REFUND_REQUESTED);
-        RefundRequest request = RefundRequest.request("o-1", new Money(new BigDecimal("50.00")), "Damaged item");
+        RefundRequest request = pendingRefund();
         when(refundRepository.findById("r-1")).thenReturn(Optional.of(request));
         when(orderRepository.findById("o-1")).thenReturn(Optional.of(order));
         when(paymentGateway.processRefund(request)).thenReturn(true);
@@ -74,25 +85,33 @@ class RefundApplicationServiceTest {
         assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUNDED);
         verify(refundRepository, org.mockito.Mockito.times(2)).save(request);
         verify(orderRepository).save(order);
+        verify(notificationPort).notifyRefundApproved(order, request);
+
+        ArgumentCaptor<RefundProcessedEvent> eventCaptor = ArgumentCaptor.forClass(RefundProcessedEvent.class);
+        verify(eventPublisher).publish(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().refundId()).isEqualTo("r-1");
+        assertThat(eventCaptor.getValue().orderId()).isEqualTo("o-1");
     }
 
     @Test
-    void approveRefund_whenGatewayFails_throws() {
+    void approveRefund_whenGatewayFails_throwsWithoutNotificationsOrEvents() {
         Order order = orderIn(OrderStatus.REFUND_REQUESTED);
-        RefundRequest request = RefundRequest.request("o-1", new Money(new BigDecimal("50.00")), "Damaged item");
+        RefundRequest request = pendingRefund();
         when(refundRepository.findById("r-1")).thenReturn(Optional.of(request));
         when(orderRepository.findById("o-1")).thenReturn(Optional.of(order));
         when(paymentGateway.processRefund(request)).thenReturn(false);
 
         assertThatThrownBy(() -> service.approveRefund("r-1"))
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(PaymentFailedException.class)
                 .hasMessageContaining("failed");
+        assertThat(request.getStatus()).isEqualTo(RefundStatus.APPROVED);
+        verifyNoInteractions(notificationPort, eventPublisher);
     }
 
     @Test
     void rejectRefund_marksRejectedAndRestoresDelivered() {
         Order order = orderIn(OrderStatus.REFUND_REQUESTED);
-        RefundRequest request = RefundRequest.request("o-1", new Money(new BigDecimal("50.00")), "Damaged item");
+        RefundRequest request = pendingRefund();
         when(refundRepository.findById("r-1")).thenReturn(Optional.of(request));
         when(orderRepository.findById("o-1")).thenReturn(Optional.of(order));
 
@@ -102,6 +121,13 @@ class RefundApplicationServiceTest {
         assertThat(request.getRejectionReason()).isEqualTo("Policy violation");
         assertThat(order.getStatus()).isEqualTo(OrderStatus.DELIVERED);
         verify(orderRepository).save(order);
+        verify(notificationPort).notifyRefundRejected(order, request);
+
+        ArgumentCaptor<RefundRejectedEvent> eventCaptor = ArgumentCaptor.forClass(RefundRejectedEvent.class);
+        verify(eventPublisher).publish(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().refundId()).isEqualTo("r-1");
+        assertThat(eventCaptor.getValue().orderId()).isEqualTo("o-1");
+        assertThat(eventCaptor.getValue().reason()).isEqualTo("Policy violation");
     }
 
     @Test
@@ -140,5 +166,10 @@ class RefundApplicationServiceTest {
     private static Order orderIn(OrderStatus status) {
         return Order.restore("o-1", "u-1", "customer@example.com", Instant.now(),
                 status, List.of(), null, null, null, null, null);
+    }
+
+    private static RefundRequest pendingRefund() {
+        return RefundRequest.reconstitute("r-1", "o-1", new Money(new BigDecimal("50.00")), "Damaged item",
+                RefundStatus.PENDING, null, Instant.now(), null);
     }
 }
