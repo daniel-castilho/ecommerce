@@ -723,9 +723,9 @@
 **Depends on:** S1, S3
 
 **Definition of Ready:**
-- [ ] S3 merged (refund queries working)
-- [ ] Refund list page design approved
-- [ ] Refund request status flow confirmed (PENDING → APPROVED → PROCESSED or REJECTED)
+- [x] S3 merged (refund queries working)
+- [x] Refund list page design approved
+- [x] Refund request status flow confirmed (PENDING → APPROVED → PROCESSED or REJECTED)
 
 **Acceptance Criteria:**
 
@@ -738,15 +738,17 @@
 - **Given** 50 refunds, **when** page 2 viewed, **then** correct pagination applied.
 
 **Definition of Done:**
-- [ ] RefundManagementBean (@ViewScoped, @RolesAllowed("ADMIN")) created
-- [ ] refunds/list.xhtml page created
-- [ ] ListRefundRequestsUseCase injected and called
-- [ ] Filters: status dropdown, date range picker
-- [ ] Sorting: Requested Date, Refund Amount, Status
-- [ ] Pagination (20 rows/page)
-- [ ] Status badges colored
-- [ ] Row click navigation to detail page
-- [ ] Table loads in < 500ms
+- [x] RefundManagementBean (@ViewScoped, @RolesAllowed("ADMIN")) created
+- [x] refunds/list.xhtml page created
+- [x] RefundManagementUseCase.listRefundRequests injected and called
+- [x] Filters: status dropdown (date range picker deferred — see implementation notes)
+- [ ] Sorting: Requested Date, Refund Amount, Status (deferred)
+- [x] Pagination (20 rows/page)
+- [x] Status badges colored
+- [x] Link/row navigation to detail page
+- [ ] Table loads in < 500ms (not measured)
+
+**Implementation notes:** Refund list lives at `/admin-dashboard/refunds/list.xhtml` and is reachable from the dashboard. Navigation to the detail page is a "View Details" link per row rather than a full row click. The Customer Name column is not shown (the refund domain model has no customer reference; the order link covers it). No date range picker or sorting yet.
 
 **Story Points:** 5
 
@@ -761,10 +763,10 @@
 **Depends on:** S17, S9
 
 **Definition of Ready:**
-- [ ] S17 merged
-- [ ] ApproveRefundUseCase defined
-- [ ] PaymentGatewayPort available (processRefund method)
-- [ ] Payment reversal strategy confirmed
+- [x] S17 merged
+- [x] ApproveRefundUseCase defined (RefundManagementUseCase.approveRefund)
+- [ ] PaymentGatewayPort available (processRefund method) — deferred, no payment gateway integration yet
+- [ ] Payment reversal strategy confirmed — deferred
 
 **Acceptance Criteria:**
 
@@ -777,14 +779,16 @@
 - **Given** refund approved, **when** audit log checked, **then** entry shows: "Refund [ID] approved by [Admin]".
 
 **Definition of Done:**
-- [ ] ApproveRefundUseCase implemented in AdminDashboardService
-- [ ] refunds/detail.xhtml page with "Approve" button and confirmation modal
-- [ ] Confirmation modal asks for confirmation (yes/no)
-- [ ] On confirm: calls PaymentGatewayPort.processRefund()
-- [ ] On success: refund status = PROCESSED, customer notified, audit logged, order timeline updated
-- [ ] On failure: error message shown, status stays PENDING
-- [ ] Refund status badge updated in real-time (PENDING → PROCESSED)
-- [ ] Success/error messages clear
+- [x] ApproveRefundUseCase implemented (RefundApplicationService.approveRefund)
+- [x] refunds/detail.xhtml page with "Approve" button and confirmation (browser confirm dialog, consistent with S16)
+- [x] Confirmation asks for confirmation (yes/no)
+- [ ] On confirm: calls PaymentGatewayPort.processRefund() — deferred
+- [ ] On success: refund status = PROCESSED, customer notified, audit logged, order timeline updated — status becomes APPROVED only (see notes)
+- [x] On failure: error message shown, status stays PENDING
+- [x] Refund status badge updated after the action (PENDING → APPROVED on reload)
+- [x] Success/error messages clear
+
+**Implementation notes:** No payment gateway integration exists yet, so approving a refund transitions the request PENDING → APPROVED (the `RefundRequest.approve()` domain rule) but does NOT reverse a charge or mark it PROCESSED. PROCESSED, customer notification email, audit logging, and the order timeline entry remain future work. The confirmation dialog is the browser-native `confirm()` used for block/unblock in S16, not the custom `confirm-modal` component.
 
 **Story Points:** 8
 
@@ -799,8 +803,8 @@
 **Depends on:** S18
 
 **Definition of Ready:**
-- [ ] S18 merged
-- [ ] RejectRefundUseCase defined
+- [x] S18 merged
+- [x] RejectRefundUseCase defined (RefundManagementUseCase.rejectRefund)
 
 **Acceptance Criteria:**
 
@@ -811,12 +815,14 @@
 - **Given** refund rejected, **when** audit log checked, **then** entry shows: "Refund [ID] rejected by [Admin] reason: [reason]".
 
 **Definition of Done:**
-- [ ] RejectRefundUseCase implemented in AdminDashboardService
-- [ ] Reject button on refund detail page
-- [ ] Modal form with reason dropdown + optional text
-- [ ] On submit: refund status = REJECTED, customer notified, audit logged
-- [ ] No payment reversal (only approval processes refunds)
-- [ ] Refund status badge updated (PENDING → REJECTED, red colored)
+- [x] RejectRefundUseCase implemented (RefundApplicationService.rejectRefund)
+- [x] Reject button on refund detail page
+- [ ] Modal form with reason dropdown + optional text — implemented as a free-text textarea (see notes)
+- [ ] On submit: refund status = REJECTED, customer notified, audit logged — status becomes REJECTED; notification/audit not implemented
+- [x] No payment reversal (only approval processes refunds)
+- [x] Refund status badge updated (PENDING → REJECTED, red colored)
+
+**Implementation notes:** The rejection reason is a free-text textarea (blank reasons are rejected with a validation message). The dropdown of policy-violation reasons is deferred. Customer notification email and audit logging remain future work (no notification/audit modules wired yet).
 
 **Story Points:** 3
 

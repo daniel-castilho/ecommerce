@@ -1,0 +1,128 @@
+<ui:composition
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:f="jakarta.faces.core"
+  xmlns:my="https://loja.com/design-system"
+  template="/WEB-INF/templates/main.xhtml"
+>
+  <ui:define name="title">Admin - Refund Requests</ui:define>
+
+  <ui:define name="content">
+    <h1 class="page-title">Refund Requests</h1>
+    <h:messages globalOnly="true" styleClass="messages" />
+
+    <div class="card">
+      <h:form id="filtersForm">
+        <div class="form-grid">
+          <my:formFieldGroup label="Status" forId="statusId">
+            <h:selectOneMenu
+              id="statusId"
+              value="#{refundManagementBean.selectedStatus}"
+            >
+              <f:selectItem itemValue="" itemLabel="All" />
+              <f:selectItems
+                value="#{refundManagementBean.refundStatuses}"
+                var="status"
+                itemValue="#{status}"
+                itemLabel="#{status}"
+              />
+            </h:selectOneMenu>
+          </my:formFieldGroup>
+
+          <div class="form-actions">
+            <h:commandButton
+              value="Filter"
+              action="#{refundManagementBean.filterRefunds}"
+              styleClass="button button-primary"
+            />
+          </div>
+        </div>
+      </h:form>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h:link
+          outcome="/admin-dashboard/dashboard.xhtml"
+          value="Back to dashboard"
+          styleClass="button button-secondary"
+        />
+      </div>
+      <h:form id="refundTableForm">
+        <h:dataTable
+          value="#{refundManagementBean.refunds}"
+          var="refund"
+          styleClass="data-table"
+          rendered="#{not empty refundManagementBean.refunds}"
+        >
+          <h:column>
+            <f:facet name="header">Refund #</f:facet>
+            <h:outputText value="#{refund.id}" />
+          </h:column>
+          <h:column>
+            <f:facet name="header">Order #</f:facet>
+            <h:link
+              outcome="/admin-dashboard/order-detail.xhtml"
+              value="#{refund.orderId}"
+            >
+              <f:param name="orderId" value="#{refund.orderId}" />
+            </h:link>
+          </h:column>
+          <h:column>
+            <f:facet name="header">Amount</f:facet>
+            <h:outputText value="#{refund.amount.amount}">
+              <f:convertNumber type="currency" currencySymbol="R$" />
+            </h:outputText>
+          </h:column>
+          <h:column>
+            <f:facet name="header">Status</f:facet>
+            <my:statusBadge status="#{refund.status}" />
+          </h:column>
+          <h:column>
+            <f:facet name="header">Reason</f:facet>
+            <h:outputText value="#{refund.reason}" />
+          </h:column>
+          <h:column>
+            <f:facet name="header">Requested</f:facet>
+            <h:outputText value="#{refund.createdAt}">
+              <f:convertDateTime type="both" timeZone="UTC" />
+            </h:outputText>
+          </h:column>
+          <h:column>
+            <f:facet name="header">Action</f:facet>
+            <h:link
+              value="View Details"
+              outcome="/admin-dashboard/refunds/detail.xhtml"
+            >
+              <f:param name="refundId" value="#{refund.id}" />
+            </h:link>
+          </h:column>
+        </h:dataTable>
+      </h:form>
+
+      <p rendered="#{empty refundManagementBean.refunds}">
+        No refund requests found.
+      </p>
+
+      <div
+        class="pagination-controls"
+        rendered="#{refundManagementBean.previousPageEnabled or refundManagementBean.nextPageEnabled}"
+      >
+        <h:form>
+          <h:commandButton
+            value="Previous"
+            action="#{refundManagementBean.previousPage}"
+            disabled="#{not refundManagementBean.previousPageEnabled}"
+          />
+          <span>Page #{refundManagementBean.page + 1}</span>
+          <h:commandButton
+            value="Next"
+            action="#{refundManagementBean.nextPage}"
+            disabled="#{not refundManagementBean.nextPageEnabled}"
+          />
+        </h:form>
+      </div>
+    </div>
+  </ui:define>
+</ui:composition>

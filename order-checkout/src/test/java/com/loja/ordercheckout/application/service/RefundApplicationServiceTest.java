@@ -105,6 +105,17 @@ class RefundApplicationServiceTest {
     }
 
     @Test
+    void findRefundById_delegatesToRepository() {
+        RefundRequest request = RefundRequest.request("o-1", new Money(new BigDecimal("50.00")), "Damaged item");
+        when(refundRepository.findById("r-1")).thenReturn(Optional.of(request));
+
+        Optional<RefundRequest> actual = service.findRefundById("r-1");
+
+        assertThat(actual).contains(request);
+        verify(refundRepository).findById("r-1");
+    }
+
+    @Test
     void listRefundRequests_withoutStatus_delegatesToFindAll() {
         PageResult<RefundRequest> expected = new PageResult<>(List.of(), 0L, 0, 20);
         when(refundRepository.findAll(0, 20)).thenReturn(expected);

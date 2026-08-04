@@ -4,6 +4,7 @@ import com.loja.ordercheckout.application.dto.PageResult;
 import com.loja.ordercheckout.domain.model.RefundRequest;
 import com.loja.ordercheckout.domain.model.RefundStatus;
 import com.loja.shared.domain.Money;
+import java.util.Optional;
 
 public interface RefundManagementUseCase {
     
@@ -16,6 +17,11 @@ public interface RefundManagementUseCase {
      * Lists refund requests, optionally filtered by status.
      */
     PageResult<RefundRequest> listRefundRequests(RefundStatus status, int page, int pageSize);
+
+    /**
+     * Finds a single refund request by id (admin detail view).
+     */
+    Optional<RefundRequest> findRefundById(String refundId);
 
     /**
      * Approves a pending refund request, processing it through the payment gateway.

@@ -14,6 +14,7 @@ import com.loja.shared.domain.Money;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import java.util.Optional;
 
 @ApplicationScoped
 @Transactional
@@ -50,6 +51,11 @@ public class RefundApplicationService implements RefundManagementUseCase {
             return refundRepository.findAll(page, pageSize);
         }
         return refundRepository.findByStatus(status, page, pageSize);
+    }
+
+    @Override
+    public Optional<RefundRequest> findRefundById(String refundId) {
+        return refundRepository.findById(refundId);
     }
 
     @Override

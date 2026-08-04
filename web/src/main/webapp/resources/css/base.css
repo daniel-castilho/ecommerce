@@ -284,6 +284,15 @@ a:hover {
 .status-badge.status-REFUND_REQUESTED {
   color: var(--color-status-refunded);
 }
+.status-badge.status-APPROVED {
+  color: var(--color-status-confirmed);
+}
+.status-badge.status-PROCESSED {
+  color: var(--color-status-refunded);
+}
+.status-badge.status-REJECTED {
+  color: var(--color-status-cancelled);
+}
 .status-badge.status-DRAFT {
   color: var(--color-status-draft);
 }

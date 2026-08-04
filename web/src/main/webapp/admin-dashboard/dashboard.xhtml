@@ -220,6 +220,19 @@
     </div>
 
     <div class="card">
+      <h2>Refund Requests</h2>
+      <p>
+        View and manage refund requests: approve payment reversals or reject
+        them with a reason.
+      </p>
+      <h:link
+        outcome="/admin-dashboard/refunds/list.xhtml"
+        value="Go to refund management"
+        styleClass="button button-primary"
+      />
+    </div>
+
+    <div class="card">
       <h2>Orders by Status</h2>
       <h:dataTable
         value="#{dashboardBean.ordersByStatus}"
@@ -239,4 +252,6 @@
       <p rendered="#{empty dashboardBean.ordersByStatus}">No orders yet.</p>
     </div>
   </ui:define>
+
+  <my:confirmModal />
 </ui:composition>

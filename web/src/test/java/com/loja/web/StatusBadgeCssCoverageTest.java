@@ -1,6 +1,7 @@
 package com.loja.web;
 
 import com.loja.ordercheckout.domain.model.OrderStatus;
+import com.loja.ordercheckout.domain.model.RefundStatus;
 import com.loja.productcatalog.domain.model.ProductStatus;
 import com.loja.useraccount.domain.model.UserStatus;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>Checks three hops, each direction:
  * <ol>
- *   <li>Every enum constant across all three Status enums has a matching
+ * <li>Every enum constant across all four Status enums has a matching
  *       {@code .status-badge.status-<NAME>} rule in {@code base.css}, and vice versa
  *       (no rule survives after its enum value is removed).</li>
  *   <li>Every {@code --color-status-*} token referenced by those CSS rules is actually
@@ -62,7 +63,8 @@ class StatusBadgeCssCoverageTest {
         Map<String, Set<String>> expectedByEnum = Map.of(
                 "OrderStatus", enumNames(OrderStatus.values()),
                 "ProductStatus", enumNames(ProductStatus.values()),
-                "UserStatus", enumNames(UserStatus.values())
+                "UserStatus", enumNames(UserStatus.values()),
+                "RefundStatus", enumNames(RefundStatus.values())
         );
         Set<String> allExpected = expectedByEnum.values().stream()
                 .flatMap(Set::stream)
@@ -85,7 +87,7 @@ class StatusBadgeCssCoverageTest {
         orphanCssClasses.removeAll(allExpected);
         assertThat(orphanCssClasses)
                 .as("'.status-badge.status-<NAME>' rule(s) in %s with no matching constant in "
-                                + "OrderStatus, ProductStatus, or UserStatus. This is dead CSS left over "
+                                + "OrderStatus, ProductStatus, UserStatus, or RefundStatus. This is dead CSS left over "
                                 + "from a renamed/removed enum value -- delete the rule.",
                         BASE_CSS)
                 .isEmpty();
