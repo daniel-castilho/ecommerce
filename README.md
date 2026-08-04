@@ -60,6 +60,13 @@ WAR into `dropins`. The dev keystore password lives in `web/src/main/liberty/con
 
 ## Current state (2026-08-03)
 
+- **Released as `v0.7.0` (2026-08-03)** — closes the admin-dashboard **monitoring & security lane**
+  (S25–S27): admin user management (list + filters + role assignment + block/unblock, ADMIN-gated),
+  an automated **RBAC coverage guard** (`AdminAccessControlCoverageTest` verifies every admin page
+  is behind a protected web.xml pattern and every admin bean carries `@RolesAllowed("ADMIN")`), and
+  ArchUnit boundary tests for admin-dashboard (`AdminDashboardHexagonalArchitectureTest`, 7 rules —
+  surfaced and fixed `DashboardSummary` nested in a port). Reporting lane S20–S23 still open. See
+  `docs/releases/v0.7.0.md`.
 - **Released as `v0.6.0` (2026-08-03)** — admin back-office management: orders (list/detail +
   status update), products (create/edit + archive/reactivate with audit trail), customers
   (list/detail + block/unblock with audit trail) and refunds (paginated list with status filter,

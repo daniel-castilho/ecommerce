@@ -6,6 +6,49 @@ top, with date and context.
 
 ---
 
+## 17. Guard cross-cutting web contracts with source-scan tests in the final WAR module
+
+> Context: admin-dashboard S26 (2026-08-03). RBAC was enforced in *two* places — `web.xml`
+> `security-constraint` url-patterns (container layer) and `@RolesAllowed("ADMIN")` on the beans
+> (method layer). A new admin page outside a protected pattern, or a bean left without the
+> annotation, silently opened an admin surface to any logged-in user.
+
+### Symptom
+
+None — this was a *prevention* lesson. The same design-code drift that already bit the status
+badges (see `StatusBadgeCssCoverageTest` and design-system.md §0) would bite RBAC: two
+hand-maintained layers describing the same contract, with no test tying them together.
+
+### Fix applied
+
+`AdminAccessControlCoverageTest` (web module) reads **source files** (like
+`StatusBadgeCssCoverageTest`) and asserts, both directions:
+
+1. Every admin `.xhtml` (under `admin-dashboard/`, `user-account/admin/`, and
+   `product-catalog/manageProduct.xhtml`) is covered by a protected `web.xml` url-pattern; no
+   constraint protects zero pages.
+2. Every admin bean (`admin-dashboard` beans, `user-account` `Admin*` beans,
+   `product-catalog` `ManageProductBean`) carries `@Named` + `@RolesAllowed("ADMIN")`.
+
+Adding a page to a protected pattern, or a bean without the annotation, now fails the build.
+
+### Golden rules
+
+1. When a contract has two hand-maintained layers (config + annotations, CSS + enums), write a
+   test that walks both and fails on drift — in **both** directions (missing coverage AND dead
+   coverage/constraints).
+2. Put such tests in the final `web` module (it sees every page and can read sibling module
+   sources via relative paths); they run as fast plain JUnit, no container.
+3. Keep the "must be protected" inventory **derived from naming/structure** (directories, file
+   names) instead of an explicit file list, so adding a new admin surface is covered automatically.
+
+### Files involved
+
+- `web/src/test/java/com/loja/web/AdminAccessControlCoverageTest.java`
+- `web/src/main/webapp/WEB-INF/web.xml`
+
+---
+
 ## 16. Changing a domain state-machine rule breaks pre-existing transition-matrix tests that assert the old invariant
 
 > Context: v0.6.0 release gate (2026-08-03). Commit `c6800ea` made `ARCHIVED → ACTIVE` legal for
@@ -723,10 +766,15 @@ as a violation. ArchUnit treats a `record` nested inside an interface as a **cla
 `CreateOrderFromCartUseCase` had the same problem (`CheckoutCommand`, `ItemCheckoutRequest`
 nested in `port/in`) — it only surfaced when the order module got its own ArchUnit test (S12).
 
+The trap recurred a **third time** at admin-dashboard S27: `DashboardMetricsUseCase$DashboardSummary`
+(a `record` nested in the `DashboardMetricsUseCase` port) failed the new
+`AdminDashboardHexagonalArchitectureTest.domain_ports_should_be_interfaces`. This confirms the
+golden rule applies module-wide, not just in the module where it was first fixed.
+
 **Fix:** DTO records that travel through a port live in `application/dto`, never nested in the
 port (`ReservationRequest`, `CheckoutCommand`, `ItemCheckoutRequest` moved). The `domain`
 allowed-dependencies whitelist already includes `application.dto`, so ports referencing them
-stay architecture-clean.
+stay architecture-clean. Same fix applied at S27: `DashboardSummary` → `application/dto/DashboardSummaryDTO.java`.
 
 **Golden rule 1:** under ArchUnit `ports_should_be_interfaces`, any nested `record` in a port
 is a violation. Keep command/query DTOs in `application/dto` from day one.
