@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 #
-# export.sh — Gera um dump limpo e conciso do projeto
-# para análise por IAs (evita arquivos desnecessários)
+# export.sh — Generates a clean, concise dump of the project
+# for AI analysis (omits unnecessary files)
 #
 set -euo pipefail
 
-PROJETO_DIR="${1:-.}"
-SAIDA="${2:-projeto_completo.txt}"
+PROJECT_DIR="${1:-.}"
+OUTPUT="${2:-project_dump.txt}"
 
 # ============================================================
-# ARQUIVOS E DIRETÓRIOS QUE DEVEM SER IGNORADOS
+# DIRECTORIES TO IGNORE
 # ============================================================
 
-DIRS_EXCLUIDOS=(
+EXCLUDED_DIRS=(
     ".git"
     ".idea"
     ".vscode"
@@ -26,7 +26,8 @@ DIRS_EXCLUIDOS=(
     ".agent"
 )
 
-ARQUIVOS_EXCLUIDOS=(
+EXCLUDED_FILES=(
+    "project_dump.txt"
     "projeto_completo.txt"
     "conversa.txt"
     "ls.txt"
@@ -45,28 +46,28 @@ ARQUIVOS_EXCLUIDOS=(
 
 # ============================================================
 
-PROJETO_DIR="$(cd "$PROJETO_DIR" && pwd)"
-SAIDA_ABS="$(cd "$(dirname "$SAIDA")" 2>/dev/null && pwd)/$(basename "$SAIDA")" 2>/dev/null || SAIDA_ABS="$PROJETO_DIR/$SAIDA"
+PROJECT_DIR="$(cd "$PROJECT_DIR" && pwd)"
+OUTPUT_ABS="$(cd "$(dirname "$OUTPUT")" 2>/dev/null && pwd)/$(basename "$OUTPUT")" 2>/dev/null || OUTPUT_ABS="$PROJECT_DIR/$OUTPUT"
 
-: > "$SAIDA"
+: > "$OUTPUT"
 
-echo "Projeto: $PROJETO_DIR"
-echo "Arquivo de saída: $SAIDA_ABS"
-echo "Gerando dump limpo..."
+echo "Project: $PROJECT_DIR"
+echo "Output file: $OUTPUT_ABS"
+echo "Generating clean dump..."
 
-# Monta expressão de exclusão de diretórios
+# Build the directory-prune expression
 FIND_PRUNE_EXPR=()
-for d in "${DIRS_EXCLUIDOS[@]}"; do
+for d in "${EXCLUDED_DIRS[@]}"; do
     FIND_PRUNE_EXPR+=(-name "$d" -o)
 done
 unset 'FIND_PRUNE_EXPR[${#FIND_PRUNE_EXPR[@]}-1]'
 
-deve_ignorar_arquivo() {
-    local nome_base
-    nome_base="$(basename "$1")"
+should_ignore_file() {
+    local base_name
+    base_name="$(basename "$1")"
 
-    for excluido in "${ARQUIVOS_EXCLUIDOS[@]}"; do
-        if [[ "$nome_base" == $excluido ]]; then
+    for excluded in "${EXCLUDED_FILES[@]}"; do
+        if [[ "$base_name" == $excluded ]]; then
             return 0
         fi
     done
@@ -74,41 +75,41 @@ deve_ignorar_arquivo() {
 }
 
 total=0
-ignorados=0
+ignored=0
 
-while IFS= read -r -d '' arquivo; do
-    if deve_ignorar_arquivo "$arquivo"; then
-        ignorados=$((ignorados + 1))
+while IFS= read -r -d '' file; do
+    if should_ignore_file "$file"; then
+        ignored=$((ignored + 1))
         continue
     fi
 
-    # pula o próprio arquivo de saída
-    if [[ "$(cd "$(dirname "$arquivo")" && pwd)/$(basename "$arquivo")" == "$SAIDA_ABS" ]]; then
+    # skip the output file itself
+    if [[ "$(cd "$(dirname "$file")" && pwd)/$(basename "$file")" == "$OUTPUT_ABS" ]]; then
         continue
     fi
 
-    # pula arquivos binários
-    if ! grep -Iq . "$arquivo" 2>/dev/null; then
-        ignorados=$((ignorados + 1))
+    # skip binary files
+    if ! grep -Iq . "$file" 2>/dev/null; then
+        ignored=$((ignored + 1))
         continue
     fi
 
-    caminho_relativo="${arquivo#"$PROJETO_DIR"/}"
+    relative_path="${file#"$PROJECT_DIR"/}"
 
     {
         echo "===================================================================="
-        echo "ARQUIVO: $caminho_relativo"
+        echo "FILE: $relative_path"
         echo "===================================================================="
-        cat "$arquivo"
+        cat "$file"
         echo ""
         echo ""
-    } >> "$SAIDA"
+    } >> "$OUTPUT"
 
     total=$((total + 1))
-done < <(find "$PROJETO_DIR" \( "${FIND_PRUNE_EXPR[@]}" \) -prune -o -type f -print0)
+done < <(find "$PROJECT_DIR" \( "${FIND_PRUNE_EXPR[@]}" \) -prune -o -type f -print0)
 
 echo ""
-echo "Concluído."
-echo "Arquivos incluídos: $total"
-echo "Arquivos ignorados: $ignorados"
-echo "Saída gerada em: $SAIDA_ABS"
+echo "Done."
+echo "Files included: $total"
+echo "Files ignored: $ignored"
+echo "Output written to: $OUTPUT_ABS"
