@@ -159,12 +159,12 @@ class ProductTest {
     }
 
     @Test
-    void shouldNotTransitionArchivedToDraft() {
+    void shouldOnlyAllowReactivatingArchivedToActive() {
         Product archived = new Product("p1", new Sku("ABC-123"), new Slug("abc-123"), "Name",
                 null, null, money("1000.00"), null, 5, ProductStatus.ARCHIVED, null, null, null,
                 Set.of(1L), List.of());
         assertThat(archived.canTransitionTo(ProductStatus.DRAFT)).isFalse();
-        assertThat(archived.canTransitionTo(ProductStatus.ACTIVE)).isFalse();
+        assertThat(archived.canTransitionTo(ProductStatus.ACTIVE)).isTrue();
         assertThat(archived.canTransitionTo(ProductStatus.INACTIVE)).isFalse();
     }
 
