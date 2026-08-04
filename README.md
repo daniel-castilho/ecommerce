@@ -58,8 +58,15 @@ auto-generated keystore), so run `scripts/run-liberty.sh` after any clean build:
 the server config, installs the features from `server.xml` (first time only) and deploys the
 WAR into `dropins`. The dev keystore password lives in `web/src/main/liberty/config/server.xml`.
 
-## Current state (2026-08-02)
+## Current state (2026-08-03)
 
+- **Released as `v0.6.0` (2026-08-03)** — admin back-office management: orders (list/detail +
+  status update), products (create/edit + archive/reactivate with audit trail), customers
+  (list/detail + block/unblock with audit trail) and refunds (paginated list with status filter,
+  detail with approve/reject) plus the order-checkout refund request workflow
+  (`RefundRequest` PENDING → APPROVED → PROCESSED/REJECTED, `PaymentGatewayPort` mock adapter,
+  `V16` migration), product-catalog archive/reactivate, audit log viewer, dashboard KPIs, and the
+  confirm-modal taglib fix. See `docs/releases/v0.6.0.md`.
 - **Released as `v0.5.0` (2026-08-02)** — admin-dashboard S2 real metrics (live KPIs on
   `dashboard.xhtml` matching the DB) + the login root-cause fix: programmatic login now goes
   through `SecurityContext.authenticate(...)` (Open Liberty forbids `request.login()` while a
@@ -81,8 +88,8 @@ WAR into `dropins`. The dev keystore password lives in `web/src/main/liberty/con
 - **Released as `v0.1.0` (2026-08-01)** — baseline snapshot of the monolith (user account +
   catalog storefront + order checkout MVP). See `docs/releases/v0.1.0.md`.
 - `user-account` — reference module, complete.
-- `product-catalog` — epic in progress (see `tasks/product-catalog-implementation-sequence.md`
-  and `tasks/product-catalog-backlog.md`). **Done:** Steps 1–3 (domain model, ports, persistence
+- `product-catalog` — epic **complete** (S1–S9, all QA'd; see `tasks/product-catalog-backlog.md`).
+  **Done:** Steps 1–3 (domain model, ports, persistence
   adapter, `search()`, `decrementStock` + S9 concurrency test, `V7` migration, unit and integration
   tests green — includes the IT harness fix, docs/lessons.md #3).
   `order-checkout` (`CheckoutService`) migrated to `decrementStock` with

@@ -6,6 +6,120 @@ top, with date and context.
 
 ---
 
+## 15. Cross-module test classpath uses the *installed* dependency jar — run the consumer with `-am`
+
+> Context: admin-dashboard `RefundManagementBeanTest` (2026-08-03). After adding a bean test
+> that imports `RefundRequest` from `order-checkout`, `mvn -pl admin-dashboard test` failed
+> with `TestEngine with ID 'junit-jupiter' failed to discover tests`.
+
+### Symptom
+
+Surefire can't discover tests in the consumer module even though the source is fine. The error
+is a loading failure of the test class (a `NoClassDefFoundError` for the new sibling-module
+class), reported as a discovery failure.
+
+### Root cause
+
+Building a single module (`-pl admin-dashboard`) resolves its `order-checkout` dependency from
+the **local Maven repo** (the last `install`ed jar). If that jar predates a class the new test
+references, the test class fails to load. The `web` module's CI/jar was re-installed, but
+`order-checkout` wasn't.
+
+### Fix applied
+
+Run the consumer module tests in the reactor with `-am` so the dependency is rebuilt from source:
+
+```bash
+mvn -pl admin-dashboard -am test -Dtest='RefundManagementBeanTest,RefundDetailBeanTest' -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+### Golden rules
+
+1. After adding a class to `order-checkout` (or any dependency module) that a consumer's test
+   imports, run consumer tests with `-am`.
+2. A module-only `mvn test` that suddenly reports "failed to discover tests" is usually a stale
+   installed dependency jar, not a test-framework problem.
+
+### Files involved
+
+- `admin-dashboard/src/test/java/com/loja/admindashboard/adapter/in/web/RefundDetailBeanTest.java`
+
+---
+
+## 14. Deterministic tests on aggregates: use `reconstitute(id, ...)`, not the random-id factory
+
+> Context: refunds list/detail bean tests (2026-08-03). The domain factory
+> `RefundRequest.request(...)` assigns `UUID.randomUUID()` as the id.
+
+### Symptom
+
+Bean tests that compare `refund.id` to a fixed string (`loadRefund("r-1")`) failed against
+objects built with `request(...)` — every instance has a different random id. Pagination
+assertions also drifted: `PageResult.totalPages()` computes from the page/pageSize **stored in
+the result**, not from the arguments passed to the list call.
+
+### Root cause / fix
+
+- `request(...)` is the "create new" path (generate a fresh id); `reconstitute(...)` is the
+  "restore from persistence" path (fixed id + state). Tests that assert on identity must build
+  aggregates with `reconstitute("r-1", ...)`.
+- `new PageResult<>(items, total, page, pageSize)` must be constructed with the page you are
+  actually asserting (page 0 → `totalPages()==2` for 45 items at 20/page; page 1 → 3), matching
+  what the service returns.
+
+### Golden rules
+
+1. Test "create" semantics with `request(...)`; test "find/load/review" semantics with
+   `reconstitute(fixedId, ...)`.
+2. For pagination assertions, build the expected `PageResult` with the page whose
+   `totalPages()` you assert — don't reuse the request's page/pageSize.
+
+### Files involved
+
+- `admin-dashboard/src/test/java/com/loja/admindashboard/adapter/in/web/RefundManagementBeanTest.java`
+- `admin-dashboard/src/test/java/com/loja/admindashboard/adapter/in/web/RefundDetailBeanTest.java`
+
+---
+
+## 13. Taglib `<source>` paths are resolved relative to the taglib file, so tag files MUST live in `WEB-INF/tags/`
+
+> Context: admin-dashboard refund detail page (2026-08-03). The confirm modal never appeared at
+> runtime — buttons wired to `lojaConfirm.show(...)` did nothing because the JS was never loaded.
+
+### Symptom
+
+The `<my:confirmModal/>` tag rendered nothing and the `window.lojaConfirm` JS was absent from
+the page. No compile error; the tag silently produced no markup.
+
+### Root cause
+
+`web/src/main/webapp/tags/confirm-modal.xhtml` sat outside `WEB-INF/tags/`, but
+`WEB-INF/loja.taglib.xml` declared `<source>tags/confirm-modal.xhtml</source>`. Facelets
+resolves taglib `<source>` paths **relative to the taglib file's directory** (i.e. `WEB-INF/`),
+so it looked for `WEB-INF/tags/confirm-modal.xhtml` — which didn't exist. The sibling tags
+(`status-badge`, `form-field-group`) were already correctly placed in `WEB-INF/tags/`.
+
+### Fix applied
+
+```bash
+git mv web/src/main/webapp/tags/confirm-modal.xhtml web/src/main/webapp/WEB-INF/tags/confirm-modal.xhtml
+```
+
+### Golden rules
+
+1. All tag files must live under `WEB-INF/tags/`.
+2. A taglib `<source>` is relative to the taglib's own directory, **not** the webapp root —
+   `tags/foo.xhtml` means `WEB-INF/tags/foo.xhtml`.
+3. A tag that renders nothing at runtime (no error) is usually a resolution problem like this —
+   check the tag file's physical location against the taglib entry.
+
+### Files involved
+
+- `web/src/main/webapp/WEB-INF/loja.taglib.xml`
+- `web/src/main/webapp/WEB-INF/tags/confirm-modal.xhtml` (moved)
+
+---
+
 ## 12. Open Liberty 26.0.0.4+ removed the default LTPA keys password — LTPA dies silently with `CWWKS4118E`
 
 > Context: S2 dashboard smoke test (2026-08-02). A freshly configured Open Liberty
