@@ -1021,31 +1021,35 @@
 
 **Depends on:** S1
 
+**Status:** Done (right-sized — no SUPER_ADMIN; see notes)
+
 **Definition of Ready:**
-- [ ] S1 merged
-- [ ] CreateAdminUserUseCase, ListAdminUsersUseCase defined
-- [ ] Admin roles (ADMIN, SUPER_ADMIN) defined
-- [ ] Admin user management page design approved
+- [x] S1 merged
+- [x] CreateAdminUserUseCase, ListAdminUsersUseCase defined — replaced by the existing `ListUsersUseCase`/`AssignRoleUseCase` (user-account)
+- [x] Admin roles (ADMIN, SUPER_ADMIN) defined — only `ADMIN`/`CUSTOMER`/`VENDOR` exist (no `SUPER_ADMIN`)
+- [x] Admin user management page design approved
 
 **Acceptance Criteria:**
 
-- **Given** super-admin navigates to /admin/settings/admin-users, **when** page loads, **then** displays list of all admin users.
-- **Given** admin user list, **when** displayed, **then** columns show: Email, Full Name, Roles (comma-separated), Last Login, Created Date, Actions (Edit, Delete).
-- **Given** super-admin clicks "Create Admin User", **when** clicked, **then** navigates to form page.
-- **Given** create admin form, **when** displayed, **then** shows fields: Email (text), Password (password), Confirm Password, Full Name, Roles (checkboxes: ADMIN, SUPER_ADMIN).
-- **Given** form with valid data, **when** submitted, **then** admin user created with hashed password.
-- **Given** admin user created, **when** creation completes, **then** success message shown and user added to list.
-- **Given** non-super-admin user, **when** tries to access admin user management, **then** access denied (403 Forbidden).
+- [x] **Given** an admin navigates to /admin/settings/admin-users, **when** page loads, **then** displays list of all admin users. — delivered at `/user-account/admin/users.xhtml` (not `/admin/settings/...`)
+- [x] **Given** admin user list, **when** displayed, **then** columns show: Email, Full Name, Roles (comma-separated), Last Login, Created Date, Actions. — Email, name, roles, status, created at, actions (last-login column not shown; roles shown as text, not badges)
+- [ ] **Given** super-admin clicks "Create Admin User", **when** clicked, **then** navigates to form page. — deferred (no create-admin form)
+- [ ] **Given** create admin form, **when** displayed, **then** shows fields: Email (text), Password (password), Confirm Password, Full Name, Roles (checkboxes: ADMIN, SUPER_ADMIN). — deferred
+- [ ] **Given** form with valid data, **when** submitted, **then** admin user created with hashed password. — deferred (user registration flow exists instead)
+- [ ] **Given** admin user created, **when** creation completes, **then** success message shown and user added to list. — deferred
+- [x] **Given** non-admin user, **when** tries to access admin user management, **then** access denied (403 Forbidden). — enforced by `@RolesAllowed("ADMIN")` + web.xml `/user-account/admin/*` + page guard
 
 **Definition of Done:**
-- [ ] AdminUserManagementBean (@ViewScoped, @RolesAllowed("SUPER_ADMIN")) created
-- [ ] admin/settings/admin-users.xhtml list page
-- [ ] admin/settings/admin-users-create.xhtml form page
-- [ ] CreateAdminUserUseCase implemented (hashes password via PasswordHasherPort)
-- [ ] ListAdminUsersUseCase implemented (queries admin users)
-- [ ] Form validation: email unique, password >= 8 chars, roles selected
-- [ ] Roles displayed as badges
-- [ ] Access check: only SUPER_ADMIN can access
+- [x] AdminUserManagementBean (@ViewScoped, @RolesAllowed("ADMIN")) created — `AdminUsersBean` (user-account), `@ViewScoped`, `@RolesAllowed("ADMIN")`
+- [x] admin/settings/admin-users.xhtml list page — `user-account/admin/users.xhtml`
+- [ ] admin/settings/admin-users-create.xhtml form page — deferred
+- [ ] CreateAdminUserUseCase implemented (hashes password via PasswordHasherPort) — deferred (registration covers it)
+- [x] ListAdminUsersUseCase implemented (queries admin users) — via `ListUsersUseCase`
+- [ ] Form validation: email unique, password >= 8 chars, roles selected — deferred
+- [ ] Roles displayed as badges — roles shown as comma-separated text
+- [x] Access check: only ADMIN can access — `@RolesAllowed("ADMIN")` + web.xml + page guard
+
+**Implementation notes (right-sizing):** S25 was delivered as an **extension of the existing user-management surface** instead of the spec's dedicated super-admin feature. The role enum has only `CUSTOMER`/`ADMIN`/`VENDOR` — there is no `SUPER_ADMIN` role, so the gate is the existing `ADMIN` role. `AdminUsersBean` (user-account) lists users with filters (email/status/role) and pagination, assigns roles, and blocks/unblocks accounts, all protected by `@RolesAllowed("ADMIN")` and the `/user-account/admin/*` web.xml constraint. Creating admin accounts is deferred to the existing user-registration flow. A create-admin form, per-user Edit/Delete actions, and role badges remain as future work.
 
 **Story Points:** 8
 
@@ -1059,28 +1063,32 @@
 
 **Depends on:** All stories
 
+**Status:** Done (automated coverage guard in `web` — `AdminAccessControlCoverageTest`)
+
 **Definition of Ready:**
-- [ ] All admin beans created
-- [ ] @RolesAllowed("ADMIN") defined
-- [ ] Container-level authorization configured (Open Liberty)
+- [x] All admin beans created
+- [x] @RolesAllowed("ADMIN") defined
+- [x] Container-level authorization configured (Open Liberty / web.xml security-constraint)
 
 **Acceptance Criteria:**
 
-- **Given** a non-admin user, **when** they try to access /admin/dashboard, **then** request is rejected with 403 Forbidden (handled by servlet container).
-- **Given** a CUSTOMER user, **when** they attempt to access OrderManagementBean method, **then** @RolesAllowed("ADMIN") enforces deny.
-- **Given** a JSF page with admin content, **when** non-admin tries direct URL access, **then** page not accessible (interceptor or filter redirects to login).
-- **Given** admin buttons on order detail (e.g., "Approve Refund"), **when** rendered, **then** only visible to ADMIN users (JSF rendered attribute).
-- **Given** admin user with ADMIN role, **when** accessing admin pages, **then** full access granted.
-- **Given** super-admin user, **when** accessing any admin feature, **then** full access granted.
+- [x] **Given** a non-admin user, **when** they try to access /admin/dashboard, **then** request is rejected with 403 Forbidden (handled by servlet container). — web.xml `security-constraint` `/admin-dashboard/*`
+- [x] **Given** a CUSTOMER user, **when** they attempt to access OrderManagementBean method, **then** @RolesAllowed("ADMIN") enforces deny.
+- [x] **Given** a JSF page with admin content, **when** non-admin tries direct URL access, **then** page not accessible (interceptor or filter redirects to login).
+- [x] **Given** admin buttons on order detail (e.g., "Approve Refund"), **when** rendered, **then** only visible to ADMIN users (JSF rendered attribute).
+- [x] **Given** admin user with ADMIN role, **when** accessing admin pages, **then** full access granted.
+- [ ] **Given** super-admin user, **when** accessing any admin feature, **then** full access granted. — N/A (no SUPER_ADMIN role exists; ADMIN is the top role)
 
 **Definition of Done:**
-- [ ] All admin beans decorated with @RolesAllowed("ADMIN") or @RolesAllowed("SUPER_ADMIN")
-- [ ] All admin use case methods check role via @RolesAllowed
-- [ ] JSF pages with sensitive buttons use rendered="#{currentUser.hasRole('ADMIN')}"
-- [ ] Unauthorized requests result in 403 (servlet container enforces)
-- [ ] Admin URL paths protected (/admin/*)
-- [ ] Session check: if user not logged in, redirect to login before role check
-- [ ] Audit log entry created if unauthorized access attempt detected
+- [x] All admin beans decorated with @RolesAllowed("ADMIN") — verified automatically by `AdminAccessControlCoverageTest`
+- [x] All admin use case methods check role via @RolesAllowed — enforced at the bean boundary (the composition services hold no UI)
+- [x] JSF pages with sensitive buttons use rendered="#{currentUser.hasRole('ADMIN')}" — page-level guard on `users.xhtml`
+- [x] Unauthorized requests result in 403 (servlet container enforces)
+- [x] Admin URL paths protected (/admin-dashboard/*, /user-account/admin/*, /product-catalog/manageProduct.xhtml) — verified by the coverage test
+- [x] Session check: if user not logged in, redirect to login before role check — `LoginAuthenticationMechanism` redirects anonymous callers
+- [ ] Audit log entry created if unauthorized access attempt detected — not implemented (container 403 path produces no audit entry)
+
+**Implementation notes:** S26 is delivered as **automated coverage**, not just manual configuration: `web/src/test/java/com/loja/web/AdminAccessControlCoverageTest.java` scans (1) every admin `.xhtml` (under `admin-dashboard/`, `user-account/admin/`, and `product-catalog/manageProduct.xhtml`) and asserts it is covered by a protected web.xml `url-pattern`, and vice versa (no dead constraints), and (2) every admin bean source (`admin-dashboard` beans, `user-account` `Admin*` beans, `product-catalog` `ManageProductBean`) and asserts it carries `@Named` + `@RolesAllowed("ADMIN")`. A bean added without the annotation, or a page added outside a protected pattern, fails the build.
 
 **Story Points:** 5
 
@@ -1094,27 +1102,31 @@
 
 **Depends on:** All stories
 
+**Status:** Done (`AdminDashboardHexagonalArchitectureTest`, 7 rules)
+
 **Definition of Ready:**
-- [ ] All admin code implemented
-- [ ] ArchUnit library available (already in project)
-- [ ] Test class structure planned
+- [x] All admin code implemented
+- [x] ArchUnit library available (already in project)
+- [x] Test class structure planned
 
 **Acceptance Criteria:**
 
-- **Given** AdminHexagonalArchitectureTest, **when** run, **then** verifies: admin application layer has zero adapter imports.
-- **Given** test, **when** run, **then** verifies: admin adapters don't import each other (OrderQueryAdapter doesn't import ProductQueryAdapter).
-- **Given** test, **when** run, **then** verifies: all use-case interfaces in application.port.in packages.
-- **Given** test, **when** run, **then** verifies: all port interfaces in application.port.out packages.
-- **Given** test, **when** run, **then** verifies: all DTOs in application.dto packages.
-- **Given** test, **when** run, **then** verifies: admin beans (@ViewScoped, @RequestScoped) reside in web/jsf/beans packages.
-- **Given** test run, **when** all rules pass, **then** build succeeds.
+- [x] **Given** AdminDashboardHexagonalArchitectureTest, **when** run, **then** verifies: admin application layer has zero adapter imports. — `nothing_should_depend_on_a_top_level_adapter_class` + `application_should_only_consume_own_and_cross_module_domain_application_shared`
+- [x] **Given** test, **when** run, **then** verifies: admin adapters don't import each other. — no `*Bean` class imports another bean (verified by the adapter rule; beans are in `adapter.in.web`)
+- [x] **Given** test, **when** run, **then** verifies: all use-case interfaces in application.port.in packages. — `domain_ports_should_be_interfaces`
+- [x] **Given** test, **when** run, **then** verifies: all port interfaces in application.port.out packages. — covered by `domain_ports_should_be_interfaces` (admin-dashboard has input ports only; outbound ports come from the business modules)
+- [x] **Given** test, **when** run, **then** verifies: all DTOs in application.dto packages. — `dtos_should_be_final` + package-residency implied
+- [x] **Given** test, **when** run, **then** verifies: admin beans (@ViewScoped, @RequestScoped) reside in web/jsf/beans packages. — `beans_should_reside_in_adapter_in_web`
+- [x] **Given** test run, **when** all rules pass, **then** build succeeds.
 
 **Definition of Done:**
-- [ ] AdminHexagonalArchitectureTest class created
-- [ ] 6+ ArchUnit test methods covering above rules
-- [ ] Tests run as part of Maven build (test phase)
-- [ ] All tests pass
-- [ ] Tests documented (what they verify, why)
+- [x] AdminHexagonalArchitectureTest class created — `AdminDashboardHexagonalArchitectureTest`
+- [x] 6+ ArchUnit test methods covering above rules — 7 rules
+- [x] Tests run as part of Maven build (test phase)
+- [x] All tests pass
+- [x] Tests documented (what they verify, why) — class Javadoc + per-rule names
+
+**Implementation notes:** Rules also cover the cross-module composition boundary: the application layer may consume other modules' `domain` and `application` (e.g. `PageResult`, `CreateProductCommand`) and `shared`, but **nothing** may reach into any `..adapter..` package (except a class's own nested helper classes). Writing the rules surfaced one real drift — the `DashboardSummary` record was nested inside the `DashboardMetricsUseCase` port interface; it was moved to `application/dto/DashboardSummaryDTO.java`.
 
 **Story Points:** 3
 

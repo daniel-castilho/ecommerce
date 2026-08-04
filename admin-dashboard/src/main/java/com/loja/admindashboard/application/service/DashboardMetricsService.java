@@ -1,5 +1,6 @@
 package com.loja.admindashboard.application.service;
 
+import com.loja.admindashboard.application.dto.DashboardSummaryDTO;
 import com.loja.admindashboard.domain.port.in.DashboardMetricsUseCase;
 import com.loja.ordercheckout.domain.port.in.AdminOrderMetricsUseCase;
 import com.loja.productcatalog.domain.port.in.SearchProductsUseCase;
@@ -30,11 +31,11 @@ public class DashboardMetricsService implements DashboardMetricsUseCase {
     }
 
     @Override
-    public DashboardSummary getSummary() {
+    public DashboardSummaryDTO getSummary() {
         long totalProducts = searchProductsUseCase.findAll().size();
         long totalUsers = countUsersUseCase.countAll();
         long totalOrders = adminOrderMetricsUseCase.countAllOrders();
-        return new DashboardSummary(
+        return new DashboardSummaryDTO(
                 totalUsers,
                 totalProducts,
                 totalOrders,

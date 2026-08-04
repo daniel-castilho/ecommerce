@@ -1,6 +1,6 @@
 package com.loja.admindashboard.application.service;
 
-import com.loja.admindashboard.domain.port.in.DashboardMetricsUseCase.DashboardSummary;
+import com.loja.admindashboard.application.dto.DashboardSummaryDTO;
 import com.loja.ordercheckout.domain.model.OrderMetrics;
 import com.loja.ordercheckout.domain.model.OrderStatus;
 import com.loja.ordercheckout.domain.port.in.AdminOrderMetricsUseCase;
@@ -61,7 +61,7 @@ class DashboardMetricsServiceTest {
         when(adminOrderMetricsUseCase.countAllOrders()).thenReturn(7L);
         when(adminOrderMetricsUseCase.getOrderMetrics()).thenReturn(orderMetrics(2L, 4L));
 
-        DashboardSummary summary = service.getSummary();
+        DashboardSummaryDTO summary = service.getSummary();
 
         assertThat(summary.totalProducts()).isEqualTo(3);
         assertThat(summary.totalUsers()).isEqualTo(12);
@@ -89,7 +89,7 @@ class DashboardMetricsServiceTest {
         when(adminOrderMetricsUseCase.countAllOrders()).thenReturn(0L);
         when(adminOrderMetricsUseCase.getOrderMetrics()).thenReturn(orderMetrics(0L, 0L));
 
-        DashboardSummary summary = service.getSummary();
+        DashboardSummaryDTO summary = service.getSummary();
 
         assertThat(summary.totalProducts()).isZero();
         assertThat(summary.totalUsers()).isZero();

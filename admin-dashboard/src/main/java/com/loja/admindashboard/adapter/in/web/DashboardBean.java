@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import com.loja.admindashboard.application.dto.DashboardSummaryDTO;
 import com.loja.admindashboard.domain.port.in.DashboardMetricsUseCase;
 import com.loja.admindashboard.domain.port.in.OrderListUseCase;
 import com.loja.ordercheckout.application.dto.PageResult;
@@ -51,7 +52,7 @@ public class DashboardBean implements Serializable {
         this.updateOrderStatusUseCase = updateOrderStatusUseCase;
     }
 
-    private DashboardMetricsUseCase.DashboardSummary summary;
+    private DashboardSummaryDTO summary;
     private PageResult<Order> orderPage = new PageResult<>(List.of(), 0L, 0, PAGE_SIZE);
     private OrderStatus selectedStatus;
     private OrderStatus statusToApply;
@@ -65,7 +66,7 @@ public class DashboardBean implements Serializable {
         reloadOrders();
     }
 
-    public DashboardMetricsUseCase.DashboardSummary getSummary() {
+    public DashboardSummaryDTO getSummary() {
         return summary;
     }
 
