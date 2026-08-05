@@ -1,0 +1,43 @@
+<ui:composition
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  template="/WEB-INF/templates/main.xhtml"
+>
+  <ui:define name="title">Admin - Reports</ui:define>
+
+  <ui:define name="content">
+    <h1 class="page-title">Reports</h1>
+    <h:messages globalOnly="true" styleClass="messages" />
+
+    <div class="card">
+      <h2>Revenue Report</h2>
+      <p>
+        Revenue over a date range: total/items/shipping revenue, average order
+        value, breakdown by payment method and a daily, weekly or monthly
+        series.
+      </p>
+      <h:link
+        outcome="/admin-dashboard/reports/revenue.xhtml"
+        value="Open revenue report"
+        styleClass="button button-primary"
+      />
+    </div>
+
+    <div class="card">
+      <h2>Product Performance Report</h2>
+      <p>Planned (backlog S21) — not available yet.</p>
+    </div>
+
+    <div class="card">
+      <h2>Customer Insights Report</h2>
+      <p>Planned (backlog S22) — not available yet.</p>
+    </div>
+
+    <h:link
+      outcome="/admin-dashboard/dashboard.xhtml"
+      value="Back to dashboard"
+      styleClass="button button-secondary"
+    />
+  </ui:define>
+</ui:composition>

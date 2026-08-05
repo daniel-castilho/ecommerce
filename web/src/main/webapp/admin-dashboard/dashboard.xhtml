@@ -233,6 +233,18 @@
     </div>
 
     <div class="card">
+      <h2>Reports</h2>
+      <p>
+        Generate business reports: revenue over a date range with breakdowns.
+      </p>
+      <h:link
+        outcome="/admin-dashboard/reports/index.xhtml"
+        value="Go to reports"
+        styleClass="button button-primary"
+      />
+    </div>
+
+    <div class="card">
       <h2>Orders by Status</h2>
       <h:dataTable
         value="#{dashboardBean.ordersByStatus}"

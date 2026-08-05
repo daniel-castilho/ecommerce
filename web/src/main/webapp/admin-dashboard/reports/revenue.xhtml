@@ -1,0 +1,143 @@
+<ui:composition
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:f="jakarta.faces.core"
+  xmlns:my="https://loja.com/design-system"
+  template="/WEB-INF/templates/main.xhtml"
+>
+  <ui:define name="title">Admin - Revenue Report</ui:define>
+
+  <ui:define name="content">
+    <h1 class="page-title">Revenue Report</h1>
+    <h:messages globalOnly="true" styleClass="messages" />
+
+    <div class="card">
+      <h:form id="reportForm">
+        <div class="form-grid">
+          <my:formFieldGroup label="From Date" forId="fromDateId">
+            <h:inputText id="fromDateId" value="#{revenueReportBean.fromDate}" size="10">
+              <f:convertDateTime type="localDate" pattern="dd/MM/yyyy" />
+            </h:inputText>
+          </my:formFieldGroup>
+
+          <my:formFieldGroup label="To Date" forId="toDateId">
+            <h:inputText id="toDateId" value="#{revenueReportBean.toDate}" size="10">
+              <f:convertDateTime type="localDate" pattern="dd/MM/yyyy" />
+            </h:inputText>
+          </my:formFieldGroup>
+
+          <my:formFieldGroup label="Group By" forId="granularityId">
+            <h:selectOneMenu id="granularityId" value="#{revenueReportBean.granularity}">
+              <f:selectItems
+                value="#{revenueReportBean.granularities}"
+                var="granularity"
+                itemValue="#{granularity}"
+                itemLabel="#{granularity}"
+              />
+            </h:selectOneMenu>
+          </my:formFieldGroup>
+
+          <div class="form-actions">
+            <h:commandButton
+              value="Generate"
+              action="#{revenueReportBean.generate}"
+              styleClass="button button-primary"
+            />
+          </div>
+        </div>
+      </h:form>
+    </div>
+
+    <div
+      class="card"
+      rendered="#{revenueReportBean.generated}"
+    >
+      <h2>
+        Revenue from #{revenueReportBean.formatDate(revenueReportBean.fromDate)}
+        to #{revenueReportBean.formatDate(revenueReportBean.toDate)}
+        (#{revenueReportBean.granularityLabel})
+      </h2>
+
+      <div class="dashboard-kpi-grid">
+        <div class="dashboard-kpi">
+          <p class="dashboard-kpi-label">Total Revenue</p>
+          <p class="dashboard-kpi-value">
+            #{revenueReportBean.formatMoney(revenueReportBean.report.totalRevenue)}
+          </p>
+        </div>
+        <div class="dashboard-kpi">
+          <p class="dashboard-kpi-label">Items Revenue</p>
+          <p class="dashboard-kpi-value">
+            #{revenueReportBean.formatMoney(revenueReportBean.report.itemsRevenue)}
+          </p>
+        </div>
+        <div class="dashboard-kpi">
+          <p class="dashboard-kpi-label">Shipping Revenue</p>
+          <p class="dashboard-kpi-value">
+            #{revenueReportBean.formatMoney(revenueReportBean.report.shippingRevenue)}
+          </p>
+        </div>
+        <div class="dashboard-kpi">
+          <p class="dashboard-kpi-label">Total Orders</p>
+          <p class="dashboard-kpi-value">
+            #{revenueReportBean.report.orderCount}
+          </p>
+        </div>
+        <div class="dashboard-kpi">
+          <p class="dashboard-kpi-label">Average Order Value</p>
+          <p class="dashboard-kpi-value">
+            #{revenueReportBean.formatMoney(revenueReportBean.report.averageOrderValue)}
+          </p>
+        </div>
+      </div>
+
+      <h3>Revenue over time</h3>
+      <p rendered="#{revenueReportBean.isSeriesEmpty()}">
+        No revenue in the selected range.
+      </p>
+      <div class="revenue-chart" rendered="#{not revenueReportBean.isSeriesEmpty()}">
+        <ui:repeat value="#{revenueReportBean.dailySeries}" var="point">
+          <div class="revenue-chart-col">
+            <div class="revenue-chart-track">
+              <div
+                class="revenue-chart-fill"
+                style="height: #{revenueReportBean.barHeight(point)}%"
+                title="#{revenueReportBean.formatMoney(point.revenue)}"
+              ></div>
+            </div>
+            <div class="revenue-chart-label">
+              #{revenueReportBean.formatDate(point.date)}
+            </div>
+          </div>
+        </ui:repeat>
+      </div>
+
+      <h3>Revenue by payment method</h3>
+      <p rendered="#{revenueReportBean.isPaymentBreakdownEmpty()}">
+        No revenue in the selected range.
+      </p>
+      <h:dataTable
+        value="#{revenueReportBean.revenueByPaymentMethodEntries}"
+        var="entry"
+        styleClass="data-table"
+        rendered="#{not revenueReportBean.isPaymentBreakdownEmpty()}"
+      >
+        <h:column>
+          <f:facet name="header">Payment Method</f:facet>
+          #{entry.key}
+        </h:column>
+        <h:column>
+          <f:facet name="header">Revenue</f:facet>
+          #{revenueReportBean.formatMoney(entry.value)}
+        </h:column>
+      </h:dataTable>
+    </div>
+
+    <h:link
+      outcome="/admin-dashboard/reports/index.xhtml"
+      value="Back to reports"
+      styleClass="button button-secondary"
+    />
+  </ui:define>
+</ui:composition>

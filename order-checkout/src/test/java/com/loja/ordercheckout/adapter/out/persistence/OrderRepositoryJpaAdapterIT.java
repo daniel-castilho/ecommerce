@@ -4,9 +4,11 @@ import com.loja.ordercheckout.application.dto.PageResult;
 import com.loja.ordercheckout.domain.exception.OrderConcurrentModificationException;
 import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.OrderLine;
+import com.loja.ordercheckout.domain.model.OrderRevenueReport;
 import com.loja.ordercheckout.domain.model.OrderStatus;
 import com.loja.ordercheckout.domain.model.PaymentAuthorization;
 import com.loja.ordercheckout.domain.model.PaymentCapture;
+import com.loja.ordercheckout.domain.model.PaymentInfo;
 import com.loja.ordercheckout.domain.model.ShippingAddress;
 import com.loja.shared.domain.Money;
 import jakarta.persistence.EntityManager;
@@ -17,6 +19,8 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -195,6 +199,15 @@ class OrderRepositoryJpaAdapterIT extends AbstractIntegrationTest {
                           List<OrderLine> lines, Money shippingCost) {
         return Order.restore(id, userId, "customer@example.com", createdAt, status,
                 lines, null, shippingCost, null, null, createdAt);
+    }
+
+    private Order orderWithPayment(String id, Instant createdAt, OrderStatus status, String method,
+                                   List<OrderLine> lines, Money shippingCost) {
+        PaymentInfo payment = PaymentInfo.restore(method, "auth-" + id, "cap-" + id, "gw-" + id,
+                shippingCost, shippingCost, Money.zero(), createdAt, createdAt,
+                PaymentInfo.PaymentStatus.CAPTURED);
+        return Order.restore(id, "customer", "customer@example.com", createdAt, status,
+                lines, null, shippingCost, null, payment, createdAt);
     }
 
 
@@ -405,5 +418,58 @@ class OrderRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         assertThat(found.getPaymentInfo().getCaptureId()).isEqualTo("capture-1");
         assertThat(found.getPaymentInfo().getCapturedAmount().getAmount()).isEqualByComparingTo("35.00");
         assertThat(found.getTotal().getAmount()).isEqualByComparingTo("35.00");
+    }
+
+    @Test
+    void shouldBuildRevenueReportAcrossDaysMethodsAndStatuses() {
+        ZoneId zone = ZoneId.systemDefault();
+        LocalDate day1 = LocalDate.now();
+        LocalDate day2 = day1.minusDays(2);
+        Instant d1Start = day1.atStartOfDay(zone).toInstant();
+        Instant d2Start = day2.atStartOfDay(zone).toInstant();
+
+        inTx(() -> adapter.save(orderWithPayment("rr-1", d1Start, OrderStatus.CONFIRMED, "card",
+                List.of(line("p1", "A", 2, new Money(new BigDecimal("10.00")), 0)),
+                new Money(new BigDecimal("5.00")))));
+        inTx(() -> adapter.save(orderWithPayment("rr-2", d1Start, OrderStatus.CANCELLED, "card",
+                List.of(line("p1", "A", 1, new Money(new BigDecimal("50.00")), 0)), Money.zero())));
+        inTx(() -> adapter.save(orderWithPayment("rr-3", d1Start, OrderStatus.PENDING, "pix",
+                List.of(line("p1", "A", 1, new Money(new BigDecimal("7.00")), 0)), Money.zero())));
+        inTx(() -> adapter.save(orderWithPayment("rr-4", d2Start, OrderStatus.CONFIRMED, "card",
+                List.of(line("p1", "A", 1, new Money(new BigDecimal("99.00")), 0)), Money.zero())));
+
+        Instant from = day1.minusDays(1).atStartOfDay(zone).toInstant();
+        Instant to = day1.plusDays(1).atStartOfDay(zone).toInstant();
+        OrderRevenueReport report = inTx(() -> adapter.revenueReport(from, to));
+
+        assertThat(report.totalRevenue()).isEqualTo(new Money(new BigDecimal("32.00")));
+        assertThat(report.itemsRevenue()).isEqualTo(new Money(new BigDecimal("27.00")));
+        assertThat(report.shippingRevenue()).isEqualTo(new Money(new BigDecimal("5.00")));
+        assertThat(report.orderCount()).isEqualTo(2L);
+        assertThat(report.averageOrderValue()).isEqualTo(new Money(new BigDecimal("16.00")));
+        assertThat(report.revenueByPaymentMethod())
+                .containsEntry("card", new Money(new BigDecimal("25.00")))
+                .containsEntry("pix", new Money(new BigDecimal("7.00")));
+        assertThat(report.dailySeries()).hasSize(1);
+        assertThat(report.dailySeries().get(0).date()).isEqualTo(day1);
+        assertThat(report.dailySeries().get(0).revenue()).isEqualTo(new Money(new BigDecimal("32.00")));
+    }
+
+    @Test
+    void shouldBuildRevenueReportEmptyWhenNoOrdersInRange() {
+        ZoneId zone = ZoneId.systemDefault();
+        LocalDate day = LocalDate.now();
+        Instant from = day.minusDays(1).atStartOfDay(zone).toInstant();
+        Instant to = day.plusDays(1).atStartOfDay(zone).toInstant();
+
+        OrderRevenueReport report = inTx(() -> adapter.revenueReport(from, to));
+
+        assertThat(report.totalRevenue()).isEqualTo(Money.zero());
+        assertThat(report.itemsRevenue()).isEqualTo(Money.zero());
+        assertThat(report.shippingRevenue()).isEqualTo(Money.zero());
+        assertThat(report.orderCount()).isZero();
+        assertThat(report.averageOrderValue()).isEqualTo(Money.zero());
+        assertThat(report.revenueByPaymentMethod()).isEmpty();
+        assertThat(report.dailySeries()).isEmpty();
     }
 }

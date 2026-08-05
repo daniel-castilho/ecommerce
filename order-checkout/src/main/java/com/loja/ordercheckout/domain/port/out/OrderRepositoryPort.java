@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import com.loja.ordercheckout.application.dto.PageResult;
 import com.loja.ordercheckout.domain.model.Order;
+import com.loja.ordercheckout.domain.model.OrderRevenueReport;
 import com.loja.ordercheckout.domain.model.OrderStatus;
 import com.loja.shared.domain.Money;
 
@@ -32,4 +33,11 @@ public interface OrderRepositoryPort {
 
     /** Order counts grouped by status; every status is present, missing ones zero-filled (admin metrics). */
     Map<OrderStatus, Long> countByStatus();
+
+    /**
+     * Revenue report for orders created in {@code [from, to)}, excluding CANCELLED
+     * and REFUNDED orders. The time series is bucketed per local date using the
+     * system default zone (admin reporting, backlog S20).
+     */
+    OrderRevenueReport revenueReport(Instant from, Instant to);
 }

@@ -525,6 +525,54 @@ a:hover {
   margin: 0;
 }
 
+/* --- Revenue report chart (admin-dashboard/reports/revenue.xhtml) ---
+   Single occurrence so far — layout classes consuming existing tokens only.
+   No new primitive/semantic/component token was added (design-system.md
+   sections 4 and 5). The fill height is a server-computed percentage; a
+   zero-revenue day renders an empty track. Extract a chart component only
+   when a second report series exists. */
+
+.revenue-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-sm);
+  height: 220px;
+}
+
+.revenue-chart-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  height: 100%;
+  min-width: 0;
+}
+
+.revenue-chart-track {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-control) var(--radius-control) 0 0;
+}
+
+.revenue-chart-fill {
+  width: 100%;
+  background: var(--color-action-primary);
+  border-radius: var(--radius-control) var(--radius-control) 0 0;
+}
+
+.revenue-chart-label {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 /* --- Pagination --- */
 
 .pagination {
