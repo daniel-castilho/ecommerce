@@ -9,6 +9,7 @@ import com.loja.ordercheckout.application.dto.PageResult;
 import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.OrderRevenueReport;
 import com.loja.ordercheckout.domain.model.OrderStatus;
+import com.loja.ordercheckout.domain.model.ProductSalesAggregate;
 import com.loja.shared.domain.Money;
 
 public interface OrderRepositoryPort {
@@ -40,4 +41,11 @@ public interface OrderRepositoryPort {
      * system default zone (admin reporting, backlog S20).
      */
     OrderRevenueReport revenueReport(Instant from, Instant to);
+
+    /**
+     * All-time per-product sales aggregates over order lines, excluding CANCELLED
+     * and REFUNDED orders. Only products that actually sold appear (admin reporting,
+     * backlog S21 — the report service merges this with the product catalog).
+     */
+    List<ProductSalesAggregate> productSales();
 }

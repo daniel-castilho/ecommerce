@@ -1,0 +1,148 @@
+<ui:composition
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:f="jakarta.faces.core"
+  xmlns:my="https://loja.com/design-system"
+  template="/WEB-INF/templates/main.xhtml"
+>
+  <ui:define name="title">Admin - Product Performance Report</ui:define>
+
+  <ui:define name="content">
+    <h1 class="page-title">Product Performance Report</h1>
+    <h:messages globalOnly="true" styleClass="messages" />
+
+    <div class="card">
+      <h:form id="reportForm">
+        <div class="form-grid">
+          <my:formFieldGroup label="Category" forId="categoryId">
+            <h:selectOneMenu
+              id="categoryId"
+              value="#{productPerformanceReportBean.selectedCategoryId}"
+            >
+              <f:selectItem itemLabel="All categories" itemValue="#{null}" />
+              <f:selectItems
+                value="#{productPerformanceReportBean.categories}"
+                var="category"
+                itemValue="#{category.id}"
+                itemLabel="#{category.name}"
+              />
+            </h:selectOneMenu>
+          </my:formFieldGroup>
+
+          <div class="form-actions">
+            <h:commandButton
+              value="Generate"
+              action="#{productPerformanceReportBean.generate}"
+              styleClass="button button-primary"
+            />
+          </div>
+        </div>
+      </h:form>
+    </div>
+
+    <div
+      class="card"
+      rendered="#{productPerformanceReportBean.generated}"
+    >
+      <h2>Top sellers by units</h2>
+      <p rendered="#{productPerformanceReportBean.isTopSellersEmpty()}">
+        No products sold in the selected scope.
+      </p>
+      <h:dataTable
+        value="#{productPerformanceReportBean.topSellers}"
+        var="row"
+        styleClass="data-table"
+        rendered="#{not productPerformanceReportBean.isTopSellersEmpty()}"
+      >
+        <h:column>
+          <f:facet name="header">SKU</f:facet>
+          #{row.sku}
+        </h:column>
+        <h:column>
+          <f:facet name="header">Product</f:facet>
+          #{row.name}
+        </h:column>
+        <h:column>
+          <f:facet name="header">Units Sold</f:facet>
+          #{productPerformanceReportBean.formatUnits(row.unitsSold)}
+        </h:column>
+        <h:column>
+          <f:facet name="header">Revenue</f:facet>
+          #{productPerformanceReportBean.formatMoney(row.revenue)}
+        </h:column>
+      </h:dataTable>
+
+      <h2>Top by revenue</h2>
+      <p rendered="#{productPerformanceReportBean.isTopByRevenueEmpty()}">
+        No products sold in the selected scope.
+      </p>
+      <h:dataTable
+        value="#{productPerformanceReportBean.topByRevenue}"
+        var="row"
+        styleClass="data-table"
+        rendered="#{not productPerformanceReportBean.isTopByRevenueEmpty()}"
+      >
+        <h:column>
+          <f:facet name="header">SKU</f:facet>
+          #{row.sku}
+        </h:column>
+        <h:column>
+          <f:facet name="header">Product</f:facet>
+          #{row.name}
+        </h:column>
+        <h:column>
+          <f:facet name="header">Units Sold</f:facet>
+          #{productPerformanceReportBean.formatUnits(row.unitsSold)}
+        </h:column>
+        <h:column>
+          <f:facet name="header">Revenue</f:facet>
+          #{productPerformanceReportBean.formatMoney(row.revenue)}
+        </h:column>
+      </h:dataTable>
+
+      <h2>Bottom performers</h2>
+      <p rendered="#{productPerformanceReportBean.isBottomPerformersEmpty()}">
+        No products in the selected scope.
+      </p>
+      <h:dataTable
+        value="#{productPerformanceReportBean.bottomPerformers}"
+        var="row"
+        styleClass="data-table"
+        rowClasses="row-warning"
+        rendered="#{not productPerformanceReportBean.isBottomPerformersEmpty()}"
+      >
+        <h:column>
+          <f:facet name="header">SKU</f:facet>
+          #{row.sku}
+        </h:column>
+        <h:column>
+          <f:facet name="header">Product</f:facet>
+          #{row.name}
+        </h:column>
+        <h:column>
+          <f:facet name="header">Units Sold</f:facet>
+          #{productPerformanceReportBean.formatUnits(row.unitsSold)}
+        </h:column>
+        <h:column>
+          <f:facet name="header">Revenue</f:facet>
+          #{productPerformanceReportBean.formatMoney(row.revenue)}
+        </h:column>
+      </h:dataTable>
+
+      <h2>Units sold by category</h2>
+      <p rendered="#{productPerformanceReportBean.isUnitsByCategoryEmpty()}">
+        No units sold in the selected scope.
+      </p>
+      <ui:fragment rendered="#{not productPerformanceReportBean.isUnitsByCategoryEmpty()}">
+        <my:barChart bars="#{productPerformanceReportBean.unitsByCategoryChartBars}" />
+      </ui:fragment>
+    </div>
+
+    <h:link
+      outcome="/admin-dashboard/reports/index.xhtml"
+      value="Back to reports"
+      styleClass="button button-secondary"
+    />
+  </ui:define>
+</ui:composition>

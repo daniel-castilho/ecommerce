@@ -9,6 +9,7 @@ import com.loja.ordercheckout.domain.model.OrderStatus;
 import com.loja.ordercheckout.domain.model.PaymentAuthorization;
 import com.loja.ordercheckout.domain.model.PaymentCapture;
 import com.loja.ordercheckout.domain.model.PaymentInfo;
+import com.loja.ordercheckout.domain.model.ProductSalesAggregate;
 import com.loja.ordercheckout.domain.model.ShippingAddress;
 import com.loja.shared.domain.Money;
 import jakarta.persistence.EntityManager;
@@ -277,6 +278,48 @@ class OrderRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         Money revenue = inTx(() -> adapter.revenueSince(Instant.now().truncatedTo(ChronoUnit.DAYS)));
 
         assertThat(revenue).isEqualTo(Money.zero());
+    }
+
+    @Test
+    void shouldAggregateProductSalesGroupedByProductExcludingCancelledAndRefunded() {
+        Instant now = Instant.now();
+        inTx(() -> adapter.save(orderAt("ps-1", "u1", now, OrderStatus.CONFIRMED,
+                List.of(line("p1", "A", 2, new Money(new BigDecimal("10.00")), 0),
+                        line("p2", "B", 3, new Money(new BigDecimal("5.50")), 1)),
+                Money.zero())));
+        inTx(() -> adapter.save(orderAt("ps-2", "u2", now, OrderStatus.CANCELLED,
+                List.of(line("p1", "A", 5, new Money(new BigDecimal("10.00")), 0)), Money.zero())));
+        inTx(() -> adapter.save(orderAt("ps-3", "u3", now, OrderStatus.REFUNDED,
+                List.of(line("p2", "B", 2, new Money(new BigDecimal("5.50")), 0)), Money.zero())));
+        inTx(() -> adapter.save(orderAt("ps-4", "u4", now, OrderStatus.DELIVERED,
+                List.of(line("p1", "A", 1, new Money(new BigDecimal("10.00")), 0)), Money.zero())));
+
+        List<ProductSalesAggregate> sales = inTx(adapter::productSales);
+
+        assertThat(sales).hasSize(2);
+        assertThat(sales).extracting(ProductSalesAggregate::productId).containsExactlyInAnyOrder("p1", "p2");
+        assertThat(sales.stream().filter(s -> s.productId().equals("p1")).findFirst())
+                .get()
+                .satisfies(aggregate -> {
+                    assertThat(aggregate.unitsSold()).isEqualTo(3L);
+                    assertThat(aggregate.revenue()).isEqualTo(new Money(new BigDecimal("30.00")));
+                });
+        assertThat(sales.stream().filter(s -> s.productId().equals("p2")).findFirst())
+                .get()
+                .satisfies(aggregate -> {
+                    assertThat(aggregate.unitsSold()).isEqualTo(3L);
+                    assertThat(aggregate.revenue()).isEqualTo(new Money(new BigDecimal("16.50")));
+                });
+    }
+
+    @Test
+    void shouldAggregateProductSalesReturnEmptyWhenNoEligibleOrders() {
+        inTx(() -> adapter.save(orderAt("ps-empty", "u1", Instant.now(), OrderStatus.REFUNDED,
+                List.of(line("p1", "A", 1, new Money(new BigDecimal("10.00")), 0)), Money.zero())));
+
+        List<ProductSalesAggregate> sales = inTx(adapter::productSales);
+
+        assertThat(sales).isEmpty();
     }
 
     @Test

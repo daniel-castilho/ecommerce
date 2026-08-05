@@ -96,22 +96,9 @@
       <p rendered="#{revenueReportBean.isSeriesEmpty()}">
         No revenue in the selected range.
       </p>
-      <div class="revenue-chart" rendered="#{not revenueReportBean.isSeriesEmpty()}">
-        <ui:repeat value="#{revenueReportBean.dailySeries}" var="point">
-          <div class="revenue-chart-col">
-            <div class="revenue-chart-track">
-              <div
-                class="revenue-chart-fill"
-                style="height: #{revenueReportBean.barHeight(point)}%"
-                title="#{revenueReportBean.formatMoney(point.revenue)}"
-              ></div>
-            </div>
-            <div class="revenue-chart-label">
-              #{revenueReportBean.formatDate(point.date)}
-            </div>
-          </div>
-        </ui:repeat>
-      </div>
+      <ui:fragment rendered="#{not revenueReportBean.isSeriesEmpty()}">
+        <my:barChart bars="#{revenueReportBean.revenueChartBars}" />
+      </ui:fragment>
 
       <h3>Revenue by payment method</h3>
       <p rendered="#{revenueReportBean.isPaymentBreakdownEmpty()}">

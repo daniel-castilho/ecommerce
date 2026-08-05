@@ -12,9 +12,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import com.loja.admindashboard.application.dto.ChartBar;
 import com.loja.ordercheckout.domain.model.OrderRevenueReport;
 import com.loja.ordercheckout.domain.model.ReportGranularity;
-import com.loja.ordercheckout.domain.model.RevenuePoint;
 import com.loja.ordercheckout.domain.port.in.RevenueReportUseCase;
 import com.loja.shared.domain.Money;
 
@@ -84,8 +84,24 @@ public class RevenueReportBean implements Serializable {
                 .toList();
     }
 
-    public List<RevenuePoint> getDailySeries() {
-        return report == null ? List.of() : report.dailySeries();
+    public List<ChartBar> getRevenueChartBars() {
+        if (report == null || report.dailySeries().isEmpty()) {
+            return List.of();
+        }
+        BigDecimal maxAmount = report.dailySeries().stream()
+                .map(point -> point.revenue().getAmount())
+                .max(BigDecimal::compareTo)
+                .orElse(BigDecimal.ZERO);
+        return report.dailySeries().stream()
+                .map(point -> new ChartBar(
+                        formatDate(point.date()),
+                        formatMoney(point.revenue()),
+                        maxAmount.signum() == 0 ? 0
+                                : point.revenue().getAmount()
+                                        .multiply(BigDecimal.valueOf(100))
+                                        .divide(maxAmount, 0, RoundingMode.HALF_UP)
+                                        .intValue()))
+                .toList();
     }
 
     public boolean isGenerated() {
@@ -110,20 +126,6 @@ public class RevenueReportBean implements Serializable {
 
     public ReportGranularity[] getGranularities() {
         return ReportGranularity.values();
-    }
-
-    public int barHeight(RevenuePoint point) {
-        BigDecimal maxAmount = report == null ? null : report.dailySeries().stream()
-                .map(seriesPoint -> seriesPoint.revenue().getAmount())
-                .max(BigDecimal::compareTo)
-                .orElse(null);
-        if (point == null || maxAmount == null || maxAmount.signum() == 0) {
-            return 0;
-        }
-        return point.revenue().getAmount()
-                .multiply(BigDecimal.valueOf(100))
-                .divide(maxAmount, 0, RoundingMode.HALF_UP)
-                .intValue();
     }
 
     public String formatMoney(Money money) {

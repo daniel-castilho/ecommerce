@@ -847,7 +847,7 @@
 
 **Acceptance Criteria:**
 
-- [x] **Given** admin navigates to /admin/reports, **when** page loads, **then** displays report selection page with links: "Revenue Report", "Product Report", "Customer Report" — `reports/index.xhtml`; Product/Customer cards show **Planned** (S21/S22 not built) instead of dead links.
+- [x] **Given** admin navigates to /admin/reports, **when** page loads, **then** displays report selection page with links: "Revenue Report", "Product Report", "Customer Report" — `reports/index.xhtml`; Revenue and Product cards link to their reports (S20, S21); Customer card shows **Planned** (S22 not built) instead of a dead link.
 - [x] **Given** admin clicks "Revenue Report", **when** clicked, **then** navigates to revenue report page with filters: From Date (date picker), To Date (date picker), Group By (dropdown: Daily, Weekly, Monthly) — `reports/revenue.xhtml`.
 - [x] **Given** report page, **when** date range selected, **then** "Generate" button clicked and report generated.
 - [x] **Given** revenue report generated, **when** displayed, **then** shows KPIs — right-sized: **Total Revenue, Items Revenue, Shipping Revenue, Total Orders, Average Order Value**. The order model has **no tax column**, so "Total Tax" / "Net Revenue" are deferred (see notes).
@@ -892,28 +892,44 @@ unit + 6 bean unit + 2 repository IT cases (multi-day/multi-method/status-exclus
 **Depends on:** S3
 
 **Definition of Ready:**
-- [ ] S3 merged
-- [ ] ProductReportDTO defined
-- [ ] Report page design approved
+- [x] S3 merged
+- [x] ProductReportDTO defined
+- [x] Report page design approved
 
 **Acceptance Criteria:**
 
-- **Given** admin navigates to /admin/reports/products, **when** page loads, **then** displays: "Top 10 Sellers", "Top 10 by Revenue", "Bottom 10 by Sales" tables.
-- **Given** "Top 10 Sellers" table, **when** displayed, **then** columns show: SKU, Product Name, Units Sold, Total Revenue, Profit Margin (%).
-- **Given** product in bottom performers, **when** viewed, **then** highlighted in yellow/red as warning.
-- **Given** report, **when** filtered by category "Electronics", **then** only electronics products included in all tables.
-- **Given** report data, **when** viewed, **then** bar chart shows "Units Sold by Category" (x-axis: categories, y-axis: units).
+- **Given** admin navigates to /admin/reports/products, **when** page loads, **then** displays: "Top 10 Sellers", "Top 10 by Revenue", "Bottom 10 by Sales" tables. — **Done** (`admin-dashboard/reports/products.xhtml`; all-time scope, no date range — the domain has no per-period product sales query yet).
+- **Given** "Top 10 Sellers" table, **when** displayed, **then** columns show: SKU, Product Name, Units Sold, Total Revenue, Profit Margin (%). — **Done except profit margin** (right-sized out: `Product` has no `costPrice`; deferred debt, same as S20 tax).
+- **Given** product in bottom performers, **when** viewed, **then** highlighted in yellow/red as warning. — **Done** (`rowClasses="row-warning"`, existing `--color-feedback-warning` token, no new token).
+- **Given** report, **when** filtered by category "Electronics", **then** only electronics products included in all tables. — **Done** (optional category filter, all categories default).
+- **Given** report data, **when** viewed, **then** bar chart shows "Units Sold by Category" (x-axis: categories, y-axis: units). — **Done** (CSS bars via the shared `barChart` composite).
 
 **Definition of Done:**
-- [ ] reports/products.xhtml created
-- [ ] GenerateProductReportUseCase implemented
-- [ ] Tables: top 10 sellers, top 10 by revenue, bottom 10
-- [ ] Profit margin calculated: (totalRevenue - costPrice * unitsSold) / totalRevenue
-- [ ] Bar chart: units sold by category
-- [ ] Category filter (optional, all categories default)
-- [ ] Report loads in < 2 seconds
+- [x] reports/products.xhtml created
+- [x] GenerateProductReportUseCase implemented — as `ProductPerformanceReportUseCase` (order-checkout input port, following S20 naming)
+- [x] Tables: top 10 sellers, top 10 by revenue, bottom 10
+- [ ] Profit margin calculated: (totalRevenue - costPrice * unitsSold) / totalRevenue — **deferred** (no `costPrice` on `Product`)
+- [x] Bar chart: units sold by category
+- [x] Category filter (optional, all categories default)
+- [x] Report loads in < 2 seconds — 1 aggregate query over order lines + in-memory merge with the catalog
 
 **Story Points:** 5
+
+**Implementation notes (right-sizing):** S21 follows the S20 pattern end to end —
+domain records (`ProductPerformanceRow`, `ProductSalesAggregate`, `CategoryUnits`,
+`ProductPerformanceReport`) + `OrderRepositoryPort.productSales()` (single JPQL:
+`SUM(quantity)`, `SUM(quantity * unitPrice)` grouped by productId, excluding
+`CANCELLED`/`REFUNDED`) in order-checkout; `ProductPerformanceReportService` merges
+sales with the catalog by productId and does the sorting/limits (deterministic:
+units/revenue desc, name asc; bottom performers units asc). Cross-module wiring:
+`admin-dashboard` consumes the input port + `CategoryRepositoryPort` for the filter
+dropdown — covered by `AdminDashboardHexagonalArchitectureTest`. The units-by-category
+chart is the **second** bar-chart series, so the revenue-only CSS layout was extracted
+into the `barChart` composite (`WEB-INF/tags/bar-chart.xhtml`, `.chart*` classes in
+`base.css`) per the design-system rule of two. Tests: 5 service unit + 7 bean unit +
+2 repository IT cases (aggregation with status exclusion, empty). Profit margin and a
+per-period date range are deferred debt (no `costPrice` on `Product`, no per-period
+sales query), not invented data.
 
 ---
 

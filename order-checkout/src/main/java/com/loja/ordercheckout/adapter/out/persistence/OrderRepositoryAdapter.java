@@ -16,6 +16,7 @@ import com.loja.ordercheckout.domain.exception.OrderConcurrentModificationExcept
 import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.OrderRevenueReport;
 import com.loja.ordercheckout.domain.model.OrderStatus;
+import com.loja.ordercheckout.domain.model.ProductSalesAggregate;
 import com.loja.ordercheckout.domain.model.RevenuePoint;
 import com.loja.ordercheckout.domain.port.out.OrderRepositoryPort;
 import com.loja.shared.domain.Money;
@@ -240,5 +241,21 @@ public class OrderRepositoryAdapter implements OrderRepositoryPort {
 
         return new OrderRevenueReport(totalRevenue, itemsRevenue, shippingRevenue, orderCount,
                 averageOrderValue, revenueByMethod, dailySeries);
+    }
+
+    @Override
+    public List<ProductSalesAggregate> productSales() {
+        return em.createQuery(
+                        "SELECT ol.productId, SUM(ol.quantity), SUM(ol.quantity * ol.unitPrice) " +
+                                "FROM OrderJpaEntity o JOIN o.items ol " +
+                                "WHERE o.status NOT IN :excluded GROUP BY ol.productId",
+                        Object[].class)
+                .setParameter("excluded", EXCLUDED_FROM_REVENUE)
+                .getResultList()
+                .stream()
+                .map(row -> new ProductSalesAggregate((String) row[0],
+                        ((Number) row[1]).longValue(),
+                        new Money((BigDecimal) row[2])))
+                .toList();
     }
 }

@@ -194,6 +194,12 @@ a:hover {
   color: var(--color-action-primary);
 }
 
+/* Row warning highlight (admin report underperformers) — consumes the
+   existing feedback-warning token only (design-system.md §4). */
+.row-warning {
+  background: color-mix(in srgb, var(--color-feedback-warning) 12%, var(--color-bg-surface));
+}
+
 /* --- Archived product visual treatment --- */
 .archived {
   color: var(--color-text-muted);
@@ -525,21 +531,22 @@ a:hover {
   margin: 0;
 }
 
-/* --- Revenue report chart (admin-dashboard/reports/revenue.xhtml) ---
-   Single occurrence so far — layout classes consuming existing tokens only.
-   No new primitive/semantic/component token was added (design-system.md
-   sections 4 and 5). The fill height is a server-computed percentage; a
-   zero-revenue day renders an empty track. Extract a chart component only
-   when a second report series exists. */
+/* --- Report bar chart (admin-dashboard/reports/*.xhtml) ---
+   Shared by the revenue report series and the product performance units-by-
+   category series, both rendered through the barChart composite component
+   (WEB-INF/tags/bar-chart.xhtml). Consumes existing tokens only; no new
+   primitive/semantic/component token was added (design-system.md sections 4
+   and 5). The fill height is a server-computed percentage; a zero-value bar
+   renders an empty track. */
 
-.revenue-chart {
+.chart {
   display: flex;
   align-items: flex-end;
   gap: var(--space-sm);
   height: 220px;
 }
 
-.revenue-chart-col {
+.chart-col {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -549,7 +556,7 @@ a:hover {
   min-width: 0;
 }
 
-.revenue-chart-track {
+.chart-track {
   flex: 1;
   width: 100%;
   display: flex;
@@ -558,13 +565,13 @@ a:hover {
   border-radius: var(--radius-control) var(--radius-control) 0 0;
 }
 
-.revenue-chart-fill {
+.chart-fill {
   width: 100%;
   background: var(--color-action-primary);
   border-radius: var(--radius-control) var(--radius-control) 0 0;
 }
 
-.revenue-chart-label {
+.chart-label {
   font-size: var(--font-size-caption);
   color: var(--color-text-muted);
   white-space: nowrap;

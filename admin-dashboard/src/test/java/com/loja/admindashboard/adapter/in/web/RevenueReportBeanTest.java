@@ -18,6 +18,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.loja.admindashboard.application.dto.ChartBar;
 import com.loja.ordercheckout.domain.model.OrderRevenueReport;
 import com.loja.ordercheckout.domain.model.ReportGranularity;
 import com.loja.ordercheckout.domain.model.RevenuePoint;
@@ -132,7 +133,7 @@ class RevenueReportBeanTest {
     }
 
     @Test
-    void displayHelpers_formatCurrencyDatesAndBarHeights() {
+    void displayHelpers_formatCurrencyDatesAndChartBars() {
         bean.setFromDate(LocalDate.of(2026, 8, 1));
         bean.setToDate(LocalDate.of(2026, 8, 15));
         bean.setGranularity(ReportGranularity.DAILY);
@@ -146,25 +147,25 @@ class RevenueReportBeanTest {
         assertThat(bean.getRevenueByPaymentMethodEntries())
                 .extracting(Map.Entry::getKey)
                 .containsExactly("card", "pix");
-        assertThat(bean.getDailySeries()).hasSize(2);
         assertThat(bean.isSeriesEmpty()).isFalse();
         assertThat(bean.isPaymentBreakdownEmpty()).isFalse();
 
-        RevenuePoint peak = bean.getDailySeries().stream()
-                .filter(point -> point.revenue().equals(new Money(new BigDecimal("200.00"))))
-                .findFirst().orElseThrow();
-        RevenuePoint trough = bean.getDailySeries().stream()
-                .filter(point -> point.revenue().equals(new Money(new BigDecimal("100.00"))))
-                .findFirst().orElseThrow();
-        assertThat(bean.barHeight(peak)).isEqualTo(100);
-        assertThat(bean.barHeight(trough)).isEqualTo(50);
+        assertThat(bean.getRevenueChartBars())
+                .extracting(ChartBar::label)
+                .containsExactly("10/08/2026", "11/08/2026");
+        assertThat(bean.getRevenueChartBars())
+                .extracting(ChartBar::title)
+                .allSatisfy(title -> assertThat(title).startsWith("R$"));
+        assertThat(bean.getRevenueChartBars())
+                .extracting(ChartBar::height)
+                .containsExactly(50, 100);
     }
 
     @Test
     void displayHelpers_beforeGeneration_areEmpty() {
         assertThat(bean.isGenerated()).isFalse();
         assertThat(bean.getRevenueByPaymentMethodEntries()).isEmpty();
-        assertThat(bean.getDailySeries()).isEmpty();
+        assertThat(bean.getRevenueChartBars()).isEmpty();
         assertThat(bean.isSeriesEmpty()).isTrue();
         assertThat(bean.isPaymentBreakdownEmpty()).isTrue();
     }
