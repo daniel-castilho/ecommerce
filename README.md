@@ -58,8 +58,14 @@ auto-generated keystore), so run `scripts/run-liberty.sh` after any clean build:
 the server config, installs the features from `server.xml` (first time only) and deploys the
 WAR into `dropins`. The dev keystore password lives in `web/src/main/liberty/config/server.xml`.
 
-## Current state (2026-08-03)
+## Current state (2026-08-05)
 
+- **Released as `v0.8.0` (2026-08-05)** — first story of the admin-dashboard **reporting lane**:
+  the **S20 revenue report** (date range + group-by Daily/Weekly/Monthly, KPI cards, CSS bar
+  chart, payment-method breakdown) at `/admin-dashboard/reports/`, right-sized to the current
+  domain (no new dependencies; Total Tax/Net Revenue and Revenue by Category deferred until the
+  order model grows those fields). Export (PDF/CSV) stays in **S23** (needs human-approved
+  dependencies). See `docs/releases/v0.8.0.md`.
 - **Released as `v0.7.0` (2026-08-03)** — closes the admin-dashboard **monitoring & security lane**
   (S25–S27): admin user management (list + filters + role assignment + block/unblock, ADMIN-gated),
   an automated **RBAC coverage guard** (`AdminAccessControlCoverageTest` verifies every admin page

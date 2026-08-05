@@ -6,6 +6,52 @@ top, with date and context.
 
 ---
 
+## 18. Locale-formatted strings and unordered-map iteration make test assertions flaky
+
+> Context: S20 revenue report bean tests (2026-08-05). Two failures in
+> `RevenueReportBeanTest`, both order/whitespace problems that had nothing to do with the
+> feature logic.
+
+### Symptom
+
+1. `formatMoney(...)` returned `R$ 1.234,50` but the assertion expected `R$ 1.234,50` — a
+   non-breaking space (U+00A0) instead of a regular space.
+2. `getRevenueByPaymentMethodEntries()` returned `["pix", "card"]` on one run and
+   `["card", "pix"]` on another — the test asserted a fixed order.
+
+### Root cause
+
+1. `NumberFormat.getCurrencyInstance(pt-BR)` renders the currency-symbol/amount separator as
+   `\u00A0` (non-breaking space), not `' '`. Any string-equality assertion against a
+   hardcoded `"R$ ..."` literal fails on the invisible character.
+2. `Map.of(...)` (like `HashMap`) has **unspecified iteration order**. The test's fixture map
+   happened to iterate `card, pix` on the first run and `pix, card` later — pure luck, not a
+   contract.
+
+### Fix applied
+
+- Bean test: normalize the separator before asserting —
+  `bean.formatMoney(...).replace('\u00A0', ' ')` equals the readable literal.
+- `RevenueReportBean.getRevenueByPaymentMethodEntries()` now sorts the entries by method key,
+  making the rendered table order deterministic regardless of the map implementation (the
+  report's contract is "ordered by method").
+
+### Golden rules
+
+1. When asserting a locale-formatted string, normalize invisible separators (`\u00A0`) or
+   compare the `BigDecimal`, never a hand-typed rendered literal.
+2. Never assert iteration order of an unordered map — if display order matters, sort in the
+   production code (or in the assertion), then assert the sorted order.
+3. A test that "passes on the first run, fails on the second" is usually an ordering/identity
+   assumption, not a logic bug — run it twice before hunting deeper.
+
+### Files involved
+
+- `admin-dashboard/src/test/java/com/loja/admindashboard/adapter/in/web/RevenueReportBeanTest.java`
+- `admin-dashboard/src/main/java/com/loja/admindashboard/adapter/in/web/RevenueReportBean.java`
+
+---
+
 ## 17. Guard cross-cutting web contracts with source-scan tests in the final WAR module
 
 > Context: admin-dashboard S26 (2026-08-03). RBAC was enforced in *two* places — `web.xml`

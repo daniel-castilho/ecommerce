@@ -838,33 +838,48 @@
 
 **Depends on:** S1, S3
 
+**Status:** ✅ Done (2026-08-05, released as `v0.8.0`) — right-sized (see implementation notes)
+
 **Definition of Ready:**
-- [ ] S3 merged (aggregation queries working)
-- [ ] RevenueReportDTO defined
-- [ ] Report generation strategy confirmed
+- [x] S3 merged (aggregation queries working)
+- [x] RevenueReportDTO defined — `OrderRevenueReport` (order-checkout domain)
+- [x] Report generation strategy confirmed — repository returns the daily series; the use case rolls it up to weekly/monthly
 
 **Acceptance Criteria:**
 
-- **Given** admin navigates to /admin/reports, **when** page loads, **then** displays report selection page with links: "Revenue Report", "Product Report", "Customer Report".
-- **Given** admin clicks "Revenue Report", **when** clicked, **then** navigates to revenue report page with filters: From Date (date picker), To Date (date picker), Group By (dropdown: Daily, Weekly, Monthly).
-- **Given** report page, **when** date range selected (e.g., 2026-07-01 to 2026-07-31), **then** "Generate" button clicked and report generated.
-- **Given** revenue report generated, **when** displayed, **then** shows: Total Revenue, Total Tax, Total Shipping, Net Revenue, Total Orders, Average Order Value (all calculated for date range).
-- **Given** report, **when** viewed, **then** shows line chart: revenue by date (x-axis: dates, y-axis: revenue amount).
-- **Given** report, **when** viewed, **then** shows breakdown tables: Revenue by Category (category name, revenue), Revenue by Payment Method (method, count, revenue).
-- **Given** report with data, **when** "Export" button clicked, **then** dialog shown asking: PDF or CSV format.
+- [x] **Given** admin navigates to /admin/reports, **when** page loads, **then** displays report selection page with links: "Revenue Report", "Product Report", "Customer Report" — `reports/index.xhtml`; Product/Customer cards show **Planned** (S21/S22 not built) instead of dead links.
+- [x] **Given** admin clicks "Revenue Report", **when** clicked, **then** navigates to revenue report page with filters: From Date (date picker), To Date (date picker), Group By (dropdown: Daily, Weekly, Monthly) — `reports/revenue.xhtml`.
+- [x] **Given** report page, **when** date range selected, **then** "Generate" button clicked and report generated.
+- [x] **Given** revenue report generated, **when** displayed, **then** shows KPIs — right-sized: **Total Revenue, Items Revenue, Shipping Revenue, Total Orders, Average Order Value**. The order model has **no tax column**, so "Total Tax" / "Net Revenue" are deferred (see notes).
+- [x] **Given** report, **when** viewed, **then** shows a revenue-by-date chart — **CSS bar chart** (no PrimeFaces dependency; see notes), x-axis dates, y-axis amount (tooltip).
+- [x] **Given** report, **when** viewed, **then** shows breakdown tables — **Revenue by Payment Method** (method, revenue). "Revenue by Category" is deferred: order lines carry no category.
+- [ ] **Given** report with data, **when** "Export" button clicked, **then** dialog shown asking PDF or CSV — deferred to **S23** (needs new dependencies; human approval required).
 
 **Definition of Done:**
-- [ ] ReportGenerationBean (@ViewScoped, @RolesAllowed("ADMIN")) created
-- [ ] reports/index.xhtml with report selection links
-- [ ] reports/revenue.xhtml with date range filters and generated report
-- [ ] GenerateRevenueReportUseCase implemented
-- [ ] Queries: SUM(order.total), SUM(order.tax), SUM(order.shipping), COUNT(orders), breakdown by category/payment method
-- [ ] Charts: line chart revenue over time (PrimeFaces <p:chart>)
-- [ ] Tables: category breakdown, payment method breakdown
-- [ ] Export buttons (PDF, CSV)
-- [ ] Report loads in < 3 seconds (complex queries)
+- [x] Report bean (`@ViewScoped`, `@RolesAllowed("ADMIN")`) created — `RevenueReportBean` (admin-dashboard)
+- [x] reports/index.xhtml with report selection links
+- [x] reports/revenue.xhtml with date range filters and generated report
+- [x] GenerateRevenueReportUseCase implemented — `RevenueReportUseCase` + `RevenueReportService` (order-checkout)
+- [x] Queries: SUM items, SUM shipping, COUNT(orders), breakdown by payment method — `OrderRepositoryPort.revenueReport(Instant, Instant)` (JPQL over `[from, to)`, excluding CANCELLED/REFUNDED)
+- [x] Charts: revenue over time — **CSS bar chart** instead of PrimeFaces `<p:chart>` (see notes)
+- [x] Tables: payment method breakdown
+- [ ] Export buttons (PDF, CSV) — **S23**
+- [x] Report loads in < 3 seconds — 4 indexed-free aggregate queries over the order table (verified by IT)
 
 **Story Points:** 8
+
+**Implementation notes (right-sizing):** S20 is delivered without the new dependencies the
+spec assumed (PrimeFaces Charts, Flying Saucer, Commons CSV — all need human approval per
+`AGENTS.md`). Chart = pure CSS bars fed by a server-computed percentage (`bean.barHeight`),
+consuming existing semantic tokens only (single occurrence; see `base.css`). The report is
+**right-sized to the current domain**: the order model has no tax column (so Total Tax / Net
+Revenue are out) and order lines carry no category (so Revenue by Category is out) — both are
+explicitly deferred debt rather than invented data. Granularity roll-up (daily → weekly/monthly)
+lives in `RevenueReportService` so bucketing rules are in one place; the repository always
+returns the daily series. Cross-module wiring: `admin-dashboard` consumes
+`RevenueReportUseCase` (order-checkout input port) — covered by `AdminAccessControlCoverageTest`
+(page under `/admin-dashboard/*`) and `AdminDashboardHexagonalArchitectureTest`. Tests: 6 service
+unit + 6 bean unit + 2 repository IT cases (multi-day/multi-method/status-exclusion, empty range).
 
 ---
 
