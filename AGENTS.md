@@ -44,6 +44,9 @@ adapter/out/persistence   JPA entities + mapper (toDomain/fromDomain) + port imp
 ```
 
 - `shared-kernel`: base, depends on nothing (`Money`, `Result`, `DomainEvent`).
+- `product-reviews`: reviews & ratings; thin integration adapters (`ProductLookupAdapter`,
+  `OrderVerificationAdapter`) call only `product-catalog`/`order-checkout` **ports**; DTOs live in
+  `application/dto` (nested records in ports violate ArchUnit — lesson #7).
 - `admin-dashboard`: only composes use cases from other modules; zero business rules.
 - `web/`: final WAR (`persistence.xml` JTA `jdbc/EcommerceDS`; dev DB credentials live in
   `web/src/main/liberty/config/server.env`, overridable via OS env `DB_*`), `.xhtml` pages,

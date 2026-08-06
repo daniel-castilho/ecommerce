@@ -6,6 +6,57 @@ top, with date and context.
 
 ---
 
+## 19. A new module's first smoke surfaces web-layer gotchas unit tests can't catch
+
+> Context: product-reviews epic (2026-08-05). Unit + ArchUnit + ITs were all green, yet the
+> first browser smoke of the new module inside the final WAR hit four independent
+> Facelets/JSF runtime errors, one after another. The lesson: a module that is only
+> unit-tested is not "integrated" — the WAR-level glue has contracts of its own.
+
+### Symptom
+
+1. `JPQLException: The abstract schema type 'ReviewJpaEntity' is unknown` on the first page load.
+2. `jakarta.el.PropertyNotFoundException: Property [hasReviews] not found` despite the method existing.
+3. `FaceletException: The entity "laquo" was referenced, but not declared` at render.
+4. `ELException: Unsupported field: YearOfEra` (from `f:convertDateTime` on an `Instant`).
+5. After a manual data fix, the running server kept throwing the *old* error until a restart.
+
+### Root cause & fix applied
+
+1. `web/src/main/resources/META-INF/persistence.xml` lists every entity with
+   `exclude-unlisted-classes=true` — a new module's JPA entity must be declared there, or
+   EclipseLink never sees it. Added
+   `<class>com.loja.productreviews.adapter.out.persistence.ReviewJpaEntity</class>`.
+2. EL resolves `#{bean.hasReviews}` to `getHasReviews()`/`isHasReviews()`; a bare boolean
+   method named `hasReviews()` is not a JavaBean getter. Renamed to `isHasReviews()`.
+3. Facelets is strict XML — `&laquo;`, `&raquo;`, `&mdash;` are undeclared. Use numeric
+   references (`&#171;`, &#187;, `&#8212;`).
+4. `f:convertDateTime` cannot format `java.time.Instant`. Expose a bean
+   `formatDate(Instant)` using `DateTimeFormatter.ofPattern(...).withZone(ZoneId.systemDefault())`
+   (the missing `.withZone` alone causes `Unsupported field: YearOfEra`).
+5. EclipseLink's shared (L2) cache keeps serving entities loaded *before* an out-of-band data
+   fix. Restart the server after correcting dev data; don't expect a hot redeploy to pick it up.
+
+### Golden rules
+
+1. When integrating a new module into the WAR, browser-smoke **every** page/action it touches —
+   never trust a green module test suite alone.
+2. New JPA entities → add to `persistence.xml` (`exclude-unlisted-classes=true` makes it
+   mandatory).
+3. EL properties must be JavaBean getters (`isX`/`getX`), XHTML must use numeric character
+   references, and JSF converters need `java.util.Date`, not `Instant`.
+4. After fixing data behind a running server, restart to clear the L2 cache before debugging
+   "the fix didn't work".
+
+### Files involved
+
+- `product-reviews/src/main/java/com/loja/productreviews/adapter/in/web/*.java`
+- `web/src/main/resources/META-INF/persistence.xml`
+- `web/src/main/webapp/product-catalog/product-detail.xhtml`
+- `web/src/main/webapp/admin-dashboard/reviews/*.xhtml`
+
+---
+
 ## 18. Locale-formatted strings and unordered-map iteration make test assertions flaky
 
 > Context: S20 revenue report bean tests (2026-08-05). Two failures in

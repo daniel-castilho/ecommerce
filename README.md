@@ -12,6 +12,7 @@ Modular monolith in **Jakarta EE 11 + Jakarta Faces**, organized as a
 | `user-account`     | User registration/query (reference module, fully implemented)                                       |
 | `product-catalog`  | Product catalog and search                                                                          |
 | `order-checkout`   | Checkout, order calculation, stock reservation                                                      |
+| `product-reviews`  | Product reviews & ratings (submit, list, summary, admin moderation)                                |
 | `admin-dashboard`  | Compose metrics from the other modules (no business rules of its own)                               |
 | `web`              | Final WAR: aggregates the modules, contains `web.xml`, `faces-config.xml`, `persistence.xml` and the `.xhtml` pages |
 
@@ -60,6 +61,12 @@ WAR into `dropins`. The dev keystore password lives in `web/src/main/liberty/con
 
 ## Current state (2026-08-05)
 
+- **Released as `v0.10.0` (2026-08-05)** — full **Reviews & Ratings** module (`product-reviews`,
+  hexagonal): submit 1–5★ reviews on the product-detail page (sanitized, one per user per product),
+  average + star histogram + paginated list of approved reviews, verified-purchase badge via
+  order-checkout, and an admin moderation queue at `/admin-dashboard/reviews/` (approve / reject
+  with reason, ADMIN-gated). Depends only on `product-catalog`/`order-checkout` **ports**; own
+  ArchUnit boundary tests; Flyway `V17__product_reviews.sql`. See `docs/releases/v0.10.0.md`.
 - **Released as `v0.8.0` (2026-08-05)** — first story of the admin-dashboard **reporting lane**:
   the **S20 revenue report** (date range + group-by Daily/Weekly/Monthly, KPI cards, CSS bar
   chart, payment-method breakdown) at `/admin-dashboard/reports/`, right-sized to the current
