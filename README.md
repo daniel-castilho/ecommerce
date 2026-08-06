@@ -61,6 +61,15 @@ WAR into `dropins`. The dev keystore password lives in `web/src/main/liberty/con
 
 ## Current state (2026-08-05)
 
+- **Released as `v0.11.0` (2026-08-05)** — closes the admin-dashboard **reporting lane** with the
+  **S22 customer insights report** at `/admin-dashboard/reports/customers.xhtml` (S20 revenue and
+  S21 product performance were the first two): date-range filter, five KPI cards (Total Customers,
+  New Customers, Repeat Rate, Average LTV, Churn Rate) and a "New Customers by Date" line chart.
+  Metrics live in the modules that own the data — order-checkout (`CustomerInsightsReportService` +
+  repeat/LTV queries) and user-account (daily new-customer series + 90-day inactivity cutoff);
+  admin-dashboard only composes. Also fixed a pre-existing Facelets bug (`rendered` on plain HTML
+  elements is a pass-through no-op) so all three report cards now stay hidden until Generate. See
+  `docs/releases/v0.11.0.md`.
 - **Released as `v0.10.0` (2026-08-05)** — full **Reviews & Ratings** module (`product-reviews`,
   hexagonal): submit 1–5★ reviews on the product-detail page (sanitized, one per user per product),
   average + star histogram + paginated list of approved reviews, verified-purchase badge via

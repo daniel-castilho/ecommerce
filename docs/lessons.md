@@ -950,3 +950,44 @@ and still owns ports 9080/9443, so the new start can't bind.
    `ws-server.jar defaultServer` processes before starting a fresh one.
 3. The WAR is deployed as `dropins/web.war` (auto-deploy); a plain `mvn liberty:start`
    does **not** deploy the app. Prefer `scripts/run-liberty.sh` over the individual goals.
+
+## 7. `rendered` on a plain HTML element is a Facelets no-op
+
+### Symptom
+
+The S20/S21/S22 admin report cards always rendered on a plain GET, even though their guard was
+`rendered="#{bean.generated}"` and `isGenerated()` correctly returned `false` (a fresh `@ViewScoped`
+bean with `generated == false` and `report == null`). The card showed the heading and five KPI
+labels with **empty values** (the `#{bean.report.totalCustomers}` EL evaluated against a null
+`report`). The symptom was intermittent-looking across headless-browser runs because the guard
+depends on per-view bean state — a full fresh session showed it consistently.
+
+### Root cause
+
+`rendered` is a JSF/Facelets attribute honored only on **JSF components** (`h:*`, `ui:*`,
+`my:*` tags). On a **plain HTML element** (a literal `<div class="card" rendered="...">`) Facelets
+treats it as a **pass-through attribute**: the EL is evaluated and the result is written verbatim
+into the HTML (`<div class="card" rendered="false">`), with **no effect on whether the element is
+rendered**. The card therefore always appeared; only the inner EL values (which resolved to
+null/empty against a not-yet-generated report) betrayed the missing guard.
+
+### Fix applied
+
+Wrap the card in a real JSF component that both emits a `<div>` and honors `rendered`:
+
+```xml
+<h:panelGroup layout="block" styleClass="card" rendered="#{bean.generated}">
+```
+
+Applied to `customers.xhtml`, `revenue.xhtml` and `products.xhtml` (all three report pages had the
+same latent bug). Verified server-side (curl: card absent on fresh GET, present after the Generate
+POST) and in the browser.
+
+### Golden rule
+
+1. Gate conditional content with `rendered` only on JSF components — `<h:panelGroup layout="block">`
+   for a div-like wrapper, `<ui:fragment>` when no extra element is wanted.
+2. When a "hidden" element still shows up, look for a literal `rendered="..."` attribute in the
+   served HTML — that is the fingerprint of a pass-through no-op.
+3. Sanity-check a "hidden by default" screen with a fresh session, not just after POSTs, since
+   `@ViewScoped` state can make the guard look stateful.

@@ -942,26 +942,45 @@ sales query), not invented data.
 **Depends on:** S3
 
 **Definition of Ready:**
-- [ ] S3 merged
-- [ ] CustomerReportDTO defined
+- [x] S3 merged — customer accounts live in `user-account` (`User` aggregate)
+- [x] CustomerReportDTO defined — `CustomerInsightsReport` + `CustomerGrowthPoint` records (order-checkout domain)
 
 **Acceptance Criteria:**
 
-- **Given** admin navigates to /admin/reports/customers, **when** page loads, **then** displays metrics: Total Customers, New Customers (this period), Repeat Customer Rate (%), Average LTV, Churn Rate (%).
-- **Given** report, **when** viewed, **then** shows line chart: "New Customers by Date" (x-axis: dates, y-axis: count).
-- **Given** repeat customer rate, **when** displayed, **then** calculated as: (customers with > 1 order) / total customers * 100.
-- **Given** churn rate, **when** displayed, **then** calculated as: customers inactive for 90+ days / total customers * 100.
-- **Given** report, **when** date range filter applied, **then** metrics recalculated for that period.
+- **Given** admin navigates to /admin/reports/customers, **when** page loads, **then** displays metrics: Total Customers, New Customers (this period), Repeat Customer Rate (%), Average LTV, Churn Rate (%). — **Done** (`admin-dashboard/reports/customers.xhtml`, KPI cards; report card is gated by `h:panelGroup rendered`, so the card stays hidden until Generate).
+- **Given** report, **when** viewed, **then** shows line chart: "New Customers by Date" (x-axis: dates, y-axis: count). — **Done** (inline SVG polyline + dots overlay, `.line-chart*` CSS; single-day ranges center the point at x=50%).
+- **Given** repeat customer rate, **when** displayed, **then** calculated as: (customers with > 1 order) / total customers * 100. — **Done** (JPQL `GROUP BY userId HAVING COUNT > 1`, excluding `CANCELLED`/`REFUNDED` orders).
+- **Given** churn rate, **when** displayed, **then** calculated as: customers inactive for 90+ days / total customers * 100. — **Done** (cutoff `now() - 90d`; never-logged-in users churn when `createdAt < cutoff`, otherwise `lastLoginAt < cutoff`).
+- **Given** report, **when** date range filter applied, **then** metrics recalculated for that period. — **Done** (from/to date inputs; `newCustomersSeries` buckets by day, "New Customers" = sum over the period).
 
 **Definition of Done:**
-- [ ] reports/customers.xhtml created
-- [ ] GenerateCustomerReportUseCase implemented
-- [ ] Metrics: total customers, new customers, repeat rate, average LTV, churn rate
-- [ ] Line chart: new customers over time
-- [ ] Date range filters
-- [ ] Report loads in < 2 seconds
+- [x] reports/customers.xhtml created
+- [x] GenerateCustomerReportUseCase implemented — as `CustomerInsightsReportUseCase` (order-checkout input port, following S20/S21 naming)
+- [x] Metrics: total customers, new customers, repeat rate, average LTV, churn rate
+- [x] Line chart: new customers over time
+- [x] Date range filters
+- [x] Report loads in < 2 seconds — 2 aggregate queries (order-checkout `repeatCustomerCount` + `totalCustomerRevenue`, user-account `userGrowthSeries` + `countInactiveSince`)
 
 **Story Points:** 5
+
+**Implementation notes (right-sizing):** S22 splits the metrics across the modules that own the
+data, mirroring S20/S21: `order-checkout` owns order-based metrics (repeat rate, average LTV — new
+`OrderRepositoryPort.repeatCustomerCount()` / `.totalCustomerRevenue()`, both excluding
+`CANCELLED`/`REFUNDED`) plus the `CustomerInsightsReportUseCase` input port and
+`CustomerInsightsReportService` (injects `OrderRepositoryPort` + `UserRepositoryPort` — a
+cross-module dependency on `user-account` ports that already exists in the pom and is allowed in
+`OrderHexagonalArchitectureTest`); `user-account` owns customer-based metrics
+(`UserRepositoryPort.userGrowthSeries(from, to)` daily bucketing + `countInactiveSince(cutoff)`).
+The 90-day churn cutoff is a service constant (`Duration.ofDays(90)`) — the domain has no
+last-activity concept, so inactivity is derived from `lastLoginAt`/`createdAt`. admin-dashboard only
+composes: `CustomerInsightsReportBean` (`@ViewScoped`, `@RolesAllowed("ADMIN")`) renders the line
+chart from `ChartLine(x, y, label, title)` percentages (x = i*100/(size-1), y = 100 − count*100/max).
+Line chart is a one-off inline SVG per the design-system rule of two (no composite, `.line-chart*`
+CSS uses only existing tokens). Tests: 5 service unit (incl. 90-day cutoff via `ArgumentCaptor`),
+8 bean unit, 4 order-checkout IT cases, 5 user-account IT cases. Also fixed a pre-existing bug this
+pattern hid: `rendered` on a **plain HTML `<div>`** is a Facelets pass-through no-op, so the report
+cards on all three report pages rendered empty on GET — switched to
+`<h:panelGroup layout="block" styleClass="card" rendered="...">` (lesson #20).
 
 ---
 
