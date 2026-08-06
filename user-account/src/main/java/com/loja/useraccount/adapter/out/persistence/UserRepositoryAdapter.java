@@ -6,14 +6,19 @@ import com.loja.useraccount.adapter.out.persistence.strategy.StatusCriteriaStrat
 import com.loja.useraccount.application.dto.PageResult;
 import com.loja.useraccount.application.dto.UserSearchCriteria;
 import com.loja.useraccount.domain.model.User;
+import com.loja.useraccount.domain.model.UserGrowthPoint;
 import com.loja.useraccount.domain.port.out.UserRepositoryPort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
@@ -109,6 +114,37 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
         return em.createQuery(
                         "SELECT COUNT(u) FROM UserJpaEntity u WHERE u.createdAt >= :since", Long.class)
                 .setParameter("since", since)
+                .getSingleResult();
+    }
+
+    @Override
+    public List<UserGrowthPoint> userGrowthSeries(Instant from, Instant to) {
+        ZoneId zone = ZoneId.systemDefault();
+        Map<LocalDate, Long> buckets = new TreeMap<>();
+        em.createQuery(
+                        "SELECT u.createdAt FROM UserJpaEntity u " +
+                                "WHERE u.createdAt >= :from AND u.createdAt < :to",
+                        Instant.class)
+                .setParameter("from", from)
+                .setParameter("to", to)
+                .getResultStream()
+                .forEach(createdAt -> {
+                    LocalDate day = createdAt.atZone(zone).toLocalDate();
+                    buckets.merge(day, 1L, Long::sum);
+                });
+        return buckets.entrySet().stream()
+                .map(entry -> new UserGrowthPoint(entry.getKey(), entry.getValue()))
+                .toList();
+    }
+
+    @Override
+    public long countInactiveSince(Instant cutoff) {
+        return em.createQuery(
+                        "SELECT COUNT(u) FROM UserJpaEntity u " +
+                                "WHERE (u.lastLoginAt IS NULL AND u.createdAt < :cutoff) " +
+                                "OR (u.lastLoginAt IS NOT NULL AND u.lastLoginAt < :cutoff)",
+                        Long.class)
+                .setParameter("cutoff", cutoff)
                 .getSingleResult();
     }
 

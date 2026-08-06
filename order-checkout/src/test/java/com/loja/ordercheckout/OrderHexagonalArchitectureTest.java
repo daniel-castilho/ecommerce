@@ -13,7 +13,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * module (spec §0 and §13). Fails the build if the boundaries (domain / application
  * / adapter) are crossed. Mirrors {@code UserHexagonalArchitectureTest} and
  * {@code ProductHexagonalArchitectureTest}; the application layer may additionally
- * depend on the product-catalog ports it orchestrates.
+ * depend on the product-catalog and user-account ports it orchestrates.
  */
 @AnalyzeClasses(packages = "com.loja.ordercheckout",
         importOptions = {ImportOption.DoNotIncludeTests.class})
@@ -32,6 +32,7 @@ public class OrderHexagonalArchitectureTest {
             "..ordercheckout.application..",
             "..ordercheckout.domain..",
             "com.loja.productcatalog..",
+            "com.loja.useraccount..",
             "com.loja.shared..",
             "jakarta..",
             "java..",

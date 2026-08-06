@@ -4,6 +4,7 @@ import com.loja.useraccount.domain.model.Address;
 import com.loja.useraccount.domain.model.Email;
 import com.loja.useraccount.domain.model.Role;
 import com.loja.useraccount.domain.model.User;
+import com.loja.useraccount.domain.model.UserGrowthPoint;
 import com.loja.useraccount.domain.model.UserPassword;
 import com.loja.useraccount.domain.model.UserProfile;
 import com.loja.useraccount.domain.model.UserStatus;
@@ -13,6 +14,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -185,6 +190,96 @@ class UserRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         long count = adapter.countCreatedSince(start);
 
         assertThat(count).isGreaterThanOrEqualTo(2);
+    }
+
+    @Test
+    void shouldBuildUserGrowthSeriesBucketedByDay() {
+        ZoneId zone = ZoneId.systemDefault();
+        LocalDate today = LocalDate.now();
+        Instant from = today.atStartOfDay(zone).toInstant();
+        Instant to = from.plus(2, ChronoUnit.DAYS);
+
+        long before = adapter.userGrowthSeries(from, to).stream()
+                .filter(point -> point.date().equals(today))
+                .mapToLong(UserGrowthPoint::count)
+                .sum();
+
+        EntityTransaction tx = em.getTransaction();
+        tx.begin();
+        adapter.save(createUser("growth-1@example.com", "Growth One"));
+        adapter.save(createUser("growth-2@example.com", "Growth Two"));
+        tx.commit();
+        em.clear();
+
+        long after = adapter.userGrowthSeries(from, to).stream()
+                .filter(point -> point.date().equals(today))
+                .mapToLong(UserGrowthPoint::count)
+                .sum();
+
+        assertThat(after).isEqualTo(before + 2);
+    }
+
+    @Test
+    void shouldBuildUserGrowthSeriesReturnEmptyOutsideRange() {
+        ZoneId zone = ZoneId.systemDefault();
+        Instant from = LocalDate.now().atStartOfDay(zone).toInstant().plus(100, ChronoUnit.DAYS);
+
+        List<UserGrowthPoint> series = adapter.userGrowthSeries(from, from.plus(1, ChronoUnit.DAYS));
+
+        assertThat(series).isEmpty();
+    }
+
+    @Test
+    void shouldCountInactiveUsersWithOldLastLogin() {
+        Instant cutoff = Instant.now().minus(90, ChronoUnit.DAYS);
+        long before = adapter.countInactiveSince(cutoff);
+
+        EntityTransaction tx = em.getTransaction();
+        tx.begin();
+        User oldLogin = createUser("churn-old@example.com", "Old Login");
+        oldLogin.recordSuccessfulLogin(Instant.now().minus(120, ChronoUnit.DAYS));
+        adapter.save(oldLogin);
+        tx.commit();
+        em.clear();
+
+        long after = adapter.countInactiveSince(cutoff);
+
+        assertThat(after).isEqualTo(before + 1);
+    }
+
+    @Test
+    void shouldCountInactiveUsersExcludingRecentLoginsAndFreshAccounts() {
+        Instant cutoff = Instant.now().minus(90, ChronoUnit.DAYS);
+        long before = adapter.countInactiveSince(cutoff);
+
+        EntityTransaction tx = em.getTransaction();
+        tx.begin();
+        User recentLogin = createUser("churn-recent@example.com", "Recent Login");
+        recentLogin.recordSuccessfulLogin(Instant.now().minus(1, ChronoUnit.DAYS));
+        adapter.save(recentLogin);
+        adapter.save(createUser("churn-fresh@example.com", "Fresh Account"));
+        tx.commit();
+        em.clear();
+
+        long after = adapter.countInactiveSince(cutoff);
+
+        assertThat(after).isEqualTo(before);
+    }
+
+    @Test
+    void shouldCountNeverLoggedInAccountsAsInactiveAfterCutoff() {
+        Instant cutoff = Instant.now().plus(90, ChronoUnit.DAYS);
+        long before = adapter.countInactiveSince(cutoff);
+
+        EntityTransaction tx = em.getTransaction();
+        tx.begin();
+        adapter.save(createUser("churn-never@example.com", "Never Logged In"));
+        tx.commit();
+        em.clear();
+
+        long after = adapter.countInactiveSince(cutoff);
+
+        assertThat(after).isEqualTo(before + 1);
     }
 
     private User createUser(String email, String fullName) {

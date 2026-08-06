@@ -680,6 +680,61 @@ a:hover {
   max-width: 100%;
 }
 
+/* --- Report line chart (admin-dashboard/reports/customers.xhtml) ---
+   Inline per design-system.md sections 4-5: single occurrence, so the rule of
+   two is not met and no composite component was created. The SVG polyline and
+   the point dots share the same server-computed percentage space (0-100), so
+   the dots overlay the vertices exactly. Consumes existing tokens only; no new
+   primitive/semantic token was added. */
+
+.line-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.line-chart-plot {
+  position: relative;
+  height: 220px;
+}
+
+.line-chart-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.line-chart-line {
+  fill: none;
+  stroke: var(--color-action-primary);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.line-chart-dot {
+  position: absolute;
+  width: var(--space-sm);
+  height: var(--space-sm);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--color-action-primary);
+}
+
+.line-chart-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.line-chart-label {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* --- Pagination --- */
 
 .pagination {

@@ -1,0 +1,130 @@
+<ui:composition
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:f="jakarta.faces.core"
+  xmlns:my="https://loja.com/design-system"
+  template="/WEB-INF/templates/main.xhtml"
+>
+  <ui:define name="title">Admin - Customer Insights Report</ui:define>
+
+  <ui:define name="content">
+    <h1 class="page-title">Customer Insights Report</h1>
+    <h:messages globalOnly="true" styleClass="messages" />
+
+    <div class="card">
+      <h:form id="reportForm">
+        <div class="form-grid">
+          <my:formFieldGroup label="From Date" forId="fromDateId">
+            <h:inputText id="fromDateId" value="#{customerInsightsReportBean.fromDate}" size="10">
+              <f:convertDateTime type="localDate" pattern="dd/MM/yyyy" />
+            </h:inputText>
+          </my:formFieldGroup>
+
+          <my:formFieldGroup label="To Date" forId="toDateId">
+            <h:inputText id="toDateId" value="#{customerInsightsReportBean.toDate}" size="10">
+              <f:convertDateTime type="localDate" pattern="dd/MM/yyyy" />
+            </h:inputText>
+          </my:formFieldGroup>
+
+          <div class="form-actions">
+            <h:commandButton
+              value="Generate"
+              action="#{customerInsightsReportBean.generate}"
+              styleClass="button button-primary"
+            />
+          </div>
+        </div>
+      </h:form>
+    </div>
+
+    <h:panelGroup
+      layout="block"
+      styleClass="card"
+      rendered="#{customerInsightsReportBean.generated}"
+    >
+      <h2>
+        Customers from
+        #{customerInsightsReportBean.formatDate(customerInsightsReportBean.fromDate)}
+        to
+        #{customerInsightsReportBean.formatDate(customerInsightsReportBean.toDate)}
+      </h2>
+
+      <div class="dashboard-kpi-grid">
+        <div class="dashboard-kpi">
+          <p class="dashboard-kpi-label">Total Customers</p>
+          <p class="dashboard-kpi-value">
+            #{customerInsightsReportBean.formatCount(customerInsightsReportBean.report.totalCustomers)}
+          </p>
+        </div>
+        <div class="dashboard-kpi">
+          <p class="dashboard-kpi-label">New Customers (this period)</p>
+          <p class="dashboard-kpi-value">
+            #{customerInsightsReportBean.formatCount(customerInsightsReportBean.report.newCustomers)}
+          </p>
+        </div>
+        <div class="dashboard-kpi">
+          <p class="dashboard-kpi-label">Repeat Customer Rate</p>
+          <p class="dashboard-kpi-value">
+            #{customerInsightsReportBean.formatPercent(customerInsightsReportBean.report.repeatCustomerRate)}
+          </p>
+        </div>
+        <div class="dashboard-kpi">
+          <p class="dashboard-kpi-label">Average LTV</p>
+          <p class="dashboard-kpi-value">
+            #{customerInsightsReportBean.formatMoney(customerInsightsReportBean.report.averageLtv)}
+          </p>
+        </div>
+        <div class="dashboard-kpi">
+          <p class="dashboard-kpi-label">Churn Rate (90+ days inactive)</p>
+          <p class="dashboard-kpi-value">
+            #{customerInsightsReportBean.formatPercent(customerInsightsReportBean.report.churnRate)}
+          </p>
+        </div>
+      </div>
+
+      <h3>New Customers by Date</h3>
+      <ui:fragment rendered="#{customerInsightsReportBean.isSeriesEmpty()}">
+        <p>
+          No new customers in the selected range.
+        </p>
+      </ui:fragment>
+      <ui:fragment rendered="#{not customerInsightsReportBean.isSeriesEmpty()}">
+        <div class="line-chart">
+          <div class="line-chart-plot">
+            <svg
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              class="line-chart-svg"
+              aria-label="New Customers by Date"
+              role="img"
+            >
+              <polyline
+                points="#{customerInsightsReportBean.newCustomersPolylinePoints}"
+                class="line-chart-line"
+              />
+            </svg>
+            <ui:repeat value="#{customerInsightsReportBean.newCustomersChartLines}" var="line">
+              <span
+                class="line-chart-dot"
+                title="#{line.title} #{line.label}"
+                style="left: #{line.x}%; top: #{line.y}%;"
+              ></span>
+            </ui:repeat>
+          </div>
+          <div class="line-chart-labels">
+            <ui:repeat value="#{customerInsightsReportBean.newCustomersChartLines}" var="line">
+              <span class="line-chart-label">#{line.label}</span>
+            </ui:repeat>
+          </div>
+        </div>
+      </ui:fragment>
+    </h:panelGroup>
+
+    <h:link
+      outcome="/admin-dashboard/reports/index.xhtml"
+      value="Back to reports"
+      styleClass="button button-secondary"
+    />
+  </ui:define>
+</ui:composition>

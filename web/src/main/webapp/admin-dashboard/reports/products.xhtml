@@ -41,8 +41,9 @@
       </h:form>
     </div>
 
-    <div
-      class="card"
+    <h:panelGroup
+      layout="block"
+      styleClass="card"
       rendered="#{productPerformanceReportBean.generated}"
     >
       <h2>Top sellers by units</h2>
@@ -145,7 +146,7 @@
       <ui:fragment rendered="#{not productPerformanceReportBean.isUnitsByCategoryEmpty()}">
         <my:barChart bars="#{productPerformanceReportBean.unitsByCategoryChartBars}" />
       </ui:fragment>
-    </div>
+    </h:panelGroup>
 
     <h:link
       outcome="/admin-dashboard/reports/index.xhtml"

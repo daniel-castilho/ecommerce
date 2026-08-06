@@ -48,4 +48,16 @@ public interface OrderRepositoryPort {
      * backlog S21 — the report service merges this with the product catalog).
      */
     List<ProductSalesAggregate> productSales();
+
+    /**
+     * Number of distinct customers with more than one order, excluding CANCELLED
+     * and REFUNDED orders (admin reporting, backlog S22 — repeat customer rate).
+     */
+    long repeatCustomerCount();
+
+    /**
+     * All-time revenue from item lines plus shipping across non-cancelled,
+     * non-refunded orders (admin reporting, backlog S22 — average lifetime value).
+     */
+    Money totalCustomerRevenue();
 }

@@ -49,8 +49,9 @@
       </h:form>
     </div>
 
-    <div
-      class="card"
+    <h:panelGroup
+      layout="block"
+      styleClass="card"
       rendered="#{revenueReportBean.generated}"
     >
       <h2>
@@ -123,7 +124,7 @@
           #{revenueReportBean.formatMoney(entry.value)}
         </h:column>
       </h:dataTable>
-    </div>
+    </h:panelGroup>
 
     <h:link
       outcome="/admin-dashboard/reports/index.xhtml"

@@ -350,6 +350,63 @@ class OrderRepositoryJpaAdapterIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void shouldCountRepeatCustomersExcludingCancelledAndRefunded() {
+        Instant now = Instant.now();
+        inTx(() -> adapter.save(orderAt("rep-1", "u1", now, OrderStatus.CONFIRMED, List.of(), Money.zero())));
+        inTx(() -> adapter.save(orderAt("rep-2", "u1", now, OrderStatus.CONFIRMED, List.of(), Money.zero())));
+        inTx(() -> adapter.save(orderAt("rep-3", "u2", now, OrderStatus.CONFIRMED, List.of(), Money.zero())));
+        inTx(() -> adapter.save(orderAt("rep-4", "u2", now, OrderStatus.CANCELLED, List.of(), Money.zero())));
+        inTx(() -> adapter.save(orderAt("rep-5", "u3", now, OrderStatus.CONFIRMED, List.of(), Money.zero())));
+        inTx(() -> adapter.save(orderAt("rep-6", "u3", now, OrderStatus.CONFIRMED, List.of(), Money.zero())));
+        inTx(() -> adapter.save(orderAt("rep-7", "u3", now, OrderStatus.CONFIRMED, List.of(), Money.zero())));
+
+        long repeat = inTx(adapter::repeatCustomerCount);
+
+        assertThat(repeat).isEqualTo(2);
+    }
+
+    @Test
+    void shouldCountRepeatCustomersReturnZeroWhenNoCustomerHasMoreThanOneOrder() {
+        Instant now = Instant.now();
+        inTx(() -> adapter.save(orderAt("rep-z1", "u1", now, OrderStatus.CONFIRMED, List.of(), Money.zero())));
+        inTx(() -> adapter.save(orderAt("rep-z2", "u2", now, OrderStatus.REFUNDED, List.of(), Money.zero())));
+
+        long repeat = inTx(adapter::repeatCustomerCount);
+
+        assertThat(repeat).isZero();
+    }
+
+    @Test
+    void shouldSumTotalCustomerRevenueExcludingCancelledAndRefunded() {
+        Instant now = Instant.now();
+        inTx(() -> adapter.save(orderAt("ltv-1", "u1", now, OrderStatus.CONFIRMED,
+                List.of(line("p1", "A", 2, new Money(new BigDecimal("10.00")), 0)),
+                new Money(new BigDecimal("5.00")))));
+        inTx(() -> adapter.save(orderAt("ltv-2", "u1", now, OrderStatus.CONFIRMED,
+                List.of(line("p1", "A", 1, new Money(new BigDecimal("7.00")), 0)), Money.zero())));
+        inTx(() -> adapter.save(orderAt("ltv-3", "u2", now, OrderStatus.CANCELLED,
+                List.of(line("p1", "A", 9, new Money(new BigDecimal("100.00")), 0)), Money.zero())));
+        inTx(() -> adapter.save(orderAt("ltv-4", "u2", now, OrderStatus.DELIVERED,
+                List.of(line("p2", "B", 1, new Money(new BigDecimal("3.50")), 0)),
+                new Money(new BigDecimal("1.50")))));
+
+        Money revenue = inTx(adapter::totalCustomerRevenue);
+
+        assertThat(revenue).isEqualTo(new Money(new BigDecimal("37.00")));
+    }
+
+    @Test
+    void shouldSumTotalCustomerRevenueReturnZeroWhenNoEligibleOrders() {
+        Instant now = Instant.now();
+        inTx(() -> adapter.save(orderAt("ltv-z1", "u1", now, OrderStatus.CANCELLED,
+                List.of(line("p1", "A", 1, new Money(new BigDecimal("10.00")), 0)), Money.zero())));
+
+        Money revenue = inTx(adapter::totalCustomerRevenue);
+
+        assertThat(revenue).isEqualTo(Money.zero());
+    }
+
+    @Test
     void shouldPersistLinesSortedByPosition() {
         Order order = new Order("order-20", "user-20");
         order.addItem(line("c", "Product C", 1, new Money(new BigDecimal("1.00")), 2));

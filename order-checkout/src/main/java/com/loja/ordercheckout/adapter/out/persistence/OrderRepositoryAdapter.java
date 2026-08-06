@@ -258,4 +258,32 @@ public class OrderRepositoryAdapter implements OrderRepositoryPort {
                         new Money((BigDecimal) row[2])))
                 .toList();
     }
+
+    @Override
+    public long repeatCustomerCount() {
+        return em.createQuery(
+                        "SELECT o.userId FROM OrderJpaEntity o " +
+                                "WHERE o.status NOT IN :excluded " +
+                                "GROUP BY o.userId HAVING COUNT(o.id) > 1",
+                        String.class)
+                .setParameter("excluded", EXCLUDED_FROM_REVENUE)
+                .getResultList()
+                .size();
+    }
+
+    @Override
+    public Money totalCustomerRevenue() {
+        List<Object[]> rows = em.createQuery(
+                        "SELECT SUM(ol.quantity * ol.unitPrice), o.shippingCost " +
+                                "FROM OrderJpaEntity o JOIN o.items ol " +
+                                "WHERE o.status NOT IN :excluded " +
+                                "GROUP BY o.id, o.shippingCost",
+                        Object[].class)
+                .setParameter("excluded", EXCLUDED_FROM_REVENUE)
+                .getResultList();
+        BigDecimal total = rows.stream()
+                .map(row -> ((BigDecimal) row[0]).add(row[1] == null ? BigDecimal.ZERO : (BigDecimal) row[1]))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return new Money(total);
+    }
 }
