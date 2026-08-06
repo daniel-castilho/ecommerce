@@ -121,7 +121,7 @@
             id="statusFilter"
             value="#{dashboardBean.selectedStatus}"
           >
-            <f:selectItem itemValue="" itemLabel="All" />
+            <f:selectItem itemValue="#{null}" itemLabel="All" />
             <f:selectItems
               value="#{dashboardBean.orderStatuses}"
               var="status"
@@ -163,7 +163,7 @@
           <f:facet name="header">Action</f:facet>
           <div class="dashboard-order-action">
             <h:selectOneMenu value="#{dashboardBean.statusToApply}">
-              <f:selectItem itemValue="" itemLabel="Select" />
+              <f:selectItem itemValue="#{null}" itemLabel="Select" />
               <f:selectItems
                 value="#{dashboardBean.orderStatuses}"
                 var="status"
@@ -195,28 +195,31 @@
           </h:outputText>
         </h:column>
       </h:dataTable>
-      <p rendered="#{empty dashboardBean.recentOrders}">No orders yet.</p>
+      <ui:fragment rendered="#{empty dashboardBean.recentOrders}">
+        <p>No orders yet.</p>
+      </ui:fragment>
 
-      <div
-        class="pagination-controls"
+      <ui:fragment
         rendered="#{dashboardBean.orderPage.totalElements > 5}"
       >
-        <h:form>
-          <h:commandButton
-            value="Previous"
-            action="#{dashboardBean.previousPage}"
-            disabled="#{not dashboardBean.previousPageEnabled}"
-          />
-          <span
-            >Page #{dashboardBean.page + 1} of #{dashboardBean.totalPages}</span
-          >
-          <h:commandButton
-            value="Next"
-            action="#{dashboardBean.nextPage}"
-            disabled="#{not dashboardBean.nextPageEnabled}"
-          />
-        </h:form>
-      </div>
+        <div class="pagination-controls">
+          <h:form>
+            <h:commandButton
+              value="Previous"
+              action="#{dashboardBean.previousPage}"
+              disabled="#{not dashboardBean.previousPageEnabled}"
+            />
+            <span
+              >Page #{dashboardBean.page + 1} of #{dashboardBean.totalPages}</span
+            >
+            <h:commandButton
+              value="Next"
+              action="#{dashboardBean.nextPage}"
+              disabled="#{not dashboardBean.nextPageEnabled}"
+            />
+          </h:form>
+        </div>
+      </ui:fragment>
     </div>
 
     <div class="card">
@@ -261,7 +264,9 @@
           #{row.count}
         </h:column>
       </h:dataTable>
-      <p rendered="#{empty dashboardBean.ordersByStatus}">No orders yet.</p>
+      <ui:fragment rendered="#{empty dashboardBean.ordersByStatus}">
+        <p>No orders yet.</p>
+      </ui:fragment>
     </div>
   </ui:define>
 

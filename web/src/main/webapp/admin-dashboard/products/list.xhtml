@@ -34,7 +34,7 @@
               id="categoryId"
               value="#{productManagementBean.categoryId}"
             >
-              <f:selectItem itemValue="" itemLabel="All" />
+              <f:selectItem itemValue="#{null}" itemLabel="All" />
               <f:selectItems
                 value="#{productManagementBean.categories}"
                 var="category"
@@ -131,9 +131,11 @@
         </h:dataTable>
       </h:form>
 
-      <p rendered="#{empty productManagementBean.products}">
-        No products found.
-      </p>
+      <ui:fragment rendered="#{empty productManagementBean.products}">
+        <p>
+          No products found.
+        </p>
+      </ui:fragment>
 
       <div
         class="pagination-controls"

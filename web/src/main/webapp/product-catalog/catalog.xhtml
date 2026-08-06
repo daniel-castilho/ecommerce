@@ -83,6 +83,8 @@
             </h:form>
         </ui:fragment>
 
-        <p rendered="#{empty productCatalogBean.results}">No products match your search.</p>
+        <ui:fragment rendered="#{empty productCatalogBean.results}">
+          <p>No products match your search.</p>
+        </ui:fragment>
     </ui:define>
 </ui:composition>

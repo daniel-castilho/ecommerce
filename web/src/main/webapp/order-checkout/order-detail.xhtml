@@ -74,27 +74,31 @@
                 </ui:fragment>
             </div>
 
-            <div class="card" rendered="#{orderHistoryBean.canCancel(orderHistoryBean.selectedOrder)}">
-                <h:form>
-                    <p>Cancel this order? This cannot be undone.</p>
-                    <h:commandButton value="Cancel Order"
-                                     action="#{orderHistoryBean.cancel(orderHistoryBean.selectedOrder)}"
-                                     styleClass="button button-secondary" />
-                </h:form>
-            </div>
+            <ui:fragment rendered="#{orderHistoryBean.canCancel(orderHistoryBean.selectedOrder)}">
+                <div class="card">
+                    <h:form>
+                        <p>Cancel this order? This cannot be undone.</p>
+                        <h:commandButton value="Cancel Order"
+                                         action="#{orderHistoryBean.cancel(orderHistoryBean.selectedOrder)}"
+                                         styleClass="button button-secondary" />
+                    </h:form>
+                </div>
+            </ui:fragment>
 
-            <div class="card" rendered="#{orderHistoryBean.canRequestRefund(orderHistoryBean.selectedOrder)}">
-                <h:form>
-                    <h3>Request refund</h3>
-                    <my:formFieldGroup label="Reason" forId="refundReason">
-                        <h:inputTextarea id="refundReason" rows="3" cols="40"
-                                         value="#{orderHistoryBean.refundReason}" />
-                    </my:formFieldGroup>
-                    <h:commandButton value="Request Refund"
-                                     action="#{orderHistoryBean.submitRefund}"
-                                     styleClass="button" />
-                </h:form>
-            </div>
+            <ui:fragment rendered="#{orderHistoryBean.canRequestRefund(orderHistoryBean.selectedOrder)}">
+                <div class="card">
+                    <h:form>
+                        <h3>Request refund</h3>
+                        <my:formFieldGroup label="Reason" forId="refundReason">
+                            <h:inputTextarea id="refundReason" rows="3" cols="40"
+                                             value="#{orderHistoryBean.refundReason}" />
+                        </my:formFieldGroup>
+                        <h:commandButton value="Request Refund"
+                                         action="#{orderHistoryBean.submitRefund}"
+                                         styleClass="button" />
+                    </h:form>
+                </div>
+            </ui:fragment>
         </ui:fragment>
 
         <p>

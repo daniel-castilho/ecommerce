@@ -2,6 +2,7 @@
                 xmlns:ui="jakarta.faces.facelets"
                 xmlns:h="jakarta.faces.html"
                 xmlns:f="jakarta.faces.core"
+                xmlns:my="https://loja.com/design-system"
                 template="/WEB-INF/templates/main.xhtml">
 
     <ui:define name="title">#{productDetailBean.title}</ui:define>
@@ -27,26 +28,28 @@
                                         alt="#{productDetailBean.mainImageAlt}"
                                         styleClass="product-detail-main-image"
                                         rendered="#{not empty productDetailBean.mainImageUrl}" />
-                        <div class="product-detail-gallery"
-                             rendered="#{productDetailBean.galleryImages.size() gt 1}">
-                            <ui:repeat value="#{productDetailBean.galleryImages}"
-                                       var="image" varStatus="status">
-                                <h:commandLink action="#{productDetailBean.selectImage(status.index)}"
-                                               title="#{image.altText}"
-                                               styleClass="product-detail-thumb-link"
-                                               rendered="#{status.index ne productDetailBean.selectedImageIndex}">
-                                    <h:graphicImage value="#{productDetailBean.imageUrl(image)}"
-                                                    alt="#{image.altText}"
-                                                    styleClass="product-detail-thumb" />
-                                </h:commandLink>
-                                <span class="product-detail-thumb-link active"
-                                      rendered="#{status.index eq productDetailBean.selectedImageIndex}">
-                                    <h:graphicImage value="#{productDetailBean.imageUrl(image)}"
-                                                    alt="#{image.altText}"
-                                                    styleClass="product-detail-thumb" />
-                                </span>
-                            </ui:repeat>
-                        </div>
+                        <ui:fragment rendered="#{productDetailBean.galleryImages.size() gt 1}">
+                            <div class="product-detail-gallery">
+                                <ui:repeat value="#{productDetailBean.galleryImages}"
+                                           var="image" varStatus="status">
+                                    <h:commandLink action="#{productDetailBean.selectImage(status.index)}"
+                                                   title="#{image.altText}"
+                                                   styleClass="product-detail-thumb-link"
+                                                   rendered="#{status.index ne productDetailBean.selectedImageIndex}">
+                                        <h:graphicImage value="#{productDetailBean.imageUrl(image)}"
+                                                        alt="#{image.altText}"
+                                                        styleClass="product-detail-thumb" />
+                                    </h:commandLink>
+                                    <ui:fragment rendered="#{status.index eq productDetailBean.selectedImageIndex}">
+                                        <span class="product-detail-thumb-link active">
+                                            <h:graphicImage value="#{productDetailBean.imageUrl(image)}"
+                                                            alt="#{image.altText}"
+                                                            styleClass="product-detail-thumb" />
+                                        </span>
+                                    </ui:fragment>
+                                </ui:repeat>
+                            </div>
+                        </ui:fragment>
                     </h:form>
                 </div>
 
@@ -55,33 +58,39 @@
 
                     <div class="product-detail-price">
                         $#{productDetailBean.product.price.amount}
-                        <span class="product-detail-compare-at"
-                              rendered="#{not empty productDetailBean.product.compareAtPrice}">
-                            $#{productDetailBean.product.compareAtPrice.amount}
-                        </span>
+                        <ui:fragment rendered="#{not empty productDetailBean.product.compareAtPrice}">
+                            <span class="product-detail-compare-at">
+                                $#{productDetailBean.product.compareAtPrice.amount}
+                            </span>
+                        </ui:fragment>
                     </div>
 
-                    <p class="product-detail-availability in-stock"
-                       rendered="#{productDetailBean.inStock}">In stock</p>
-                    <p class="product-detail-availability out-of-stock"
-                       rendered="#{not productDetailBean.inStock}">Out of stock</p>
+                    <ui:fragment rendered="#{productDetailBean.inStock}">
+                        <p class="product-detail-availability in-stock">In stock</p>
+                    </ui:fragment>
+                    <ui:fragment rendered="#{not productDetailBean.inStock}">
+                        <p class="product-detail-availability out-of-stock">Out of stock</p>
+                    </ui:fragment>
 
                     <p class="product-detail-sku">SKU: #{productDetailBean.product.skuValue}</p>
 
-                    <p class="product-detail-short"
-                       rendered="#{not empty productDetailBean.product.shortDescription}">
-                        #{productDetailBean.product.shortDescription}
-                    </p>
+                    <ui:fragment rendered="#{not empty productDetailBean.product.shortDescription}">
+                        <p class="product-detail-short">
+                            #{productDetailBean.product.shortDescription}
+                        </p>
+                    </ui:fragment>
 
-                    <div class="product-detail-desc"
-                         rendered="#{not empty productDetailBean.product.description}">
-                        #{productDetailBean.product.description}
-                    </div>
+                    <ui:fragment rendered="#{not empty productDetailBean.product.description}">
+                        <div class="product-detail-desc">
+                            #{productDetailBean.product.description}
+                        </div>
+                    </ui:fragment>
 
-                    <p class="product-detail-categories"
-                       rendered="#{not empty productDetailBean.categoryNames}">
-                        Categories: #{productDetailBean.categoryNames}
-                    </p>
+                    <ui:fragment rendered="#{not empty productDetailBean.categoryNames}">
+                        <p class="product-detail-categories">
+                            Categories: #{productDetailBean.categoryNames}
+                        </p>
+                    </ui:fragment>
 
                     <div class="product-detail-actions">
                         <h:link outcome="/order-checkout/checkout.xhtml" value="Buy"
@@ -89,15 +98,106 @@
                                 rendered="#{productDetailBean.inStock}">
                             <f:param name="productId" value="#{productDetailBean.product.id}" />
                         </h:link>
-                        <span class="button button-secondary" rendered="#{not productDetailBean.inStock}">
-                            Out of stock
-                        </span>
+                        <ui:fragment rendered="#{not productDetailBean.inStock}">
+                            <span class="button button-secondary">
+                                Out of stock
+                            </span>
+                        </ui:fragment>
                         <h:link outcome="/product-catalog/catalog.xhtml" value="Back to catalog"
                                 styleClass="button button-secondary" />
                     </div>
                 </div>
 
             </div>
+
+            <ui:fragment rendered="#{productReviewBean.reviewableProduct}">
+                <section class="product-reviews">
+                    <h2 class="page-title">Customer reviews</h2>
+
+                    <div class="review-summary">
+                        <span class="review-summary-average">#{productReviewBean.averageLabel}</span>
+                        <span class="review-stars">
+                            <ui:repeat value="#{productReviewBean.starValues}" var="value">
+                                <span class="#{productReviewBean.starClass(value, productReviewBean.averageStars)}">★</span>
+                            </ui:repeat>
+                        </span>
+                        <span class="review-summary-count">#{productReviewBean.reviewCountLabel}</span>
+                    </div>
+
+                    <ui:fragment rendered="#{productReviewBean.hasReviews}">
+                        <div class="review-histogram">
+                            <my:barChart bars="#{productReviewBean.histogramBars}" />
+                        </div>
+                    </ui:fragment>
+
+                    <ui:fragment rendered="#{productReviewBean.hasReviews}">
+                        <ui:repeat value="#{productReviewBean.reviews}" var="review">
+                            <article class="review-card">
+                                <div class="review-card-header">
+                                    <span class="review-stars">
+                                        <ui:repeat value="#{productReviewBean.starValues}" var="value">
+                                            <span class="#{productReviewBean.starClass(value, review.rating)}">★</span>
+                                        </ui:repeat>
+                                    </span>
+                                    <ui:fragment rendered="#{review.verifiedPurchase}">
+                                        <span class="review-verified">Verified purchase</span>
+                                    </ui:fragment>
+                                    <span class="review-card-meta">#{productReviewBean.formatDate(review.createdAt)}</span>
+                                </div>
+                                <ui:fragment rendered="#{not empty review.title}">
+                                    <h3 class="review-card-title">#{review.title}</h3>
+                                </ui:fragment>
+                                <p class="review-card-body">#{review.body}</p>
+                            </article>
+                        </ui:repeat>
+
+                        <div class="pagination">
+                            <h:link outcome="/product-catalog/product-detail.xhtml" value="&#171; Previous"
+                                    styleClass="button button-secondary"
+                                    rendered="#{productReviewBean.hasPrevPage}">
+                                <f:param name="slug" value="#{productDetailBean.product.slugValue}" />
+                                <f:param name="page" value="#{productReviewBean.page - 1}" />
+                            </h:link>
+                            <h:link outcome="/product-catalog/product-detail.xhtml" value="Next &#187;"
+                                    styleClass="button"
+                                    rendered="#{productReviewBean.hasNextPage}">
+                                <f:param name="slug" value="#{productDetailBean.product.slugValue}" />
+                                <f:param name="page" value="#{productReviewBean.page + 1}" />
+                            </h:link>
+                        </div>
+                    </ui:fragment>
+
+                    <ui:fragment rendered="#{not productReviewBean.hasReviews}">
+                        <p class="reviews-empty">No reviews yet. Be the first to review this product.</p>
+                    </ui:fragment>
+
+                    <h:form id="reviewForm" rendered="#{productReviewBean.loggedIn}">
+                        <div class="review-form-grid">
+                            <my:formFieldGroup forId="rating" label="Rating">
+                                <h:selectOneMenu id="rating" value="#{productReviewBean.rating}" required="true">
+                                    <f:selectItem itemLabel="Select..." itemValue="0" noSelectionOption="true" />
+                                    <f:selectItems value="#{productReviewBean.ratingOptions}" var="option"
+                                                   itemValue="#{option}" itemLabel="#{option} star#{option eq 1 ? '' : 's'}" />
+                                </h:selectOneMenu>
+                            </my:formFieldGroup>
+                            <my:formFieldGroup forId="title" label="Title">
+                                <h:inputText id="title" value="#{productReviewBean.title}" maxlength="120" />
+                            </my:formFieldGroup>
+                            <my:formFieldGroup forId="body" label="Review">
+                                <h:inputTextarea id="body" value="#{productReviewBean.body}" rows="5" cols="50" maxlength="2000" />
+                            </my:formFieldGroup>
+                        </div>
+                        <h:commandButton value="Submit review" action="#{productReviewBean.submit}"
+                                         styleClass="button" />
+                    </h:form>
+
+                    <ui:fragment rendered="#{not productReviewBean.loggedIn}">
+                        <p class="reviews-empty">
+                            <h:link outcome="/user-account/login.xhtml" value="Log in" /> to write a review.
+                        </p>
+                    </ui:fragment>
+                </section>
+            </ui:fragment>
         </ui:fragment>
     </ui:define>
 </ui:composition>

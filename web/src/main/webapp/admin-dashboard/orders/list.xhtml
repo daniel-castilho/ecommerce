@@ -20,7 +20,7 @@
               id="statusId"
               value="#{orderManagementBean.selectedStatus}"
             >
-              <f:selectItem itemValue="" itemLabel="All" />
+              <f:selectItem itemValue="#{null}" itemLabel="All" />
               <f:selectItems
                 value="#{orderManagementBean.orderStatuses}"
                 var="status"
@@ -90,28 +90,31 @@
         </h:dataTable>
       </h:form>
 
-      <p rendered="#{empty orderManagementBean.orders}">
-        No orders found.
-      </p>
+      <ui:fragment rendered="#{empty orderManagementBean.orders}">
+        <p>
+          No orders found.
+        </p>
+      </ui:fragment>
 
-      <div
-        class="pagination-controls"
+      <ui:fragment
         rendered="#{orderManagementBean.previousPageEnabled or orderManagementBean.nextPageEnabled}"
       >
-        <h:form>
-          <h:commandButton
-            value="Previous"
-            action="#{orderManagementBean.previousPage}"
-            disabled="#{not orderManagementBean.previousPageEnabled}"
-          />
-          <span>Page #{orderManagementBean.page + 1}</span>
-          <h:commandButton
-            value="Next"
-            action="#{orderManagementBean.nextPage}"
-            disabled="#{not orderManagementBean.nextPageEnabled}"
-          />
-        </h:form>
-      </div>
+        <div class="pagination-controls">
+          <h:form>
+            <h:commandButton
+              value="Previous"
+              action="#{orderManagementBean.previousPage}"
+              disabled="#{not orderManagementBean.previousPageEnabled}"
+            />
+            <span>Page #{orderManagementBean.page + 1}</span>
+            <h:commandButton
+              value="Next"
+              action="#{orderManagementBean.nextPage}"
+              disabled="#{not orderManagementBean.nextPageEnabled}"
+            />
+          </h:form>
+        </div>
+      </ui:fragment>
     </div>
   </ui:define>
 </ui:composition>

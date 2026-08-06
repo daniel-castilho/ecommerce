@@ -11,10 +11,12 @@
         <h1 class="page-title">My Orders</h1>
         <h:messages globalOnly="true" styleClass="messages" />
 
-        <div class="card" rendered="#{not orderHistoryBean.loggedIn}">
-            <p>You need to log in to view your orders.</p>
-            <p><h:link outcome="/user-account/login.xhtml" value="Log in" /></p>
-        </div>
+        <ui:fragment rendered="#{not orderHistoryBean.loggedIn}">
+            <div class="card">
+                <p>You need to log in to view your orders.</p>
+                <p><h:link outcome="/user-account/login.xhtml" value="Log in" /></p>
+            </div>
+        </ui:fragment>
 
         <ui:fragment rendered="#{orderHistoryBean.loggedIn}">
             <div class="card">
@@ -43,7 +45,9 @@
                             <a href="#{orderHistoryBean.trackingUrl(order)}" target="_blank"
                                rel="noopener">#{order.trackingNumber}</a>
                         </ui:fragment>
-                        <span rendered="#{empty order.trackingNumber}">&mdash;</span>
+                        <ui:fragment rendered="#{empty order.trackingNumber}">
+                            <span>&mdash;</span>
+                        </ui:fragment>
                     </h:column>
                     <h:column>
                         <f:facet name="header">Actions</f:facet>
@@ -57,7 +61,9 @@
                                          styleClass="button button-secondary" />
                     </h:column>
                 </h:dataTable>
-                <p rendered="#{empty orderHistoryBean.orders}">No orders yet.</p>
+                <ui:fragment rendered="#{empty orderHistoryBean.orders}">
+                    <p>No orders yet.</p>
+                </ui:fragment>
 
                 <h:form rendered="#{not empty orderHistoryBean.orders}" styleClass="pagination">
                     <h:commandButton value="Previous" action="#{orderHistoryBean.previousPage}"

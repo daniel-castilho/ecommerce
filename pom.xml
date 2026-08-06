@@ -14,6 +14,7 @@
         <module>user-account</module>
         <module>product-catalog</module>
         <module>order-checkout</module>
+        <module>product-reviews</module>
         <module>admin-dashboard</module>
         <module>web</module>
     </modules>
@@ -53,6 +54,11 @@
             <dependency>
                 <groupId>com.loja.ecommerce</groupId>
                 <artifactId>order-checkout</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.loja.ecommerce</groupId>
+                <artifactId>product-reviews</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

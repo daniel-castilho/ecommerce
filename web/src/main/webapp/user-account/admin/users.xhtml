@@ -85,7 +85,9 @@
                     </h:form>
                 </h:column>
             </h:dataTable>
-            <p rendered="#{empty adminUsersBean.users}">No users match your filter.</p>
+            <ui:fragment rendered="#{empty adminUsersBean.users}">
+                <p>No users match your filter.</p>
+            </ui:fragment>
 
             <h:form rendered="#{not empty adminUsersBean.users}" styleClass="pagination">
                 <h:commandButton value="Previous" action="#{adminUsersBean.previousPage}"

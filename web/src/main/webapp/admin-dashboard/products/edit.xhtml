@@ -12,8 +12,9 @@
     <h1 class="page-title">Edit Product</h1>
     <h:messages globalOnly="true" styleClass="messages" />
 
-    <div class="card" rendered="#{not empty productEditBean.currentProduct}">
-      <h:form id="productEditForm">
+    <ui:fragment rendered="#{not empty productEditBean.currentProduct}">
+      <div class="card">
+        <h:form id="productEditForm">
         <my:formFieldGroup label="SKU" forId="sku">
           <h:outputText
             id="sku"
@@ -147,6 +148,7 @@
         </div>
       </h:form>
     </div>
+    </ui:fragment>
 
     <ui:fragment rendered="#{not empty productEditBean.currentProduct}">
       <div class="card">
@@ -254,13 +256,15 @@
       </div>
     </ui:fragment>
 
-    <div class="card" rendered="#{empty productEditBean.currentProduct}">
-      <p>Product not found or no product selected.</p>
-      <h:link
-        outcome="/admin-dashboard/products/list.xhtml"
-        value="Back to products"
-      />
-    </div>
+    <ui:fragment rendered="#{empty productEditBean.currentProduct}">
+      <div class="card">
+        <p>Product not found or no product selected.</p>
+        <h:link
+          outcome="/admin-dashboard/products/list.xhtml"
+          value="Back to products"
+        />
+      </div>
+    </ui:fragment>
   </ui:define>
 
   <my:confirmModal />

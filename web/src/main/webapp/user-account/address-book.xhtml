@@ -49,7 +49,9 @@
                     </h:form>
                 </h:column>
             </h:dataTable>
-            <p rendered="#{empty addressBookBean.addresses}">No addresses saved yet.</p>
+            <ui:fragment rendered="#{empty addressBookBean.addresses}">
+                <p>No addresses saved yet.</p>
+            </ui:fragment>
         </div>
 
         <div class="card">

@@ -89,7 +89,9 @@
                             #{address.postalCode}
                         </h:column>
                     </h:dataTable>
-                    <p rendered="#{empty adminCustomerDetailBean.customer.addresses}">No addresses registered.</p>
+                    <ui:fragment rendered="#{empty adminCustomerDetailBean.customer.addresses}">
+                        <p>No addresses registered.</p>
+                    </ui:fragment>
                 </div>
 
                 <div class="card">
@@ -119,7 +121,9 @@
                             <my:statusBadge status="#{order.status}" />
                         </h:column>
                     </h:dataTable>
-                    <p rendered="#{empty adminCustomerDetailBean.recentOrders}">No recent orders.</p>
+                    <ui:fragment rendered="#{empty adminCustomerDetailBean.recentOrders}">
+                        <p>No recent orders.</p>
+                    </ui:fragment>
                 </div>
             </ui:fragment>
         </ui:fragment>

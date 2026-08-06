@@ -54,7 +54,9 @@ class AdminAccessControlCoverageTest {
     private static final List<Path> ADMIN_BEAN_SOURCES = List.of(
             Path.of("../admin-dashboard/src/main/java/com/loja/admindashboard/adapter/in/web"),
             Path.of("../user-account/src/main/java/com/loja/useraccount/adapter/in/web/AdminUsersBean.java"),
-            Path.of("../product-catalog/src/main/java/com/loja/productcatalog/adapter/in/web/ManageProductBean.java")
+            Path.of("../product-catalog/src/main/java/com/loja/productcatalog/adapter/in/web/ManageProductBean.java"),
+            Path.of("../product-reviews/src/main/java/com/loja/productreviews/adapter/in/web/ReviewModerationBean.java"),
+            Path.of("../product-reviews/src/main/java/com/loja/productreviews/adapter/in/web/ReviewDetailBean.java")
     );
 
     private static final Pattern SECURITY_CONSTRAINT_PATTERN =

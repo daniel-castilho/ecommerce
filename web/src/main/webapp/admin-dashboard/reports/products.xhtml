@@ -46,9 +46,11 @@
       rendered="#{productPerformanceReportBean.generated}"
     >
       <h2>Top sellers by units</h2>
-      <p rendered="#{productPerformanceReportBean.isTopSellersEmpty()}">
-        No products sold in the selected scope.
-      </p>
+      <ui:fragment rendered="#{productPerformanceReportBean.isTopSellersEmpty()}">
+        <p>
+          No products sold in the selected scope.
+        </p>
+      </ui:fragment>
       <h:dataTable
         value="#{productPerformanceReportBean.topSellers}"
         var="row"
@@ -74,9 +76,11 @@
       </h:dataTable>
 
       <h2>Top by revenue</h2>
-      <p rendered="#{productPerformanceReportBean.isTopByRevenueEmpty()}">
-        No products sold in the selected scope.
-      </p>
+      <ui:fragment rendered="#{productPerformanceReportBean.isTopByRevenueEmpty()}">
+        <p>
+          No products sold in the selected scope.
+        </p>
+      </ui:fragment>
       <h:dataTable
         value="#{productPerformanceReportBean.topByRevenue}"
         var="row"
@@ -102,9 +106,11 @@
       </h:dataTable>
 
       <h2>Bottom performers</h2>
-      <p rendered="#{productPerformanceReportBean.isBottomPerformersEmpty()}">
-        No products in the selected scope.
-      </p>
+      <ui:fragment rendered="#{productPerformanceReportBean.isBottomPerformersEmpty()}">
+        <p>
+          No products in the selected scope.
+        </p>
+      </ui:fragment>
       <h:dataTable
         value="#{productPerformanceReportBean.bottomPerformers}"
         var="row"
@@ -131,9 +137,11 @@
       </h:dataTable>
 
       <h2>Units sold by category</h2>
-      <p rendered="#{productPerformanceReportBean.isUnitsByCategoryEmpty()}">
-        No units sold in the selected scope.
-      </p>
+      <ui:fragment rendered="#{productPerformanceReportBean.isUnitsByCategoryEmpty()}">
+        <p>
+          No units sold in the selected scope.
+        </p>
+      </ui:fragment>
       <ui:fragment rendered="#{not productPerformanceReportBean.isUnitsByCategoryEmpty()}">
         <my:barChart bars="#{productPerformanceReportBean.unitsByCategoryChartBars}" />
       </ui:fragment>

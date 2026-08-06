@@ -93,17 +93,21 @@
       </div>
 
       <h3>Revenue over time</h3>
-      <p rendered="#{revenueReportBean.isSeriesEmpty()}">
-        No revenue in the selected range.
-      </p>
+      <ui:fragment rendered="#{revenueReportBean.isSeriesEmpty()}">
+        <p>
+          No revenue in the selected range.
+        </p>
+      </ui:fragment>
       <ui:fragment rendered="#{not revenueReportBean.isSeriesEmpty()}">
         <my:barChart bars="#{revenueReportBean.revenueChartBars}" />
       </ui:fragment>
 
       <h3>Revenue by payment method</h3>
-      <p rendered="#{revenueReportBean.isPaymentBreakdownEmpty()}">
-        No revenue in the selected range.
-      </p>
+      <ui:fragment rendered="#{revenueReportBean.isPaymentBreakdownEmpty()}">
+        <p>
+          No revenue in the selected range.
+        </p>
+      </ui:fragment>
       <h:dataTable
         value="#{revenueReportBean.revenueByPaymentMethodEntries}"
         var="entry"

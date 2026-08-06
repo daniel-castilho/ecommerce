@@ -1,0 +1,95 @@
+<ui:composition
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:my="https://loja.com/design-system"
+  template="/WEB-INF/templates/main.xhtml"
+>
+  <ui:define name="title">Admin - Review Moderation</ui:define>
+
+  <ui:define name="content">
+    <h1 class="page-title">Review Moderation</h1>
+    <h:messages globalOnly="true" styleClass="messages" />
+
+    <ui:fragment rendered="#{empty reviewDetailBean.selectedReview}">
+      <div class="card">
+        <p>Review not found.</p>
+      </div>
+    </ui:fragment>
+
+    <ui:fragment rendered="#{not empty reviewDetailBean.selectedReview}">
+      <div class="card">
+        <h3>
+          Review <strong>#{reviewDetailBean.selectedReview.id}</strong> &#8212;
+          <my:statusBadge status="#{reviewDetailBean.selectedReview.status}" />
+        </h3>
+        <p>
+          Product: <h:outputText value="#{reviewDetailBean.selectedReview.productId}" />
+        </p>
+        <p>
+          Author: <h:outputText value="#{reviewDetailBean.selectedReview.authorId}" />
+        </p>
+        <p>
+          Rating: <h:outputText value="#{reviewDetailBean.selectedReview.rating}/5" />
+        </p>
+        <p>
+          Verified purchase:
+          <h:outputText value="#{reviewDetailBean.selectedReview.verifiedPurchase ? 'Yes' : 'No'}" />
+        </p>
+        <p>
+          Submitted: #{reviewDetailBean.formatDate(reviewDetailBean.selectedReview.createdAt)}
+        </p>
+        <ui:fragment rendered="#{not empty reviewDetailBean.selectedReview.title}">
+          <h3><h:outputText value="#{reviewDetailBean.selectedReview.title}" /></h3>
+        </ui:fragment>
+        <p>
+          <h:outputText value="#{reviewDetailBean.selectedReview.body}" />
+        </p>
+        <ui:fragment rendered="#{not empty reviewDetailBean.selectedReview.rejectionReason}">
+          <p>
+            Rejection reason:
+            <h:outputText value="#{reviewDetailBean.selectedReview.rejectionReason}" />
+          </p>
+        </ui:fragment>
+      </div>
+
+      <ui:fragment rendered="#{reviewDetailBean.pending}">
+        <div class="card">
+          <h3>Actions</h3>
+          <h:form id="approveForm">
+            <h:commandButton
+              value="Approve Review"
+              action="#{reviewDetailBean.approve}"
+              styleClass="button"
+              onclick="return confirm('Approve this review? It will appear on the product page.');"
+            />
+          </h:form>
+          <h:form id="rejectForm">
+            <div class="form-field">
+              <label for="rejectReason">Rejection reason</label>
+              <h:inputTextarea
+                id="rejectReason"
+                value="#{reviewDetailBean.rejectionReason}"
+                rows="3"
+                cols="40"
+              />
+            </div>
+            <h:commandButton
+              value="Reject Review"
+              action="#{reviewDetailBean.reject}"
+              styleClass="button button-secondary"
+              onclick="return confirm('Reject this review? The author will not be able to see it publicly.');"
+            />
+          </h:form>
+        </div>
+      </ui:fragment>
+    </ui:fragment>
+
+    <p>
+      <h:link
+        outcome="/admin-dashboard/reviews/list.xhtml"
+        value="Back to review queue"
+      />
+    </p>
+  </ui:define>
+</ui:composition>

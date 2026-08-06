@@ -11,9 +11,11 @@
         <h1 class="page-title">Checkout</h1>
         <h:messages showDetail="true" showSummary="false" styleClass="messages" />
 
-        <div class="card" rendered="#{not userBean.isLoggedIn()}">
-            <p>You need to log in before placing an order.</p>
-        </div>
+        <ui:fragment rendered="#{not userBean.isLoggedIn()}">
+            <div class="card">
+                <p>You need to log in before placing an order.</p>
+            </div>
+        </ui:fragment>
 
         <ui:fragment rendered="#{userBean.isLoggedIn()}">
             <div class="card">

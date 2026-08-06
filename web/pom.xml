@@ -34,6 +34,10 @@
         </dependency>
         <dependency>
             <groupId>com.loja.ecommerce</groupId>
+            <artifactId>product-reviews</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.loja.ecommerce</groupId>
             <artifactId>admin-dashboard</artifactId>
         </dependency>
         <dependency>

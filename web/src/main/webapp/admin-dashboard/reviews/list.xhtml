@@ -1,0 +1,90 @@
+<ui:composition
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:f="jakarta.faces.core"
+  xmlns:my="https://loja.com/design-system"
+  template="/WEB-INF/templates/main.xhtml"
+>
+  <ui:define name="title">Admin - Review Moderation</ui:define>
+
+  <ui:define name="content">
+    <h1 class="page-title">Review Moderation</h1>
+    <h:messages globalOnly="true" styleClass="messages" />
+
+    <div class="card">
+      <div class="card-header">
+        <h3>Pending reviews</h3>
+        <h:link
+          outcome="/admin-dashboard/dashboard.xhtml"
+          value="Back to dashboard"
+          styleClass="button button-secondary"
+        />
+      </div>
+
+      <h:dataTable
+        value="#{reviewModerationBean.reviews}"
+        var="review"
+        styleClass="data-table"
+        rendered="#{not empty reviewModerationBean.reviews}"
+      >
+        <h:column>
+          <f:facet name="header">Product</f:facet>
+          <h:outputText value="#{review.productId}" />
+        </h:column>
+        <h:column>
+          <f:facet name="header">Author</f:facet>
+          <h:outputText value="#{review.authorId}" />
+        </h:column>
+        <h:column>
+          <f:facet name="header">Rating</f:facet>
+          <h:outputText value="#{review.rating}/5" />
+        </h:column>
+        <h:column>
+          <f:facet name="header">Title</f:facet>
+          <h:outputText value="#{review.title}" />
+        </h:column>
+        <h:column>
+          <f:facet name="header">Status</f:facet>
+          <my:statusBadge status="#{review.status}" />
+        </h:column>
+        <h:column>
+          <f:facet name="header">Submitted</f:facet>
+          <h:outputText value="#{reviewModerationBean.formatDate(review.createdAt)}" />
+        </h:column>
+        <h:column>
+          <f:facet name="header">Action</f:facet>
+          <h:link
+            value="Moderate"
+            outcome="/admin-dashboard/reviews/detail.xhtml"
+          >
+            <f:param name="reviewId" value="#{review.id}" />
+          </h:link>
+        </h:column>
+      </h:dataTable>
+
+      <ui:fragment rendered="#{empty reviewModerationBean.reviews}">
+        <p>No pending reviews. All caught up.</p>
+      </ui:fragment>
+
+      <div
+        class="pagination-controls"
+        rendered="#{reviewModerationBean.previousPageEnabled or reviewModerationBean.nextPageEnabled}"
+      >
+        <h:form>
+          <h:commandButton
+            value="Previous"
+            action="#{reviewModerationBean.previousPage}"
+            disabled="#{not reviewModerationBean.previousPageEnabled}"
+          />
+          <span>Page #{reviewModerationBean.pageIndex + 1}</span>
+          <h:commandButton
+            value="Next"
+            action="#{reviewModerationBean.nextPage}"
+            disabled="#{not reviewModerationBean.nextPageEnabled}"
+          />
+        </h:form>
+      </div>
+    </div>
+  </ui:define>
+</ui:composition>

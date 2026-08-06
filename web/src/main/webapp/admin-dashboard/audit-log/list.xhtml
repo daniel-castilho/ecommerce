@@ -54,7 +54,9 @@
                         #{log.details}
                     </h:column>
                 </h:dataTable>
-                <p rendered="#{empty auditLogBean.logs}">No audit logs found.</p>
+                <ui:fragment rendered="#{empty auditLogBean.logs}">
+                    <p>No audit logs found.</p>
+                </ui:fragment>
                 
                 <h:form rendered="#{not empty auditLogBean.logs}" styleClass="pagination">
                     <h:commandButton value="Previous" action="#{auditLogBean.previousPage}"

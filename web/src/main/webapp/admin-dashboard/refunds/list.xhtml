@@ -20,7 +20,7 @@
               id="statusId"
               value="#{refundManagementBean.selectedStatus}"
             >
-              <f:selectItem itemValue="" itemLabel="All" />
+              <f:selectItem itemValue="#{null}" itemLabel="All" />
               <f:selectItems
                 value="#{refundManagementBean.refundStatuses}"
                 var="status"
@@ -101,9 +101,11 @@
         </h:dataTable>
       </h:form>
 
-      <p rendered="#{empty refundManagementBean.refunds}">
-        No refund requests found.
-      </p>
+      <ui:fragment rendered="#{empty refundManagementBean.refunds}">
+        <p>
+          No refund requests found.
+        </p>
+      </ui:fragment>
 
       <div
         class="pagination-controls"
