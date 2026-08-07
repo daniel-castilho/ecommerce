@@ -1,6 +1,8 @@
 package com.loja.admindashboard.adapter.in.web;
 
+import java.io.IOException;
 import java.io.Serializable;
+import java.io.UncheckedIOException;
 import java.text.NumberFormat;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -12,6 +14,12 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 
 import com.loja.admindashboard.application.dto.ChartLine;
+import com.loja.admindashboard.domain.exception.ReportGenerationException;
+import com.loja.admindashboard.domain.model.CsvTable;
+import com.loja.admindashboard.domain.model.PdfDocument;
+import com.loja.admindashboard.domain.model.PdfKeyValue;
+import com.loja.admindashboard.domain.model.PdfSection;
+import com.loja.admindashboard.domain.port.out.ReportExportPort;
 import com.loja.ordercheckout.domain.model.CustomerGrowthPoint;
 import com.loja.ordercheckout.domain.model.CustomerInsightsReport;
 import com.loja.ordercheckout.domain.port.in.CustomerInsightsReportUseCase;
@@ -23,11 +31,12 @@ import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * Admin customer insights report page (backlog S22): date range filter, customer
  * KPIs (total, new, repeat rate, average LTV, churn rate) and a
- * "New Customers by Date" line chart.
+ * "New Customers by Date" line chart. Supports CSV/PDF export (backlog S23).
  */
 @Named("customerInsightsReportBean")
 @ViewScoped
@@ -38,9 +47,13 @@ public class CustomerInsightsReportBean implements Serializable {
 
     private static final Locale BR = Locale.forLanguageTag("pt-BR");
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter FILE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     @Inject
     private CustomerInsightsReportUseCase customerInsightsReportUseCase;
+
+    @Inject
+    private ReportExportPort reportExportPort;
 
     private LocalDate fromDate = LocalDate.now().minusMonths(1);
     private LocalDate toDate = LocalDate.now();
@@ -49,6 +62,10 @@ public class CustomerInsightsReportBean implements Serializable {
 
     void setCustomerInsightsReportUseCase(CustomerInsightsReportUseCase useCase) {
         this.customerInsightsReportUseCase = useCase;
+    }
+
+    void setReportExportPort(ReportExportPort reportExportPort) {
+        this.reportExportPort = reportExportPort;
     }
 
     public void generate() {
@@ -76,6 +93,89 @@ public class CustomerInsightsReportBean implements Serializable {
 
     public boolean isGenerated() {
         return generated && report != null;
+    }
+
+    public void exportCsv() {
+        if (!isGenerated()) {
+            addMessage(FacesMessage.SEVERITY_ERROR, "Report not generated",
+                    "Generate the report before exporting.");
+            return;
+        }
+        try {
+            download(reportExportPort.generateCsv(buildCsv()),
+                    "text/csv; charset=UTF-8", "customer-insights-report-" + fileDateRange() + ".csv");
+        } catch (ReportGenerationException e) {
+            addMessage(FacesMessage.SEVERITY_ERROR, "Export failed",
+                    "The CSV could not be generated.");
+        }
+    }
+
+    public void exportPdf() {
+        if (!isGenerated()) {
+            addMessage(FacesMessage.SEVERITY_ERROR, "Report not generated",
+                    "Generate the report before exporting.");
+            return;
+        }
+        try {
+            download(reportExportPort.generatePdf(buildPdf()),
+                    "application/pdf", "customer-insights-report-" + fileDateRange() + ".pdf");
+        } catch (ReportGenerationException e) {
+            addMessage(FacesMessage.SEVERITY_ERROR, "Export failed",
+                    "The PDF could not be generated.");
+        }
+    }
+
+    private CsvTable buildCsv() {
+        List<List<String>> rows = new ArrayList<>();
+        rows.add(List.of("Total Customers", formatCount(report.totalCustomers())));
+        rows.add(List.of("New Customers", formatCount(report.newCustomers())));
+        rows.add(List.of("Repeat Customer Rate", formatPercent(report.repeatCustomerRate())));
+        rows.add(List.of("Average LTV", formatMoney(report.averageLtv())));
+        rows.add(List.of("Churn Rate", formatPercent(report.churnRate())));
+        if (!report.newCustomersSeries().isEmpty()) {
+            rows.add(List.of());
+            rows.add(List.of("Date", "New Customers"));
+            for (CustomerGrowthPoint point : report.newCustomersSeries()) {
+                rows.add(List.of(formatDate(point.date()), formatCount(point.count())));
+            }
+        }
+        return new CsvTable(List.of("Metric", "Value"), rows);
+    }
+
+    private PdfDocument buildPdf() {
+        List<PdfKeyValue> kpis = List.of(
+                new PdfKeyValue("Total Customers", formatCount(report.totalCustomers())),
+                new PdfKeyValue("New Customers", formatCount(report.newCustomers())),
+                new PdfKeyValue("Repeat Customer Rate", formatPercent(report.repeatCustomerRate())),
+                new PdfKeyValue("Average LTV", formatMoney(report.averageLtv())),
+                new PdfKeyValue("Churn Rate", formatPercent(report.churnRate())));
+        List<PdfSection> sections = new ArrayList<>();
+        sections.add(new PdfSection("New Customers by Date", List.of("Date", "New Customers"),
+                report.newCustomersSeries().stream()
+                        .map(point -> List.of(formatDate(point.date()), formatCount(point.count())))
+                        .toList()));
+        return new PdfDocument("Customer Insights Report", subtitle(), kpis, sections);
+    }
+
+    private String subtitle() {
+        return formatDate(fromDate) + " - " + formatDate(toDate);
+    }
+
+    private String fileDateRange() {
+        return FILE_DATE_FORMAT.format(fromDate) + "-" + FILE_DATE_FORMAT.format(toDate);
+    }
+
+    private void download(byte[] bytes, String contentType, String filename) {
+        HttpServletResponse response = (HttpServletResponse) FacesContext.getCurrentInstance()
+                .getExternalContext().getResponse();
+        response.setContentType(contentType);
+        response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+        try {
+            response.getOutputStream().write(bytes);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        FacesContext.getCurrentInstance().responseComplete();
     }
 
     public boolean isSeriesEmpty() {

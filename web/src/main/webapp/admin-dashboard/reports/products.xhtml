@@ -46,6 +46,21 @@
       styleClass="card"
       rendered="#{productPerformanceReportBean.generated}"
     >
+      <h:form id="exportForm">
+        <div class="form-actions">
+          <h:commandButton
+            value="Export CSV"
+            action="#{productPerformanceReportBean.exportCsv}"
+            styleClass="button button-secondary"
+          />
+          <h:commandButton
+            value="Export PDF"
+            action="#{productPerformanceReportBean.exportPdf}"
+            styleClass="button button-secondary"
+          />
+        </div>
+      </h:form>
+
       <h2>Top sellers by units</h2>
       <ui:fragment rendered="#{productPerformanceReportBean.isTopSellersEmpty()}">
         <p>

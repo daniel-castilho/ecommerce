@@ -3,10 +3,12 @@ package com.loja.admindashboard.adapter.in.web;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -16,6 +18,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.loja.admindashboard.application.dto.ChartLine;
+import com.loja.admindashboard.domain.exception.ReportGenerationException;
+import com.loja.admindashboard.domain.port.out.ReportExportPort;
 import com.loja.ordercheckout.domain.model.CustomerGrowthPoint;
 import com.loja.ordercheckout.domain.model.CustomerInsightsReport;
 import com.loja.ordercheckout.domain.port.in.CustomerInsightsReportUseCase;
@@ -27,10 +31,12 @@ import jakarta.faces.context.ExternalContext;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Named;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.HttpServletResponse;
 
 class CustomerInsightsReportBeanTest {
 
-    static final class FacesContextAccessor extends FacesContext {
+    static class FacesContextAccessor extends FacesContext {
         static void setCurrent(FacesContext context) { setCurrentInstance(context); }
         @Override public Application getApplication() { return null; }
         @Override public ExternalContext getExternalContext() { return null; }
@@ -52,6 +58,32 @@ class CustomerInsightsReportBeanTest {
         @Override public boolean getRenderResponse() { return false; }
         @Override public boolean getResponseComplete() { return false; }
         @Override public void responseComplete() {}
+    }
+
+    static final class ExportFacesContextAccessor extends FacesContextAccessor {
+        private final ExternalContext externalContext;
+        private int responseCompleteCount;
+
+        ExportFacesContextAccessor(ExternalContext externalContext) {
+            this.externalContext = externalContext;
+        }
+
+        @Override
+        public ExternalContext getExternalContext() {
+            return externalContext;
+        }
+
+        @Override
+        public void responseComplete() {
+            responseCompleteCount++;
+        }
+
+        int getResponseCompleteCount() {
+            return responseCompleteCount;
+        }
+    }
+
+    record ExportEnv(ExportFacesContextAccessor facesContext, HttpServletResponse response, ServletOutputStream stream) {
     }
 
     private final CustomerInsightsReportUseCase useCase = mock(CustomerInsightsReportUseCase.class);
@@ -179,6 +211,92 @@ class CustomerInsightsReportBeanTest {
         assertThat(bean.formatMoney(new Money(new BigDecimal("1234.50"))).replace('\u00A0', ' '))
                 .isEqualTo("R$ 1.234,50");
         assertThat(bean.formatPercent(40.0)).isEqualTo("40%");
+    }
+
+    @Test
+    void exportCsv_withGeneratedReport_delegatesToPortAndCompletesResponse() throws Exception {
+        ReportExportPort reportExportPort = mock(ReportExportPort.class);
+        bean.setReportExportPort(reportExportPort);
+        ExportEnv env = installExportEnv();
+        generateInsightsReport();
+
+        byte[] csvBytes = "CSV-BYTES".getBytes(StandardCharsets.UTF_8);
+        when(reportExportPort.generateCsv(any())).thenReturn(csvBytes);
+
+        bean.exportCsv();
+
+        verify(reportExportPort).generateCsv(any());
+        verify(env.response()).setContentType("text/csv; charset=UTF-8");
+        verify(env.response())
+                .setHeader("Content-Disposition",
+                        "attachment; filename=\"customer-insights-report-2026-06-01-2026-06-30.csv\"");
+        verify(env.stream()).write(csvBytes);
+        assertThat(env.facesContext().getResponseCompleteCount()).isEqualTo(1);
+    }
+
+    @Test
+    void exportPdf_withGeneratedReport_delegatesToPortAndCompletesResponse() throws Exception {
+        ReportExportPort reportExportPort = mock(ReportExportPort.class);
+        bean.setReportExportPort(reportExportPort);
+        ExportEnv env = installExportEnv();
+        generateInsightsReport();
+
+        byte[] pdfBytes = "PDF-BYTES".getBytes(StandardCharsets.UTF_8);
+        when(reportExportPort.generatePdf(any())).thenReturn(pdfBytes);
+
+        bean.exportPdf();
+
+        verify(reportExportPort).generatePdf(any());
+        verify(env.response()).setContentType("application/pdf");
+        verify(env.response())
+                .setHeader("Content-Disposition",
+                        "attachment; filename=\"customer-insights-report-2026-06-01-2026-06-30.pdf\"");
+        verify(env.stream()).write(pdfBytes);
+        assertThat(env.facesContext().getResponseCompleteCount()).isEqualTo(1);
+    }
+
+    @Test
+    void export_whenNotGenerated_doesNotCallPort() {
+        ReportExportPort reportExportPort = mock(ReportExportPort.class);
+        bean.setReportExportPort(reportExportPort);
+
+        bean.exportCsv();
+        bean.exportPdf();
+
+        verify(reportExportPort, never()).generateCsv(any());
+        verify(reportExportPort, never()).generatePdf(any());
+    }
+
+    @Test
+    void exportPdf_whenPortFails_doesNotCompleteResponse() throws Exception {
+        ReportExportPort reportExportPort = mock(ReportExportPort.class);
+        bean.setReportExportPort(reportExportPort);
+        ExportEnv env = installExportEnv();
+        generateInsightsReport();
+
+        when(reportExportPort.generatePdf(any())).thenThrow(new ReportGenerationException("boom"));
+
+        bean.exportPdf();
+
+        assertThat(env.facesContext().getResponseCompleteCount()).isZero();
+    }
+
+    private ExportEnv installExportEnv() throws Exception {
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        ServletOutputStream stream = mock(ServletOutputStream.class);
+        when(response.getOutputStream()).thenReturn(stream);
+        ExternalContext externalContext = mock(ExternalContext.class);
+        when(externalContext.getResponse()).thenReturn(response);
+        ExportFacesContextAccessor facesContext = new ExportFacesContextAccessor(externalContext);
+        FacesContextAccessor.setCurrent(facesContext);
+        return new ExportEnv(facesContext, response, stream);
+    }
+
+    private void generateInsightsReport() {
+        bean.setFromDate(LocalDate.of(2026, 6, 1));
+        bean.setToDate(LocalDate.of(2026, 6, 30));
+        when(useCase.customerInsightsReport(any(), any())).thenReturn(report());
+        bean.generate();
     }
 
     private static CustomerInsightsReport report() {

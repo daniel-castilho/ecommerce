@@ -50,6 +50,21 @@
         #{customerInsightsReportBean.formatDate(customerInsightsReportBean.toDate)}
       </h2>
 
+      <h:form id="exportForm">
+        <div class="form-actions">
+          <h:commandButton
+            value="Export CSV"
+            action="#{customerInsightsReportBean.exportCsv}"
+            styleClass="button button-secondary"
+          />
+          <h:commandButton
+            value="Export PDF"
+            action="#{customerInsightsReportBean.exportPdf}"
+            styleClass="button button-secondary"
+          />
+        </div>
+      </h:form>
+
       <div class="dashboard-kpi-grid">
         <div class="dashboard-kpi">
           <p class="dashboard-kpi-label">Total Customers</p>

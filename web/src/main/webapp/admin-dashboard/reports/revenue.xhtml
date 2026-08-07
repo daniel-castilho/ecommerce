@@ -60,6 +60,21 @@
         (#{revenueReportBean.granularityLabel})
       </h2>
 
+      <h:form id="exportForm">
+        <div class="form-actions">
+          <h:commandButton
+            value="Export CSV"
+            action="#{revenueReportBean.exportCsv}"
+            styleClass="button button-secondary"
+          />
+          <h:commandButton
+            value="Export PDF"
+            action="#{revenueReportBean.exportPdf}"
+            styleClass="button button-secondary"
+          />
+        </div>
+      </h:form>
+
       <div class="dashboard-kpi-grid">
         <div class="dashboard-kpi">
           <p class="dashboard-kpi-label">Total Revenue</p>
