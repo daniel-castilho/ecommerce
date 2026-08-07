@@ -69,5 +69,5 @@ git checkout v0.X.0
 
 ---
 
-*Template: copy to `docs/releases/v0.X.0.md`, fill it, then
-`git tag -a v0.X.0 -m "v0.X.0 — <short title>"`.*
+*Template: copy to `docs/releases/v0.X.0.md`, fill it, add a high-level
+entry to `CHANGELOG.md`, then `git tag -a v0.X.0 -m "v0.X.0 — <short title>"`.*

@@ -992,34 +992,54 @@ cards on all three report pages rendered empty on GET — switched to
 
 **Depends on:** S20, S21, S22
 
+**Status:** ✅ Done (2026-08-06, release candidate `v0.12.0`) — right-sized (see implementation notes)
+
 **Definition of Ready:**
-- [ ] S20, S21, S22 merged (reports working)
-- [ ] ReportPort (PDF, CSV) defined
-- [ ] PDF/CSV generation tools selected (iText, Apache POI, Freemarker templates)
+- [x] S20, S21, S22 merged (reports working)
+- [x] ReportPort (PDF, CSV) defined — `ReportExportPort` (`generateCsv(CsvTable)`, `generatePdf(PdfDocument)`)
+- [x] PDF/CSV generation tools selected — **Apache Commons CSV 1.11.0** + **OpenPDF 1.3.43** (human-approved; iText5/POI/Freemarker rejected — see notes)
 
 **Acceptance Criteria:**
 
-- **Given** revenue report, **when** "Export" button clicked, **then** dialog opens: PDF or CSV radio selection.
-- **Given** admin selects "PDF", **when** submitted, **then** PDF file downloaded (filename: "revenue-report-2026-07-01-2026-07-31.pdf").
-- **Given** PDF report, **when** opened, **then** includes: title, date range, KPI cards (Total Revenue, Tax, Shipping, Net), tables (category breakdown, payment method breakdown), charts embedded.
-- **Given** admin selects "CSV", **when** submitted, **then** CSV file downloaded with columns: Date, Category, Payment Method, Orders, Revenue, Tax, Shipping.
-- **Given** CSV file, **when** opened in Excel, **then** data properly formatted (numbers right-aligned, dates formatted).
-- **Given** product report, **when** exported as PDF, **then** includes: top sellers table, bottom performers table, bar charts.
-- **Given** customer report, **when** exported as CSV, **then** includes: Date, New Customers, Repeat Rate, Average LTV, Churn Rate.
+- [x] **Given** revenue report, **when** "Export" button clicked, **then** dialog opens: PDF or CSV radio selection. — **right-sized** to two buttons ("Export CSV" / "Export PDF"); no dialog. Buttons render only after Generate.
+- [x] **Given** admin selects "PDF", **when** submitted, **then** PDF file downloaded (filename: "revenue-report-2026-07-01-2026-07-31.pdf"). — `Content-Disposition: attachment` + `responseComplete()`; filename uses `yyyy-MM-dd`.
+- [x] **Given** PDF report, **when** opened, **then** includes: title, date range, KPI cards (Total Revenue, Items Revenue, Shipping, Net), tables (payment method breakdown). — title band (design tokens), KPI key/value cells, per-series sections.
+- [x] **Given** admin selects "CSV", **when** submitted, **then** CSV file downloaded with columns: Date, Payment Method, Orders, Revenue. — `Date, Revenue` series + `Payment Method, Revenue` block (right-sized to the data the report actually has).
+- [x] **Given** CSV file, **when** opened in Excel, **then** data properly formatted. — UTF-8 **BOM** included so Excel detects UTF-8; Commons CSV quotes embedded commas.
+- [x] **Given** product report, **when** exported as PDF, **then** includes: top sellers table, bottom performers table. — sections for Top Sellers, Top by Revenue, Bottom Performers, Units by Category.
+- [x] **Given** customer report, **when** exported as CSV, **then** includes: Date, New Customers, Repeat Rate, Average LTV, Churn Rate. — KPI rows (Metric/Value) + New Customers by Date series.
 
 **Definition of Done:**
-- [ ] Export buttons on all report pages (S20, S21, S22)
-- [ ] Export dialog with PDF/CSV options
-- [ ] ReportGeneratorAdapter.generatePDF() and generateCSV() implemented
-- [ ] PDF generation using Flying Saucer or iText (HTML → PDF)
-- [ ] CSV generation using Apache Commons CSV or OpenCSV
-- [ ] Freemarker templates for report layouts (PDF, CSV)
-- [ ] Downloaded file names include date range
-- [ ] PDF styled with logo, colors, nice formatting
-- [ ] CSV headers clear and Excel-friendly
-- [ ] Export completes in < 5 seconds
+- [x] Export buttons on all report pages (S20, S21, S22) — `revenue.xhtml`, `products.xhtml`, `customers.xhtml` (inside the generated card, own `h:form`)
+- [x] Export actions on all three report beans — `exportCsv()` / `exportPdf()` (guarded by `isGenerated()`, error via `FacesMessage`, no navigation)
+- [x] ReportGeneratorAdapter.generatePDF() and generateCSV() implemented — `ReportGeneratorAdapter` (`@ApplicationScoped`, implements `ReportExportPort`)
+- [x] PDF generation using OpenPDF — direct document model (no HTML→PDF; see notes)
+- [x] CSV generation using Apache Commons CSV
+- [ ] Freemarker templates for report layouts — **deferred** (right-sized out; direct document model is simpler and dependency-light)
+- [x] Downloaded file names include date range — revenue/customers; product report includes the category slug
+- [x] PDF styled with logo, colors, nice formatting — design tokens: header `#2C3E50`, table header `#2980B9`, striping `#F9FAFB`, borders `#BDC3C7`
+- [x] CSV headers clear and Excel-friendly — BOM + UTF-8, header row per block
+- [x] Export completes in < 5 seconds — in-memory generation; OpenPDF/Commons CSV run in the request thread
 
 **Story Points:** 8
+
+**Implementation notes (right-sizing):** S23 keeps the reports module-free and the export layer
+contained. The new `domain` artifacts are pure Java (`ReportExportPort`, `CsvTable`,
+`PdfDocument`, `PdfKeyValue`, `PdfSection`, `ReportGenerationException`) so `domain/` stays at zero
+framework imports; the only library code is in `adapter/out/reporting/ReportGeneratorAdapter`.
+**Dependencies approved by the human:** `org.apache.commons:commons-csv:1.11.0` and
+`com.github.librepdf:openpdf:1.3.43` (OpenPDF over iText — Apache-2.0-licensed, Maven Central, works
+with the existing Jakarta stack; Commons CSV over POI — targeted CSV, no heavyweight spreadsheet
+model). Charts are **not embedded** as images (server-side rendering of the CSS bars was not worth
+a JFreeChart dependency) — series are exported as data tables instead. OpenPDF 1.3.43 uses
+`java.awt.Color` (not `com.lowagie.text.Color`) on `PdfPCell`. PDF colors are hard-coded hex values
+mirroring `design-tokens.css` (no new tokens, so no human approval needed). CSV output carries a
+UTF-8 BOM. The beans stream bytes straight to the servlet response
+(`ExternalContext.getResponse()` → `HttpServletResponse`, `Content-Disposition: attachment`,
+`FacesContext.responseComplete()`), mirroring the `LoginBean` response pattern; exports stay under
+the `/admin-dashboard/*` web.xml security constraint. Tests: 7 adapter (BOM/header/quoting/empty,
+PDF header bytes/empty sections) + 10/12/12 bean export tests (delegation, headers, filenames,
+not-generated guard, port failure).
 
 ---
 

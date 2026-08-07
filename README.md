@@ -1,327 +1,108 @@
 # Ecommerce Monolith — Boilerplate
 
-Modular monolith in **Jakarta EE 11 + Jakarta Faces**, organized as a
-**multi-module Maven** project, with each business module following
+Modular monolith built with **Jakarta EE 11 + Jakarta Faces**, organized as a
+**multi-module Maven** project. Each business module follows
 **Hexagonal Architecture** and **SOLID / Clean Code** principles.
 
 ## Modules
 
-| Module             | Responsibility                                                                                       |
-| ------------------ | ---------------------------------------------------------------------------------------------------- |
-| `shared-kernel`    | Shared value objects and contracts (`Money`, `DomainEvent`, base exceptions)                        |
-| `user-account`     | User registration/query (reference module, fully implemented)                                       |
-| `product-catalog`  | Product catalog and search                                                                          |
-| `order-checkout`   | Checkout, order calculation, stock reservation                                                      |
-| `product-reviews`  | Product reviews & ratings (submit, list, summary, admin moderation)                                |
-| `admin-dashboard`  | Compose metrics from the other modules (no business rules of its own)                               |
-| `web`              | Final WAR: aggregates the modules, contains `web.xml`, `faces-config.xml`, `persistence.xml` and the `.xhtml` pages |
+| Module            | Responsibility                                                                                  |
+| ----------------- | ----------------------------------------------------------------------------------------------- |
+| `shared-kernel`   | Shared value objects and contracts (`Money`, `DomainEvent`, base exceptions)                    |
+| `user-account`    | Registration, authentication, profile, addresses and roles (reference module)                   |
+| `product-catalog` | Product catalog, search, stock management and images (S3)                                       |
+| `order-checkout`  | Checkout, order lifecycle, inventory reservation and refunds                                    |
+| `product-reviews` | Product reviews & ratings (submit, summary, verified purchase, moderation)                      |
+| `admin-dashboard` | Back-office composition (metrics, management screens, reports) — no own rules                   |
+| `web`             | Final WAR: aggregates all modules, contains `web.xml`, Faces config, persistence unit and pages |
 
-## Hexagonal pattern used in each module
+## Hexagonal Pattern
 
 ```
 <module>/src/main/java/com/loja/<module>/
 ├── domain/
-│   ├── model/       -> Entities and Value Objects. Zero framework dependency.
+│   ├── model/          → Entities & Value Objects (zero framework dependencies)
 │   └── port/
-│       ├── in/      -> UseCases (what the module offers)
-│       └── out/      -> Repositories/external services (what the module needs)
+│       ├── in/         → Use cases the module offers
+│       └── out/        → Ports the module needs
 ├── application/
-│   └── service/     -> UseCase implementations. Depends only on ports (DIP).
+│   └── service/        → Use-case implementations (depend only on ports)
 └── adapter/
-    ├── in/web/       -> JSF managed beans (thin, no business rules)
-    └── out/persistence/ -> JPA entities + port implementations
+    ├── in/web/         → Thin JSF managed beans
+    └── out/persistence/→ JPA entities + port implementations
 ```
 
-## Cross-module dependency rules
+### Cross-module rules
 
-- A module **never** depends on another module's `adapter` — only on `domain.port` (interfaces).
-  Example: `order-checkout` uses `ProductRepositoryPort` from `product-catalog`, never
-  `ProductRepositoryAdapter` directly.
-- `admin-dashboard` only composes `UseCases` from the other modules — it must not contain business rules.
-- `shared-kernel` depends on no other module (it is the base).
+- A module **never** depends on another module’s `adapter` — only on `domain.port`.
+- `admin-dashboard` only **composes** use cases from other modules.
+- `shared-kernel` has no dependencies on other modules.
 
-## How to build
+## Build
 
 ```bash
 mvn clean package -pl web -am
 ```
 
-The final `.war` ends up at `web/target/web.war`.
+The final WAR is produced at `web/target/web.war`.
 
-## How to run (Open Liberty)
+## Run (Open Liberty)
 
 ```bash
-./scripts/run-liberty.sh   # builds the WAR and brings the app up at https://localhost:9443/web/
+./scripts/run-liberty.sh
 ```
 
-`mvn clean package` wipes `web/target/liberty` (the installed runtime, the features and the
-auto-generated keystore), so run `scripts/run-liberty.sh` after any clean build: it recreates
-the server config, installs the features from `server.xml` (first time only) and deploys the
-WAR into `dropins`. The dev keystore password lives in `web/src/main/liberty/config/server.xml`.
+The application will be available at:
+https://localhost:9443/web/
 
-## Current state (2026-08-05)
+> Note: `mvn clean package` removes the Liberty runtime under `web/target/liberty`.
+> Always prefer `./scripts/run-liberty.sh` after a clean build.
 
-- **Released as `v0.11.0` (2026-08-05)** — closes the admin-dashboard **reporting lane** with the
-  **S22 customer insights report** at `/admin-dashboard/reports/customers.xhtml` (S20 revenue and
-  S21 product performance were the first two): date-range filter, five KPI cards (Total Customers,
-  New Customers, Repeat Rate, Average LTV, Churn Rate) and a "New Customers by Date" line chart.
-  Metrics live in the modules that own the data — order-checkout (`CustomerInsightsReportService` +
-  repeat/LTV queries) and user-account (daily new-customer series + 90-day inactivity cutoff);
-  admin-dashboard only composes. Also fixed a pre-existing Facelets bug (`rendered` on plain HTML
-  elements is a pass-through no-op) so all three report cards now stay hidden until Generate. See
-  `docs/releases/v0.11.0.md`.
-- **Released as `v0.10.0` (2026-08-05)** — full **Reviews & Ratings** module (`product-reviews`,
-  hexagonal): submit 1–5★ reviews on the product-detail page (sanitized, one per user per product),
-  average + star histogram + paginated list of approved reviews, verified-purchase badge via
-  order-checkout, and an admin moderation queue at `/admin-dashboard/reviews/` (approve / reject
-  with reason, ADMIN-gated). Depends only on `product-catalog`/`order-checkout` **ports**; own
-  ArchUnit boundary tests; Flyway `V17__product_reviews.sql`. See `docs/releases/v0.10.0.md`.
-- **Released as `v0.8.0` (2026-08-05)** — first story of the admin-dashboard **reporting lane**:
-  the **S20 revenue report** (date range + group-by Daily/Weekly/Monthly, KPI cards, CSS bar
-  chart, payment-method breakdown) at `/admin-dashboard/reports/`, right-sized to the current
-  domain (no new dependencies; Total Tax/Net Revenue and Revenue by Category deferred until the
-  order model grows those fields). Export (PDF/CSV) stays in **S23** (needs human-approved
-  dependencies). See `docs/releases/v0.8.0.md`.
-- **Released as `v0.7.0` (2026-08-03)** — closes the admin-dashboard **monitoring & security lane**
-  (S25–S27): admin user management (list + filters + role assignment + block/unblock, ADMIN-gated),
-  an automated **RBAC coverage guard** (`AdminAccessControlCoverageTest` verifies every admin page
-  is behind a protected web.xml pattern and every admin bean carries `@RolesAllowed("ADMIN")`), and
-  ArchUnit boundary tests for admin-dashboard (`AdminDashboardHexagonalArchitectureTest`, 7 rules —
-  surfaced and fixed `DashboardSummary` nested in a port). Reporting lane S20–S23 still open. See
-  `docs/releases/v0.7.0.md`.
-- **Released as `v0.6.0` (2026-08-03)** — admin back-office management: orders (list/detail +
-  status update), products (create/edit + archive/reactivate with audit trail), customers
-  (list/detail + block/unblock with audit trail) and refunds (paginated list with status filter,
-  detail with approve/reject) plus the order-checkout refund request workflow
-  (`RefundRequest` PENDING → APPROVED → PROCESSED/REJECTED, `PaymentGatewayPort` mock adapter,
-  `V16` migration), product-catalog archive/reactivate, audit log viewer, dashboard KPIs, and the
-  confirm-modal taglib fix. See `docs/releases/v0.6.0.md`.
-- **Released as `v0.5.0` (2026-08-02)** — admin-dashboard S2 real metrics (live KPIs on
-  `dashboard.xhtml` matching the DB) + the login root-cause fix: programmatic login now goes
-  through `SecurityContext.authenticate(...)` (Open Liberty forbids `request.login()` while a
-  JASPI mechanism is active) and `<ltpa keysPassword>` (default removed in 26.0.0.4+,
-  CVE-2025-14917). See `docs/releases/v0.5.0.md`.
-- **Released as `v0.4.0` (2026-08-02)** — bugfix milestone on `v0.3.0`'s RBAC: login now
-  verifies the password exactly once per attempt (single container check + `establishSession()`,
-  no more 2× Argon2id / 2× save), and the status-badge CSS is realigned with all three status
-  enums, guarded by a new `StatusBadgeCssCoverageTest` (web module). See
-  `docs/releases/v0.4.0.md`.
-- **Released as `v0.3.0` (2026-08-01)** — real Jakarta Security RBAC for user-account
-  (`UserIdentityStore` + `LoginAuthenticationMechanism` + `HttpServletRequest.login()`,
-  ADMIN `web.xml` security-constraint, `SecurityContext`-backed `UserBean`). See
-  `docs/releases/v0.3.0.md`.
-- **Released as `v0.2.0` (2026-08-01)** — completes the `order-checkout` epic (S1–S12: full
-  order state machine, 4-step checkout wizard, order history with cancel/refund, inventory
-  reservation, optimistic locking, ArchUnit guard rails) on top of the `v0.1.0` baseline. See
-  `docs/releases/v0.2.0.md` and the "Releases and tags" ritual in `AGENTS.md`.
-- **Released as `v0.1.0` (2026-08-01)** — baseline snapshot of the monolith (user account +
-  catalog storefront + order checkout MVP). See `docs/releases/v0.1.0.md`.
-- `user-account` — reference module, complete.
-- `product-catalog` — epic **complete** (S1–S9, all QA'd; see `tasks/product-catalog-backlog.md`).
-  **Done:** Steps 1–3 (domain model, ports, persistence
-  adapter, `search()`, `decrementStock` + S9 concurrency test, `V7` migration, unit and integration
-  tests green — includes the IT harness fix, docs/lessons.md #3).
-  `order-checkout` (`CheckoutService`) migrated to `decrementStock` with
-  `InsufficientStockException` when stock is insufficient. Step 4 done
-  (`CategoryRepositoryJpaAdapter` + `@ApplicationScoped` cache with invalidation).
-  Steps 0 and 5 done (`scripts/bootstrap-localstack.sh` + `ProductImageStorageS3Adapter`
-  with `S3Config` via CDI `@Produces`; 5 green ITs against LocalStack Testcontainer).
-  Step 6 done (`ProductApplicationService` implementing the six use cases —
-  SKU/slug rules, publish guard, image upload validation, description sanitization via
-  the OWASP HTML sanitizer; 41 green unit tests, incl. the added `UpdateProductImageUseCase`
-  for image-meta/reorder).
-  Step 7 done (admin CRUD flow manually QA'd against Open Liberty + LocalStack: create
-  `SKU-QA-001`, duplicate-SKU rejection, image upload with alt-text/primary → object in
-  `product-images` bucket + `tb_product_image` row + public GET 200, category assignment,
-  publish → `ACTIVE`; `@RolesAllowed("ADMIN")` + session-role page guard).
-  Step 8 done (public catalog manually QA'd: ACTIVE product listed anonymously with
-  name/SKU/price/description and working search/pagination; cards link to the detail page —
-  see below — and from there to checkout).
-  Product-detail page done (2026-08-01): cards link to `product-detail.xhtml?slug=...`
-  (no more card → checkout); `GetProductDetailUseCase.findActiveBySlug` never returns
-  non-ACTIVE products, 404-style "not found" card otherwise; page shows primary/gallery
-  images (thumbnail selector), price + compare-at, stock availability, sanitized
-  description, category names and a "Buy" link back to checkout; styles consume existing
-  semantic tokens only (no new tokens — first occurrence).
-  Step 9 done (`ProductHexagonalArchitectureTest` — 8/8 ArchUnit rules green: domain
-  free of `jakarta.*`/`javax.*`, domain/application isolated from adapters, allowed-dependency
-  whitelists, ports are interfaces, `*Adapter` implements interfaces, JPA entities used only in
-  `adapter.out.persistence`; `archunit-junit5` 1.3.0 added; full unit suite 103 green tests).
-  **Immediate pending items:** none for Steps 7–9.
+## Current State
 
-Completed (2026-08-01): **real Jakarta Security RBAC** replaces the manual session-role guard.
-`UserIdentityStore` (a Jakarta Security `IdentityStore` backed by `ValidateCredentialsUseCase`)
-plus `LoginAuthenticationMechanism` (`@AutoApplySession`; 4.0 flow — `isAuthenticationRequest()` +
-`IdentityStoreHandler.validate` + `notifyContainerAboutLogin`) and `LoginBean`/`HttpServletRequest.login()`
-establish the container caller identity; `UserBean` now reads `SecurityContext` for
-`isLoggedIn`/`hasRole`. `web.xml` gains an ADMIN `security-constraint` for `/user-account/admin/*`
-and `/product-catalog/manageProduct.xhtml` (security-roles `ADMIN`/`CUSTOMER`/`VENDOR`, no
-`<login-config>` — the custom mechanism redirects anonymous callers of protected pages to
-`login.xhtml`); `admin/users.xhtml` keeps a `#{userBean.hasRole('ADMIN')}` guard as belt-and-braces.
-See `docs/lessons.md` #8 for the Security 4.0 API migration. 46 user-account unit tests green
-(incl. new `UserIdentityStoreTest`), `mvn -pl web -am test-compile` green.
+**Latest release: [v0.12.0](docs/releases/v0.12.0.md)** (2026-08-06)
 
-Completed (2026-08-01): **scheduled inventory-reservation expiry** in product-catalog —
-`InventoryReservationPort.expireExpired()` (global sweep, indexed on `expires_at`) implemented in
-`InventoryReservationJpaAdapter`, wrapped by `@Transactional` `InventoryReservationExpiryService`,
-and driven by `ReservationExpiryScheduler` (`@ApplicationScoped`, single daemon thread,
-`scheduleWithFixedDelay` every 60s). Stock is now freed proactively, not only lazily on the next
-`reserve` of the same product. `InventoryReservationExpiryServiceTest` + 2 new IT cases
-(`InventoryReservationJpaAdapterIT`).
+- Full **Reviews & Ratings** module (`product-reviews`)
+- Admin reporting lane completed: Revenue, Product Performance, Customer Insights reports with **CSV/PDF export**
+- Real Jakarta Security RBAC
+- Design-system tokens and shared components
+- ArchUnit architectural guards on every module
+- Complete storefront and back-office flows
 
-Completed (2026-08-01): **`jdbc/EcommerceDS` datasource** (the `ecommercePU` JTA data source) is
-configured in `server.xml` with the connection host/port/db/user/password **externalized to
-`${env.DB_*}`**; dev defaults live in `web/src/main/liberty/config/server.env` (matching the docker
-`shop` Postgres), and a real deployment overrides them with OS environment variables — no
-credentials hardcoded in the server config anymore.
+Full release history: see **[CHANGELOG.md](CHANGELOG.md)** or the individual notes under [`docs/releases/`](docs/releases/).
 
-Completed (2026-08-01): **CI pipeline** — `.github/workflows/ci.yml` (GitHub Actions). Two
-sequential jobs: `unit-and-archunit` (unit tests + every module's ArchUnit via `-Dtest='*Test'`,
-a `javax.*` migration guard, and the WAR packaging) then `integration-tests` (Testcontainers
-Postgres + LocalStack via `-Dtest='*IT'`) that only runs when the fast job is green. JDK 21
-(Temurin), Maven `~/.m2` cache, canceled superseded runs, WAR artifact archived on `main`,
-surefire reports uploaded on failure. To fully close the loop, enable "Require status checks"
-for `unit-and-archunit` + `integration-tests` on `main` in the repo settings.
+## Local Development
 
-Completed (2026-07-31): **Bean Validation** on the JSF adapter beans (`adapter/in/web`) —
-constraints mirror the domain rules, keeping `domain/` and `application/` free of
-`jakarta.validation` (ArchUnit still green). **No new runtime dependency**: the API ships in
-`jakarta.jakartaee-api` (provided) and `webProfile-11.0` bundles `validation-3.1` (Hibernate
-Validator 9.0.0.Final). Annotated `RegisterBean`, `LoginBean`, `PasswordResetBean`,
-`AddressBookBean`, `ProfileBean` (user-account), `ManageProductBean` (product-catalog) and
-`CheckoutBean.CartLine` (order-checkout) with `@NotBlank`/`@Email`/`@Size`/`@Pattern`/
-`@DecimalMin`/`@Min`/`@NotNull`. `web.xml` gains `jakarta.faces.VALIDATE_EMPTY_FIELDS=true`
-(so `@NotBlank`/`@NotNull` fire on blank fields) and the forms that use Bean Validation
-now render `h:messages` with `showSummary="false"` (field message duplication removed;
-`manageProduct.xhtml` per-field `h:message` dropped). Regression coverage:
-`BeanValidationConstraintsTest` (10 tests) + `hibernate-validator`/`tomcat-embed-el`
-test-only deps in `user-account`. QA against the server: register (invalid e-mail/short
-password/blank name), login (bad e-mail → field error; wrong password → global error),
-address book (CEP + 2-char state), manage product (SKU pattern, blank name, price ≤ 0),
-checkout (qty 0 → "Quantity must be at least 1"); valid submits still pass (no false
-positives). Note: submitting the manage-product form with an **empty category selection**
-hits a pre-existing MyFaces NPE (`SelectItemsUtil.matchValue`, `UISelectMany`) unrelated
-to Bean Validation. See `docs/lessons.md` #6 for the Liberty-install gotcha.
-
-## LocalStack (local S3)
-
-Image storage uses S3-compatible storage; in dev it runs via LocalStack
-(`docker/docker-compose.yaml`, `localstack` service, port 4566, image
-`localstack/localstack:3.8.1` — `latest`/4.x versions require an authentication token).
+### LocalStack (S3 for product images)
 
 ```bash
 docker compose -f docker/docker-compose.yaml up -d localstack
-./scripts/bootstrap-localstack.sh   # creates the product-images bucket + public-read policy (idempotent)
+./scripts/bootstrap-localstack.sh
 ```
 
-The adapter config reads env/system-property (`s3.endpoint-override`, `s3.bucket`,
-`s3.public-base-url`, `s3.region`, `s3.access-key`, `s3.secret-key`) with local
-defaults (`http://localhost:4566`, `product-images`, `test`/`test`).
-
-## How to validate fast (avoid Testcontainers)
-
-The `mvn test` for `product-catalog` is slow because `ProductRepositoryJpaAdapterIT` boots a
-Postgres via Testcontainers on every run. For fast feedback:
+### Fast feedback (skip Testcontainers)
 
 ```bash
-# Module compilation
-mvn -q -pl product-catalog test-compile
+# Compile only
+mvn -q -pl product-catalog,order-checkout,product-reviews,admin-dashboard -am test-compile
 
-# Unit tests (no container, ~2s)
-mvn -pl product-catalog test -Dtest='ProductTest,SkuTest,SlugTest,ProductJpaMapperTest,ProductApplicationServiceTest,CategoryTreeCacheTest,ProductHexagonalArchitectureTest' -DfailIfNoTests=false
-
-# Full project compilation (includes order-checkout depending on the ports)
-mvn -q -pl order-checkout -am compile
-
-# IT with a real DB (slow): also runs the *IT.java
-mvn -pl product-catalog test
+# Unit tests + ArchUnit only (no containers)
+mvn test -Dtest='*Test' -DfailIfNoTests=false
 ```
 
-## Next steps (product-catalog)
+## Roadmap / Pending
 
-1. **Steps 7 + 8 QA:** ~~manual pass against LocalStack~~ **done** (2026-07-31) — admin
-   create/upload/publish flow (incl. duplicate-SKU rejection) and public search/pagination.
-   QA fixes: `forcePathStyle(true)` on the S3 client (virtual-host broke LocalStack with
-   hostname endpoints), `@Cacheable(false)` on `UserJpaEntity` (stale roles), UUID in
-   `ProductApplicationService.create()`, FacesServlet `<multipart-config>`. Notes: external
-   SQL writes to `tb_category`/roles need a server restart to clear the app caches.
+- Real payment, shipping and notification providers (currently mocked)
+- PDF reports embed charts as images (currently exported as data tables)
+- Further search improvements (PostgreSQL full-text search / ranking)
 
-Completed (2026-08-01): **public catalog cards now render the primary product image**
-(`ProductCatalogBean.primaryImageUrl/primaryImageAlt` + S3 public URL); the admin
-**create form gained an optional image upload** (closes the S7 deviation — a rejected
-image still leaves the product created, with a warning). **Design-system foundation
-built** (resolves §10 Q1 of `docs/design-system.md`): `resources/css/base.css`
-(imports the tokens + shared component styles), shared template
-`WEB-INF/templates/main.xhtml`, and the `https://loja.com/design-system` tag library
-(`WEB-INF/loja.taglib.xml`) with the `status-badge`/`form-field-group` components
-(registered via `jakarta.faces.FACELETS_LIBRARIES`). `catalog.xhtml` (results as
-product-card grid) and `manageProduct.xhtml` (form-field groups + status badges) were
-converted to the template + tokens. Rollout finished the same day: **all remaining
-pages** (login, register, password-reset, password-reset-confirm, profile,
-address-book, admin/users, checkout, order-confirmed) now render through the shared
-template + tokens — every page in the WAR shares one visual language.
+## Documentation
 
-## General pending items (outside the product-catalog epic)
-
-Backlog / radar (kept here so these are not forgotten; each gets its own work item when started):
-
-- **Real providers** for payment / shipping / notification (mock adapters today — see
-  `docs/notification-system-guide.md`)
-- **admin-dashboard full epic** — the basic user/product/order counts are now real (see below),
-  but the rest of the 27-story epic in `tasks/admin-dashboard-*.md` (revenue/conversion metrics,
-  order/product/customer management, refunds, PDF/CSV reports, charts, 5-min cache) is still
-  ahead. Requires new dependencies (Guava, PrimeFaces Charts, Flying Saucer, Commons CSV) —
-  human approval needed before adding them.
-
-Completed (2026-08-02): **admin-dashboard metrics now real** — `DashboardMetricsService.getSummary()`
-composes `totalUsers`/`totalProducts`/`totalOrders` from the other modules' input ports instead of
-hardcoded zeroes: product count via `SearchProductsUseCase.findAll()`, user count via the new
-`CountUsersUseCase` (user-account, backed by `UserRepositoryPort.count()`), order count via the new
-`AdminOrderMetricsUseCase` (order-checkout, backed by `OrderRepositoryPort.countAll()`). Each count
-is a single `SELECT COUNT` (no row materialization). Tests: `UserMetricsServiceTest`,
-`AdminOrderMetricsServiceTest`, updated `DashboardMetricsServiceTest`, plus `count()`/`countAll()`
-IT cases. The 4 admin-dashboard epic planning docs (`tasks/admin-dashboard-backlog.md`,
-`admin-dashboard-module-spec.md`, `admin-dashboard-implementation-sequence.md`,
-`ai-software-engineer-prompt-admin-dashboard.md`) are now versioned in git.
-
-Applied (2026-07-31): `V8__order_checkout_schema.sql` on the running `shop_db`
-(Postgres 15) and registered in `flyway_schema_history` (rank 7, checksum NULL,
-following the V5/V6/V7 manual convention). `tb_order`/`tb_order_item` now exist with
-the exact columns of `OrderJpaEntity` (`id` PK, `user_id`, `status`; items with
-`product_id`, `quantity`, `unit_price NUMERIC(19,2)`, FK `ON DELETE CASCADE`).
-
-Completed (2026-07-31): unit tests in the `application` layer of the remaining modules
-(mocking the `out` ports) — `order-checkout` (`CheckoutServiceTest` 4 tests, `OrderTest` 9
-tests), `admin-dashboard` (`DashboardMetricsServiceTest` 2 tests).
-Checkout UI built (`CheckoutBean` rewritten with a bindable `CartLine` list + session
-user via `SessionPort`; `order-checkout/checkout.xhtml` + `order-confirmed.xhtml`; "Buy"
-link per row on `catalog.xhtml` pre-fills the cart). Confirmation page reloads the
-persisted order by id (PRG): `OrderRepositoryPort` gained `findById`, implemented in
-`OrderRepositoryAdapter`; `OrderJpaMapperTest` covers the round-trip (OPEN/CONFIRMED/
-CANCELLED).
-
-Completed (2026-07-31): `OrderJpaEntity` `fromDomain`/`toDomain` mappers — `OrderRepositoryAdapter.save()` now persists (merge + flush + `toDomain`), `Order.cancel()` added to restore `CANCELLED`, `CheckoutService.checkout()` is `@Transactional` (stock decrement + order save are atomic). Backing DDL `V8__order_checkout_schema.sql` (`tb_order`/`tb_order_item`) + `docs/migrations/V8_rollback.sql` — **already applied and registered on `shop_db` (see "Applied" below)**.
-
-Completed (2026-07-31): checkout manually QA'd against Open Liberty — "Buy" pre-fills the cart, order placed (qty 1 and 2) → CONFIRMED with correct user/items/unit price, stock decremented atomically (10→9→7), confirmation page survives refresh (PRG). Failure modes verified: anonymous blocked ("You need to log in before placing an order."), insufficient stock (no order, stock unchanged), product not found, empty cart. **QA fix:** `h:messages` defaulted to summary-only, hiding the failure reason → `showDetail="true"` added on `checkout.xhtml`, `manageProduct.xhtml` and `login.xhtml`.
-
-Completed (2026-07-31): `OrderRepositoryJpaAdapterIT` (4 tests) green via Testcontainers + Postgres —
-`mvn -pl order-checkout -am test` → 21 tests green (9 `OrderTest`, 4 `CheckoutServiceTest`, 4
-`OrderJpaMapperTest`, 4 IT). Debugging note: the IT initially failed with `Could not find a valid
-Docker environment` (HTTP 400 from Docker Desktop 29.2.1+), fixed by pinning the docker-java API
-version in surefire (`-Dapi.version=1.44`), see `docs/lessons.md` #4.
-
-Completed (2026-07-31): **user-account flows manually QA'd** against Open Liberty —
-register, password reset (request → token in `user_account` → confirm → login with new password;
-consumed token rejected), address book (add 2, set default, remove, last-address guard), profile
-(name update, password change with wrong-current rejection), admin role assignment (qa user granted
-`ADMIN` via `admin/users.xhtml` and immediately reached `manageProduct.xhtml`). **QA bugs found &
-fixed:** (1) `password-reset-confirm.xhtml` lost the `?token=` on form POST (`f:viewParam
-required`) → replaced with `h:inputHidden` + `@PostConstruct` token seeding; (2) `address-book.xhtml`
-used `#{address.default}` — `default` is a reserved EL keyword → 500 → bracket notation
-`#{address['default']}`; (3) **root-cause bug:** `addAddress` never assigned an id
-(`new Address(null, ...)`), so `Objects.equals(null, null)` matched every address —
-"Set as Default" flipped all rows, "Remove" deleted all → `User.addAddress` now assigns a
-per-user unique id (max+1) + `UserTest.shouldAssignUniqueAddressIdsWhenNoneProvided`;
-(4) `showDetail="true"` also added to `address-book.xhtml` and `profile.xhtml`. See
-`docs/lessons.md` #5.
-# ecommerce
+| Document                                       | Purpose                                                |
+| ---------------------------------------------- | ------------------------------------------------------ |
+| [AGENTS.md](AGENTS.md)                         | Rules for AI agents and human contributors             |
+| [docs/design-system.md](docs/design-system.md) | Design tokens, components and the “rule of two”        |
+| [docs/lessons.md](docs/lessons.md)             | Hard-won lessons and golden rules                      |
+| [docs/releases/](docs/releases/)               | Detailed release notes                                 |
+| [tasks/](tasks/)                               | Backlogs, technical specs and implementation sequences |
+| [CHANGELOG.md](CHANGELOG.md)                   | High-level release index                               |

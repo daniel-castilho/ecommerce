@@ -6,6 +6,38 @@ top, with date and context.
 
 ---
 
+## 21. OpenPDF 1.3.43 (and other `com.github.librepdf` artifacts) use `java.awt.Color`, not `com.lowagie.text.Color`
+
+> Context: admin-dashboard S23 report export (2026-08-06). The first compile of the PDF
+> `ReportGeneratorAdapter` failed because `PdfPCell.setBackgroundColor(...)` accepted no
+> `com.lowagie.text.Color` — that class is gone in the repackaged, Apache-2.0 OpenPDF fork.
+
+### Symptom
+
+`javax`/`com.lowagie` classes do not exist (or are only vestigial) in OpenPDF 1.3.43, and the API
+switched to AWT types. Code written against iText5-style imports does not compile.
+
+### Root cause
+
+OpenPDF repackaged from AGPL iText5, and from 1.3.x the coloring/font APIs take standard JDK types:
+`PdfPCell.setBackgroundColor(java.awt.Color)` (via `Rectangle`), and
+`FontFactory.getFont(FontFactory.HELVETICA_BOLD, size, Font.BOLD, new Color(rgb))`.
+
+### Fix applied
+
+- Import `java.awt.Color` (not `com.lowagie.text.Color`) and build colors from raw RGB ints
+  mirroring the CSS design tokens, e.g. `new Color(0x2C3E50)`.
+- Use `FontFactory.getFont(FontFactory.HELVETICA, size, Font.NORMAL, color)` for styled text.
+- `PdfPCell` background: `cell.setBackgroundColor(new Color(0x2980B9))`.
+
+### Golden rule
+
+When adopting the OpenPDF fork, expect **AWT-based** API signatures. Check the library's actual
+signature with a quick compile instead of porting iText5 examples verbatim; a domain/adapter seam
+(`ReportExportPort`) plus an adapter-only dependency keeps library churn out of `domain/`.
+
+---
+
 ## 19. A new module's first smoke surfaces web-layer gotchas unit tests can't catch
 
 > Context: product-reviews epic (2026-08-05). Unit + ArchUnit + ITs were all green, yet the
