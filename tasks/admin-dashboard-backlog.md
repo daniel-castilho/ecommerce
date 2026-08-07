@@ -1053,33 +1053,46 @@ not-generated guard, port failure).
 
 **Depends on:** S1, S3
 
+**Status:** ✅ Done (2026-08-06, backlog hygiene — shipped in `v0.6.0`, was never marked; see implementation notes)
+
 **Definition of Ready:**
-- [ ] S3 merged (audit query adapter working)
-- [ ] AuditLogDTO defined
-- [ ] Audit log page design approved
+- [x] S3 merged (audit query adapter working)
+- [x] AuditLogDTO defined — `AuditLogEvent` domain model (user-account) + `PageResult<T>`
+- [x] Audit log page design approved — as shipped
 
 **Acceptance Criteria:**
 
-- **Given** admin navigates to /admin/audit-log, **when** page loads, **then** displays paginated audit log entries (20 per page, newest first).
-- **Given** audit log table, **when** displayed, **then** columns show: Admin Name, Action Type (ORDER_STATUS_CHANGED, PRODUCT_CREATED, REFUND_APPROVED, etc.), Entity Type (ORDER, PRODUCT, REFUND), Entity ID, Description, Date/Time, IP Address.
-- **Given** audit log, **when** filtered by admin user "john@example.com", **then** only entries by that admin displayed.
-- **Given** audit log, **when** filtered by action type "REFUND_APPROVED", **then** only refund approvals shown.
-- **Given** audit log, **when** date range filter applied, **then** only entries in that range displayed.
-- **Given** audit log entry row, **when** description is long, **then** truncated with "..." and expandable tooltip shows full text.
-- **Given** admin searches for "Order #123", **when** search submitted, **then** entries related to that order shown.
+- **Given** admin navigates to /admin/audit-log, **when** page loads, **then** displays paginated audit log entries (20 per page, newest first). — **Done** (`admin-dashboard/audit-log/list.xhtml`, Previous/Next pagination, `ORDER BY createdAt DESC`).
+- **Given** audit log table, **when** displayed, **then** columns show: Admin Name, Action Type (ORDER_STATUS_CHANGED, PRODUCT_CREATED, REFUND_APPROVED, etc.), Entity Type (ORDER, PRODUCT, REFUND), Entity ID, Description, Date/Time, IP Address. — **Partially** — columns: ID, Event Type, User ID, Actor ID, Date, IP Address, Details. Actor is an ID, not a resolved admin name; entity type/ID are embedded in the free-text Details rather than separate columns.
+- **Given** audit log, **when** filtered by admin user "john@example.com", **then** only entries by that admin displayed. — **deferred** (no filters).
+- **Given** audit log, **when** filtered by action type "REFUND_APPROVED", **then** only refund approvals shown. — **deferred**.
+- **Given** audit log, **when** date range filter applied, **then** only entries in that range displayed. — **deferred**.
+- **Given** audit log entry row, **when** description is long, **then** truncated with "..." and expandable tooltip shows full text. — **deferred** (full text rendered as-is).
+- **Given** admin searches for "Order #123", **when** search submitted, **then** entries related to that order shown. — **deferred**.
 
 **Definition of Done:**
-- [ ] AuditLogBean (@ViewScoped, @RolesAllowed("ADMIN")) created
-- [ ] audit-log/view.xhtml page created
-- [ ] ViewAuditLogUseCase injected
-- [ ] AuditQueryAdapter queries audit log table
-- [ ] Filters: admin user dropdown, action type dropdown, date range, entity type, entity ID search
-- [ ] Sorting: Date DESC (newest first)
-- [ ] Pagination (20 rows/page)
-- [ ] Tooltip on description (show full text)
-- [ ] Table loads in < 1 second (indexes on user_id, created_at)
+- [x] AuditLogBean (@ViewScoped, @RolesAllowed("ADMIN")) created
+- [x] audit-log/view.xhtml page created — `audit-log/list.xhtml`
+- [x] ViewAuditLogUseCase injected — `ListAuditLogsUseCase.listAuditLogs(page, pageSize)` (user-account)
+- [x] AuditQueryAdapter queries audit log table — `AuditLogJpaAdapter` (user-account), `ORDER BY createdAt DESC`
+- [ ] Filters: admin user dropdown, action type dropdown, date range, entity type, entity ID search — **deferred**
+- [x] Sorting: Date DESC (newest first)
+- [x] Pagination (20 rows/page)
+- [ ] Tooltip on description (show full text) — **deferred**
+- [ ] Table loads in < 1 second (indexes on user_id, created_at) — not measured
 
 **Story Points:** 5
+
+**Implementation notes (right-sizing):** S24 shipped inside `v0.6.0` as part of the back-office
+management release and was only marked done now. It was delivered as a minimal read-only viewer —
+`AuditLogBean` (`@ViewScoped`, `@RolesAllowed("ADMIN")`, default `@Named` → `#{auditLogBean}`) +
+`audit-log/list.xhtml` (ID, Event Type, User ID, Actor ID, Date UTC, IP Address, Details) with
+20/page pagination and newest-first ordering from `ListAuditLogsUseCase` (user-account). Filters
+(admin user, action type, date range, entity), a truncation tooltip, resolved actor names and an
+entity type/ID column split remain deferred — the underlying `UserAuditLogJpaEntity` already stores
+`eventType`, `entityType`/`entityId`-equivalent fields where applicable, so they are additive
+follow-ups, not rework. Page access is double-guarded (`@RolesAllowed("ADMIN")` + `web.xml`
+`/admin-dashboard/*`).
 
 ---
 
