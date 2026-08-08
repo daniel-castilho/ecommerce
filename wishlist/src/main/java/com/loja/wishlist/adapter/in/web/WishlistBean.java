@@ -112,18 +112,17 @@ public class WishlistBean implements Serializable {
             return;
         }
         if (productId == null || productId.isBlank()) {
-            addMessage(FacesMessage.SEVERITY_ERROR, "Wishlist", "No product selected.");
+            addMessage(FacesMessage.SEVERITY_ERROR, "No product selected.", "");
             return;
         }
         try {
             String userId = session.getCurrentUser().orElseThrow().getId();
             addToWishlist.add(userId, productId);
             inWishlist = true;
-            addMessage(FacesMessage.SEVERITY_INFO, "Wishlist", "Product added to your wishlist.");
+            addMessage(FacesMessage.SEVERITY_INFO, "Product added to your wishlist.", "");
             reloadItems();
         } catch (ProductNotAvailableException e) {
-            addMessage(FacesMessage.SEVERITY_ERROR, "Wishlist",
-                    "This product is no longer available.");
+            addMessage(FacesMessage.SEVERITY_ERROR, "This product is no longer available.", "");
         }
     }
 
@@ -132,13 +131,13 @@ public class WishlistBean implements Serializable {
             return;
         }
         if (productId == null || productId.isBlank()) {
-            addMessage(FacesMessage.SEVERITY_ERROR, "Wishlist", "No product selected.");
+            addMessage(FacesMessage.SEVERITY_ERROR, "No product selected.", "");
             return;
         }
         String userId = session.getCurrentUser().orElseThrow().getId();
         removeFromWishlist.remove(userId, productId);
         inWishlist = false;
-        addMessage(FacesMessage.SEVERITY_INFO, "Wishlist", "Product removed from your wishlist.");
+        addMessage(FacesMessage.SEVERITY_INFO, "Product removed from your wishlist.", "");
         reloadItems();
     }
 
@@ -159,7 +158,7 @@ public class WishlistBean implements Serializable {
         if (targetProductId.equals(productId)) {
             inWishlist = false;
         }
-        addMessage(FacesMessage.SEVERITY_INFO, "Wishlist", "Product removed from your wishlist.");
+        addMessage(FacesMessage.SEVERITY_INFO, "Product removed from your wishlist.", "");
         reloadItems();
     }
 
@@ -237,7 +236,7 @@ public class WishlistBean implements Serializable {
 
     private boolean requireLogin(String detail) {
         if (session.getCurrentUser().isEmpty()) {
-            addMessage(FacesMessage.SEVERITY_ERROR, "Login required", detail);
+            addMessage(FacesMessage.SEVERITY_ERROR, detail, "");
             return false;
         }
         return true;

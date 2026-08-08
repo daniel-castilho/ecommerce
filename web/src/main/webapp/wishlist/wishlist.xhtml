@@ -1,0 +1,66 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                template="/WEB-INF/templates/main.xhtml">
+
+    <ui:define name="title">My Wishlist</ui:define>
+
+    <ui:define name="content">
+        <h1 class="page-title">My Wishlist</h1>
+        <h:messages globalOnly="true" styleClass="messages" />
+
+        <ui:fragment rendered="#{not wishlistBean.loggedIn}">
+            <div class="card">
+                <p>You need to log in to view your wishlist.</p>
+                <p><h:link outcome="/user-account/login.xhtml" value="Log in" styleClass="button" /></p>
+            </div>
+        </ui:fragment>
+
+        <ui:fragment rendered="#{wishlistBean.loggedIn}">
+            <div class="card">
+                <ui:fragment rendered="#{wishlistBean.hasItems}">
+                    <ul class="wishlist-list">
+                        <ui:repeat value="#{wishlistBean.items}" var="item">
+                            <li class="wishlist-item">
+                                <h:graphicImage value="#{item.imageUrl}" alt="#{item.productName}"
+                                                styleClass="wishlist-item-image"
+                                                rendered="#{not empty item.imageUrl}" />
+                                <div class="wishlist-item-body">
+                                    <span class="wishlist-item-name">
+                                        <h:link outcome="/product-catalog/product-detail.xhtml"
+                                                value="#{item.productName}"
+                                                rendered="#{not empty item.productSlug}">
+                                            <f:param name="slug" value="#{item.productSlug}" />
+                                        </h:link>
+                                        <ui:fragment rendered="#{empty item.productSlug}">
+                                            #{item.productName}
+                                        </ui:fragment>
+                                    </span>
+                                    <ui:fragment rendered="#{not empty item.price}">
+                                        <span class="wishlist-item-price">$#{item.price}</span>
+                                    </ui:fragment>
+                                    <span class="wishlist-item-added">
+                                        Added #{wishlistBean.formatDate(item.createdAt)}
+                                    </span>
+                                </div>
+                                <h:form>
+                                    <h:commandButton value="Remove"
+                                                     action="#{wishlistBean.removeProduct(item.productId)}"
+                                                     styleClass="button button-secondary" />
+                                </h:form>
+                            </li>
+                        </ui:repeat>
+                    </ul>
+                </ui:fragment>
+                <ui:fragment rendered="#{not wishlistBean.hasItems}">
+                    <p>Your wishlist is empty.</p>
+                    <p><h:link outcome="/product-catalog/catalog.xhtml" value="Browse the catalog"
+                               styleClass="button" /></p>
+                </ui:fragment>
+            </div>
+        </ui:fragment>
+
+        <p><h:link outcome="/product-catalog/catalog.xhtml" value="Back to catalog" /></p>
+    </ui:define>
+</ui:composition>

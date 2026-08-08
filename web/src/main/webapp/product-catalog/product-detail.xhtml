@@ -103,6 +103,19 @@
                                 Out of stock
                             </span>
                         </ui:fragment>
+                        <h:form id="wishlistForm"
+                                rendered="#{wishlistBean.loggedIn and wishlistBean.productResolved}">
+                            <h:commandButton id="wishlistToggle"
+                                             value="#{wishlistBean.inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}"
+                                             action="#{wishlistBean.toggle}"
+                                             styleClass="button button-secondary" />
+                        </h:form>
+                        <ui:fragment rendered="#{not wishlistBean.loggedIn}">
+                            <h:link outcome="/user-account/login.xhtml" value="Log in to save"
+                                    styleClass="button button-secondary" />
+                        </ui:fragment>
+                        <h:link outcome="/wishlist/wishlist.xhtml" value="My Wishlist"
+                                styleClass="button button-secondary" />
                         <h:link outcome="/product-catalog/catalog.xhtml" value="Back to catalog"
                                 styleClass="button button-secondary" />
                     </div>
