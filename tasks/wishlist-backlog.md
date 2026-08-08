@@ -52,7 +52,7 @@ S10 (Optional) Catalog-card heart icon
 
 ## Definition of Done (epic)
 
-- [x] S1–S9 done
+- [x] S1–S10 done
 - [x] Smoke: login → add on detail → see on wishlist page → remove
 - [x] `mvn clean package -pl web -am` succeeds
 
@@ -60,7 +60,10 @@ S10 (Optional) Catalog-card heart icon
 
 ## Status
 
-**MVP (S1–S8) and S9 delivered.** Module lives in `wishlist/` (committed 2026-08-06, `f9e65d0`); public UI landed 2026-08-07 and passed browser smoke (guest login prompts, add toggle with FacesMessage, wishlist list with name/price/date, remove to empty state).
+**Wishlist epic S1–S10 delivered.** Module lives in `wishlist/` (committed 2026-08-06, `f9e65d0`); the
+public UI (S8) and the catalog-card heart icon (S10) landed 2026-08-07 and passed browser smoke
+(guest login prompts / login-link hearts, detail toggle with FacesMessage, wishlist list with
+name/price/date, remove to empty state, catalog ♥/♡ toggle across reloads).
 
 - **S1** — Domain model + 3 exceptions (`wishlist-item` module; 12 tests)
 - **S2** — Ports + DTOs (`WishlistItemDTO`, `ProductSnapshot`; `ProductLookupPort`)
@@ -71,7 +74,8 @@ S10 (Optional) Catalog-card heart icon
 - **S7** — List my wishlist (newest first)
 - **S8** — Public UI: toggle on `product-detail.xhtml` (guests see "Log in to save") + `wishlist/wishlist.xhtml`
 - **S9** — `WishlistHexagonalArchitectureTest` (8 rules); userId always from `SessionPort`
-- **S10** — Optional catalog-card heart icon: **pending** (not part of MVP)
+- **S10** — Catalog-card heart icon — **done** (2026-08-07): ♥/♡ toggle per card via
+  `WishlistBean.toggleFor(product.id)`; guests get a login link; browser-smoke verified
 
 *Planning backlog. Update status lines as stories ship; full historical wording can live in git history once implemented.*
 ```

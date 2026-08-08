@@ -62,8 +62,9 @@ https://localhost:9443/web/
 
 **Latest release: [v0.14.0](docs/releases/v0.14.0.md)** (2026-08-07)
 
-- Wishlist module complete (S1–S9): add/remove toggle on the product detail and a
-  `/web/wishlist/wishlist.xhtml` list page (login-guarded, per-item remove, empty state)
+- Wishlist module complete (S1–S10): add/remove toggle on the product detail, a
+  `/web/wishlist/wishlist.xhtml` list page (login-guarded, per-item remove, empty state),
+  and a ♥/♡ heart toggle on catalog cards
 - Order status timeline + payment snapshot on admin order detail
 - Blocked / suspended accounts cannot place orders
 - Product cost price with gross profit margin on the admin product list and product performance report

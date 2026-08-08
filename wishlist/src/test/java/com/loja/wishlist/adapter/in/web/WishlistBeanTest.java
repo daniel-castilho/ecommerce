@@ -245,6 +245,98 @@ class WishlistBeanTest {
         }
     }
 
+    // ------------------------------------------------------- toggleFor (S10)
+
+    @Test
+    void loadList_loggedIn_tracksWishlistedProductIds() {
+        when(session.getCurrentUser()).thenReturn(Optional.of(currentUser));
+        when(listMyWishlist.list(USER_ID)).thenReturn(List.of(itemDto("w-1")));
+
+        bean.loadList();
+
+        assertThat(bean.inWishlistFor(PRODUCT_ID)).isTrue();
+        assertThat(bean.inWishlistFor("other-product")).isFalse();
+    }
+
+    @Test
+    void loadList_guest_hasEmptyWishlistSet() {
+        when(session.getCurrentUser()).thenReturn(Optional.empty());
+
+        bean.loadList();
+
+        assertThat(bean.inWishlistFor(PRODUCT_ID)).isFalse();
+    }
+
+    @Test
+    void toggleFor_notInWishlist_delegatesAddAndTracks() {
+        when(session.getCurrentUser()).thenReturn(Optional.of(currentUser));
+        when(listMyWishlist.list(USER_ID)).thenReturn(List.of());
+        bean.loadList();
+
+        try (MockedStatic<FacesContext> faces = mockStatic(FacesContext.class)) {
+            faces.when(FacesContext::getCurrentInstance).thenReturn(mock(FacesContext.class));
+            when(listMyWishlist.list(USER_ID)).thenReturn(List.of(itemDto("w-1")));
+
+            bean.toggleFor(PRODUCT_ID);
+
+            verify(addToWishlist).add(USER_ID, PRODUCT_ID);
+            verify(removeFromWishlist, never()).remove(anyString(), anyString());
+            assertThat(bean.inWishlistFor(PRODUCT_ID)).isTrue();
+        }
+    }
+
+    @Test
+    void toggleFor_inWishlist_delegatesRemoveAndClears() {
+        when(session.getCurrentUser()).thenReturn(Optional.of(currentUser));
+        when(listMyWishlist.list(USER_ID)).thenReturn(List.of(itemDto("w-1")));
+        bean.loadList();
+        assertThat(bean.inWishlistFor(PRODUCT_ID)).isTrue();
+
+        try (MockedStatic<FacesContext> faces = mockStatic(FacesContext.class)) {
+            faces.when(FacesContext::getCurrentInstance).thenReturn(mock(FacesContext.class));
+            when(listMyWishlist.list(USER_ID)).thenReturn(List.of());
+
+            bean.toggleFor(PRODUCT_ID);
+
+            verify(removeFromWishlist).remove(USER_ID, PRODUCT_ID);
+            verify(addToWishlist, never()).add(anyString(), anyString());
+            assertThat(bean.inWishlistFor(PRODUCT_ID)).isFalse();
+        }
+    }
+
+    @Test
+    void toggleFor_notLoggedIn_doesNotDelegate() {
+        when(session.getCurrentUser()).thenReturn(Optional.empty());
+
+        try (MockedStatic<FacesContext> faces = mockStatic(FacesContext.class)) {
+            faces.when(FacesContext::getCurrentInstance).thenReturn(mock(FacesContext.class));
+
+            bean.toggleFor(PRODUCT_ID);
+
+            verify(addToWishlist, never()).add(anyString(), anyString());
+            verify(removeFromWishlist, never()).remove(anyString(), anyString());
+        }
+    }
+
+    @Test
+    void toggleFor_productNotAvailable_swallowsAndStaysOut() {
+        when(session.getCurrentUser()).thenReturn(Optional.of(currentUser));
+        when(listMyWishlist.list(USER_ID)).thenReturn(List.of());
+        bean.loadList();
+        when(addToWishlist.add(USER_ID, PRODUCT_ID))
+                .thenThrow(new ProductNotAvailableException(PRODUCT_ID));
+
+        try (MockedStatic<FacesContext> faces = mockStatic(FacesContext.class)) {
+            FacesContext context = mock(FacesContext.class);
+            faces.when(FacesContext::getCurrentInstance).thenReturn(context);
+
+            bean.toggleFor(PRODUCT_ID);
+
+            assertThat(bean.inWishlistFor(PRODUCT_ID)).isFalse();
+            verify(context).addMessage(eq(null), any());
+        }
+    }
+
     // -------------------------------------------------------------- formatting
 
     @Test

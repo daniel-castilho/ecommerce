@@ -7,6 +7,8 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.loja.productcatalog.domain.model.Product;
 import com.loja.productcatalog.domain.model.Slug;
@@ -80,6 +82,7 @@ public class WishlistBean implements Serializable {
     private String productId;
 
     private List<WishlistItemDTO> items;
+    private Set<String> wishlistedProductIds = Set.of();
     private boolean inWishlist;
 
     @PostConstruct
@@ -170,6 +173,39 @@ public class WishlistBean implements Serializable {
         }
     }
 
+    /**
+     * Catalog-card heart toggle for a specific product (wishlist S10).
+     *
+     * @param targetProductId product id from the card action
+     */
+    public void toggleFor(String targetProductId) {
+        if (!requireLogin("You must be logged in to add products to your wishlist.")) {
+            return;
+        }
+        if (targetProductId == null || targetProductId.isBlank()) {
+            return;
+        }
+        String userId = session.getCurrentUser().orElseThrow().getId();
+        if (wishlistedProductIds.contains(targetProductId)) {
+            removeFromWishlist.remove(userId, targetProductId);
+            addMessage(FacesMessage.SEVERITY_INFO, "Product removed from your wishlist.", "");
+        } else {
+            try {
+                addToWishlist.add(userId, targetProductId);
+                addMessage(FacesMessage.SEVERITY_INFO, "Product added to your wishlist.", "");
+            } catch (ProductNotAvailableException e) {
+                addMessage(FacesMessage.SEVERITY_ERROR, "This product is no longer available.", "");
+                return;
+            }
+        }
+        reload();
+    }
+
+    /** True when the given product id is already on the current user's wishlist. */
+    public boolean inWishlistFor(String targetProductId) {
+        return wishlistedProductIds.contains(targetProductId);
+    }
+
     public boolean isLoggedIn() {
         return session.getCurrentUser().isPresent();
     }
@@ -220,9 +256,14 @@ public class WishlistBean implements Serializable {
     private void reloadItems() {
         if (session.getCurrentUser().isEmpty()) {
             items = List.of();
+            wishlistedProductIds = Set.of();
             return;
         }
-        items = listMyWishlist.list(session.getCurrentUser().get().getId());
+        List<WishlistItemDTO> loaded = listMyWishlist.list(session.getCurrentUser().get().getId());
+        items = loaded;
+        wishlistedProductIds = loaded.stream()
+                .map(WishlistItemDTO::productId)
+                .collect(Collectors.toSet());
     }
 
     private void refreshInWishlistFlag() {

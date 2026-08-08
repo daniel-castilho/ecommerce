@@ -735,10 +735,10 @@ a:hover {
   text-overflow: ellipsis;
 }
 
-/* --- Wishlist page (wishlist/wishlist.xhtml) ---
-   Single occurrence so far — inline styles consuming existing tokens only.
-   No new primitive/semantic/component token was added (design-system.md
-   sections 4 and 5). Revisit when a second saved-items surface exists. */
+/* --- Wishlist surfaces (wishlist/wishlist.xhtml + catalog card hearts) ---
+   Two surfaces exist now (list + card hearts); all styles consume existing
+   tokens only. No new primitive/semantic/component token was added
+   (design-system.md sections 4 and 5). */
 
 .wishlist-list {
   list-style: none;
@@ -790,6 +790,36 @@ a:hover {
 .wishlist-item-added {
   font-size: var(--font-size-caption);
   color: var(--color-text-muted);
+}
+
+.product-card-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.wishlist-heart {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--font-size-h4);
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.wishlist-heart:hover {
+  color: var(--color-text-secondary);
+}
+
+.wishlist-heart.active {
+  color: var(--color-feedback-error);
+}
+
+.wishlist-heart.active:hover {
+  color: var(--color-feedback-error);
 }
 
 /* --- Pagination --- */

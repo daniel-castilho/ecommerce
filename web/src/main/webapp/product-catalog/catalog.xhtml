@@ -53,12 +53,30 @@
                                         rendered="#{not empty productCatalogBean.primaryImageUrl(product)}"
                                         styleClass="product-card-image" />
                         <div class="product-card-body">
-                            <span class="product-card-name">
-                                <h:link outcome="/product-catalog/product-detail.xhtml"
-                                        value="#{product.name}">
-                                    <f:param name="slug" value="#{product.slugValue}" />
-                                </h:link>
-                            </span>
+                            <div class="product-card-title-row">
+                                <span class="product-card-name">
+                                    <h:link outcome="/product-catalog/product-detail.xhtml"
+                                            value="#{product.name}">
+                                        <f:param name="slug" value="#{product.slugValue}" />
+                                    </h:link>
+                                </span>
+                                <h:form>
+                                    <h:commandButton value="&#9829;"
+                                                     title="Remove from wishlist"
+                                                     styleClass="wishlist-heart active"
+                                                     rendered="#{wishlistBean.loggedIn and wishlistBean.inWishlistFor(product.id)}"
+                                                     action="#{wishlistBean.toggleFor(product.id)}" />
+                                    <h:commandButton value="&#9825;"
+                                                     title="Add to wishlist"
+                                                     styleClass="wishlist-heart"
+                                                     rendered="#{wishlistBean.loggedIn and not wishlistBean.inWishlistFor(product.id)}"
+                                                     action="#{wishlistBean.toggleFor(product.id)}" />
+                                    <h:link outcome="/user-account/login.xhtml"
+                                            title="Log in to save"
+                                            styleClass="wishlist-heart"
+                                            rendered="#{not wishlistBean.loggedIn}">&#9825;</h:link>
+                                </h:form>
+                            </div>
                             <span class="product-card-sku">#{product.skuValue}</span>
                             <span class="product-card-price">$#{product.price.amount}</span>
                             <span class="product-card-desc">#{product.shortDescription}</span>
