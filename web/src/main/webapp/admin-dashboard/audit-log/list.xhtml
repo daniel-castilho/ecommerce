@@ -21,6 +21,47 @@
             <h1 class="page-title">Audit Logs</h1>
 
             <div class="card">
+                <h:form id="filtersForm">
+                    <div class="form-grid">
+                        <my:formFieldGroup label="Actor ID" forId="actorFilterId">
+                            <h:inputText id="actorFilterId" value="#{auditLogBean.actorFilter}"
+                                         placeholder="e.g. admin@loja.com" />
+                        </my:formFieldGroup>
+
+                        <my:formFieldGroup label="Event Type" forId="eventTypeId">
+                            <h:selectOneMenu id="eventTypeId" value="#{auditLogBean.eventTypeFilter}">
+                                <f:selectItem itemValue="#{null}" itemLabel="All event types" />
+                                <f:selectItems value="#{auditLogBean.eventTypes}" />
+                            </h:selectOneMenu>
+                        </my:formFieldGroup>
+
+                        <my:formFieldGroup label="Details contains" forId="detailsFilterId">
+                            <h:inputText id="detailsFilterId" value="#{auditLogBean.detailsFilter}" />
+                        </my:formFieldGroup>
+
+                        <my:formFieldGroup label="From date" forId="fromDateId">
+                            <h:inputText id="fromDateId" value="#{auditLogBean.fromDate}">
+                                <f:convertDateTime type="localDate" pattern="yyyy-MM-dd" />
+                            </h:inputText>
+                        </my:formFieldGroup>
+
+                        <my:formFieldGroup label="To date" forId="toDateId">
+                            <h:inputText id="toDateId" value="#{auditLogBean.toDate}">
+                                <f:convertDateTime type="localDate" pattern="yyyy-MM-dd" />
+                            </h:inputText>
+                        </my:formFieldGroup>
+
+                        <div class="form-actions">
+                            <h:commandButton value="Search" action="#{auditLogBean.search}"
+                                             styleClass="button button-primary" />
+                            <h:commandButton value="Reset" action="#{auditLogBean.resetFilters}"
+                                             styleClass="button button-secondary" />
+                        </div>
+                    </div>
+                </h:form>
+            </div>
+
+            <div class="card">
                 <h:dataTable value="#{auditLogBean.logs}" var="log"
                              styleClass="data-table" rendered="#{not empty auditLogBean.logs}">
                     <h:column>
@@ -41,8 +82,8 @@
                     </h:column>
                     <h:column>
                         <f:facet name="header">Date</f:facet>
-                        <h:outputText value="#{log.createdAt}">
-                            <f:convertDateTime type="both" timeZone="UTC" />
+                        <h:outputText value="#{auditLogBean.logDate(log)}">
+                            <f:convertDateTime type="localDateTime" pattern="yyyy-MM-dd HH:mm:ss" timeZone="UTC" />
                         </h:outputText>
                     </h:column>
                     <h:column>
@@ -51,7 +92,8 @@
                     </h:column>
                     <h:column>
                         <f:facet name="header">Details</f:facet>
-                        #{log.details}
+                        <h:outputText value="#{auditLogBean.displayDetails(log)}"
+                                      title="#{auditLogBean.isTruncated(log) ? auditLogBean.fullDetails(log) : ''}" />
                     </h:column>
                 </h:dataTable>
                 <ui:fragment rendered="#{empty auditLogBean.logs}">

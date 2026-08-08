@@ -21,6 +21,8 @@ public final class OrderDetailsDTO {
     private final Money shippingCost;
     private final Money total;
     private final String trackingNumber;
+    private final List<OrderTimelineEntryDTO> timeline;
+    private final List<PaymentTransactionDTO> payments;
 
     public OrderDetailsDTO(
             String id,
@@ -32,6 +34,22 @@ public final class OrderDetailsDTO {
             Money shippingCost,
             Money total,
             String trackingNumber) {
+        this(id, status, customerEmail, createdAt, shippingAddress, items, shippingCost, total,
+                trackingNumber, List.of(), List.of());
+    }
+
+    public OrderDetailsDTO(
+            String id,
+            OrderStatus status,
+            String customerEmail,
+            Instant createdAt,
+            ShippingAddressDTO shippingAddress,
+            List<OrderItemDTO> items,
+            Money shippingCost,
+            Money total,
+            String trackingNumber,
+            List<OrderTimelineEntryDTO> timeline,
+            List<PaymentTransactionDTO> payments) {
         this.id = id;
         this.status = status;
         this.customerEmail = customerEmail;
@@ -41,6 +59,8 @@ public final class OrderDetailsDTO {
         this.shippingCost = shippingCost;
         this.total = total;
         this.trackingNumber = trackingNumber;
+        this.timeline = timeline;
+        this.payments = payments;
     }
 
     public String getId() {
@@ -79,6 +99,14 @@ public final class OrderDetailsDTO {
         return trackingNumber;
     }
 
+    public List<OrderTimelineEntryDTO> getTimeline() {
+        return timeline;
+    }
+
+    public List<PaymentTransactionDTO> getPayments() {
+        return payments;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -92,11 +120,13 @@ public final class OrderDetailsDTO {
                 && Objects.equals(items, that.items)
                 && Objects.equals(shippingCost, that.shippingCost)
                 && Objects.equals(total, that.total)
-                && Objects.equals(trackingNumber, that.trackingNumber);
+                && Objects.equals(trackingNumber, that.trackingNumber)
+                && Objects.equals(timeline, that.timeline)
+                && Objects.equals(payments, that.payments);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, status, customerEmail, createdAt, shippingAddress, items, shippingCost, total, trackingNumber);
+        return Objects.hash(id, status, customerEmail, createdAt, shippingAddress, items, shippingCost, total, trackingNumber, timeline, payments);
     }
 }

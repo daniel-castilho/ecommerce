@@ -186,7 +186,7 @@ class ProductApplicationServiceTest {
         Product product = product();
         when(productRepository.findById("p1")).thenReturn(Optional.of(product));
         UpdateProductCommand command = new UpdateProductCommand("Smartphone", null, null,
-                null, 7, null, null, null, Set.of(2L, 3L));
+                null, null, 7, null, null, null, Set.of(2L, 3L));
 
         Product saved = service.update("p1", command);
 
@@ -589,7 +589,7 @@ class ProductApplicationServiceTest {
     private static CreateProductCommand createCommand(String sku, String slug, String name,
                                                       String description) {
         return new CreateProductCommand(sku, name, slug, "Short", description,
-                money("1000.00"), null, 5, null, null, null, Set.of(1L));
+                money("1000.00"), null, null, 5, null, null, null, Set.of(1L));
     }
 
     private static UpdateProductCommand updateCommand(String name) {
@@ -602,7 +602,7 @@ class ProductApplicationServiceTest {
 
     private static UpdateProductCommand updateCommand(String name, String slug, String description) {
         return new UpdateProductCommand(name, slug, "Short", description,
-                5, null, null, null, Set.of(1L));
+                null, 5, null, null, null, Set.of(1L));
     }
 
     private static UploadProductImageCommand uploadCommand(String contentType, boolean primary) {

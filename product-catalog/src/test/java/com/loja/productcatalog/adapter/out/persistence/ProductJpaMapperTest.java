@@ -31,6 +31,7 @@ class ProductJpaMapperTest {
         assertThat(restored.getDescription()).isEqualTo("<p>Uma camiseta confortável</p>");
         assertThat(restored.getPrice()).isEqualTo(new Money(new BigDecimal("49.90")));
         assertThat(restored.getCompareAtPrice()).isEqualTo(new Money(new BigDecimal("69.90")));
+        assertThat(restored.getCostPrice()).isEqualTo(new Money(new BigDecimal("35.50")));
         assertThat(restored.getStock()).isEqualTo(10);
         assertThat(restored.getStatus()).isEqualTo(ProductStatus.ACTIVE);
         assertThat(restored.getWeightGrams()).isEqualTo(180);
@@ -71,6 +72,7 @@ class ProductJpaMapperTest {
         assertThat(restored.getShortDescription()).isNull();
         assertThat(restored.getDescription()).isNull();
         assertThat(restored.getCompareAtPrice()).isNull();
+        assertThat(restored.getCostPrice()).isNull();
         assertThat(restored.getWeightGrams()).isNull();
         assertThat(restored.getMetaTitle()).isNull();
         assertThat(restored.getMetaDescription()).isNull();
@@ -107,6 +109,7 @@ class ProductJpaMapperTest {
                 "<p>Uma camiseta confortável</p>",
                 new Money(new BigDecimal("49.90")),
                 new Money(new BigDecimal("69.90")),
+                new Money(new BigDecimal("35.50")),
                 10,
                 ProductStatus.ACTIVE,
                 180,

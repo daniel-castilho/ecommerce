@@ -21,7 +21,7 @@
             <div class="card">
                 <h3>
                     Order <strong>#{orderHistoryBean.selectedOrder.id}</strong>
-                    &mdash; <my:statusBadge status="#{orderHistoryBean.selectedOrder.status}" />
+                    — <my:statusBadge status="#{orderHistoryBean.selectedOrder.status}" />
                 </h3>
                 <p>Placed on #{orderHistoryBean.formatDate(orderHistoryBean.selectedOrder.createdAt)}</p>
                 <p>Email: <strong>#{orderHistoryBean.selectedOrder.customerEmail}</strong></p>
@@ -103,7 +103,7 @@
 
         <p>
             <h:link outcome="/order-checkout/order-history.xhtml" value="Back to my orders" />
-            &nbsp;|&nbsp;
+             | 
             <h:link outcome="/product-catalog/catalog.xhtml" value="Back to catalog" />
         </p>
     </ui:define>

@@ -51,6 +51,9 @@ public class ProductJpaEntity extends AuditableJpaEntity {
     @Column(name = "compare_at_price", precision = 19, scale = 2)
     private BigDecimal compareAtPrice;
 
+    @Column(name = "cost_price", precision = 19, scale = 2)
+    private BigDecimal costPrice;
+
     @Column(name = "stock", nullable = false)
     private int stock;
 
@@ -101,6 +104,9 @@ public class ProductJpaEntity extends AuditableJpaEntity {
 
     public BigDecimal getCompareAtPrice() { return compareAtPrice; }
     public void setCompareAtPrice(BigDecimal compareAtPrice) { this.compareAtPrice = compareAtPrice; }
+
+    public BigDecimal getCostPrice() { return costPrice; }
+    public void setCostPrice(BigDecimal costPrice) { this.costPrice = costPrice; }
 
     public int getStock() { return stock; }
     public void setStock(int stock) { this.stock = stock; }

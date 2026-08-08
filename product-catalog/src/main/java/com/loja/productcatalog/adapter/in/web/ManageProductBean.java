@@ -123,6 +123,9 @@ public class ManageProductBean implements Serializable {
     @DecimalMin(value = "0.01", message = "Compare-at price must be greater than zero")
     private BigDecimal compareAtPrice;
 
+    @DecimalMin(value = "0.00", message = "Cost price cannot be negative")
+    private BigDecimal costPrice;
+
     @Min(value = 0, message = "Stock cannot be negative")
     private int stock;
 
@@ -321,11 +324,13 @@ public class ManageProductBean implements Serializable {
     private CreateProductCommand buildCreateCommand() {
         return new CreateProductCommand(sku, name, slug, shortDescription, description,
                 new Money(price), compareAtPrice != null ? new Money(compareAtPrice) : null,
+                costPrice != null ? new Money(costPrice) : null,
                 stock, weightGrams, metaTitle, metaDescription, selectedCategoryIds);
     }
 
     private UpdateProductCommand buildUpdateCommand() {
         return new UpdateProductCommand(name, slug, shortDescription, description,
+                costPrice != null ? new Money(costPrice) : null,
                 stock, weightGrams, metaTitle, metaDescription, selectedCategoryIds);
     }
 
@@ -355,6 +360,8 @@ public class ManageProductBean implements Serializable {
         price = currentProduct.getPrice().getAmount();
         compareAtPrice = currentProduct.getCompareAtPrice() != null
                 ? currentProduct.getCompareAtPrice().getAmount() : null;
+        costPrice = currentProduct.getCostPrice() != null
+                ? currentProduct.getCostPrice().getAmount() : null;
         stock = currentProduct.getStock();
         weightGrams = currentProduct.getWeightGrams();
         metaTitle = currentProduct.getMetaTitle();
@@ -375,6 +382,7 @@ public class ManageProductBean implements Serializable {
         description = null;
         price = null;
         compareAtPrice = null;
+        costPrice = null;
         stock = 0;
         weightGrams = null;
         metaTitle = null;
@@ -416,6 +424,9 @@ public class ManageProductBean implements Serializable {
     public void setPrice(BigDecimal price) { this.price = price; }
     public BigDecimal getCompareAtPrice() { return compareAtPrice; }
     public void setCompareAtPrice(BigDecimal compareAtPrice) { this.compareAtPrice = compareAtPrice; }
+
+    public BigDecimal getCostPrice() { return costPrice; }
+    public void setCostPrice(BigDecimal costPrice) { this.costPrice = costPrice; }
     public int getStock() { return stock; }
     public void setStock(int stock) { this.stock = stock; }
     public Integer getWeightGrams() { return weightGrams; }

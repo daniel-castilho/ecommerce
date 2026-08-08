@@ -187,6 +187,8 @@ class ProductPerformanceReportBeanTest {
         assertThat(bean.formatMoney(new Money(new BigDecimal("1234.50"))).replace('\u00A0', ' '))
                 .isEqualTo("R$ 1.234,50");
         assertThat(bean.formatUnits(1234)).isEqualTo("1,234");
+        assertThat(bean.formatMargin(new BigDecimal("40.00"))).isEqualTo("40%");
+        assertThat(bean.formatMargin(null)).isEqualTo("—");
 
         assertThat(bean.getUnitsByCategoryChartBars())
                 .extracting(ChartBar::label)
@@ -309,14 +311,17 @@ class ProductPerformanceReportBeanTest {
     private static ProductPerformanceReport report() {
         return new ProductPerformanceReport(
                 List.of(
-                        new ProductPerformanceRow("SKU-1", "Alpha", 8L, new Money(new BigDecimal("80.00"))),
-                        new ProductPerformanceRow("SKU-2", "Beta", 4L, new Money(new BigDecimal("120.00")))),
+                        new ProductPerformanceRow("SKU-1", "Alpha", 8L, new Money(new BigDecimal("80.00")),
+                                new BigDecimal("40.00")),
+                        new ProductPerformanceRow("SKU-2", "Beta", 4L, new Money(new BigDecimal("120.00")), null)),
                 List.of(
-                        new ProductPerformanceRow("SKU-2", "Beta", 4L, new Money(new BigDecimal("120.00"))),
-                        new ProductPerformanceRow("SKU-1", "Alpha", 8L, new Money(new BigDecimal("80.00")))),
+                        new ProductPerformanceRow("SKU-2", "Beta", 4L, new Money(new BigDecimal("120.00")), null),
+                        new ProductPerformanceRow("SKU-1", "Alpha", 8L, new Money(new BigDecimal("80.00")),
+                                new BigDecimal("40.00"))),
                 List.of(
-                        new ProductPerformanceRow("SKU-2", "Beta", 4L, new Money(new BigDecimal("120.00"))),
-                        new ProductPerformanceRow("SKU-1", "Alpha", 8L, new Money(new BigDecimal("80.00")))),
+                        new ProductPerformanceRow("SKU-2", "Beta", 4L, new Money(new BigDecimal("120.00")), null),
+                        new ProductPerformanceRow("SKU-1", "Alpha", 8L, new Money(new BigDecimal("80.00")),
+                                new BigDecimal("40.00"))),
                 List.of(
                         new CategoryUnits("Electronics", 8L),
                         new CategoryUnits("Home", 4L)));

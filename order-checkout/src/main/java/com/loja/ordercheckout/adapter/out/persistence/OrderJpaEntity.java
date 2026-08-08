@@ -3,6 +3,7 @@ package com.loja.ordercheckout.adapter.out.persistence;
 import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.OrderLine;
 import com.loja.ordercheckout.domain.model.OrderStatus;
+import com.loja.ordercheckout.domain.model.OrderTimelineEntry;
 import com.loja.ordercheckout.domain.model.PaymentInfo;
 import com.loja.ordercheckout.domain.model.ShippingAddress;
 import com.loja.shared.domain.Money;
@@ -76,6 +77,11 @@ public class OrderJpaEntity {
     @OrderBy("position")
     private List<OrderLineEmbeddable> items = new ArrayList<>();
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "order_status_history", joinColumns = @JoinColumn(name = "order_id"))
+    @OrderBy("occurredAt")
+    private List<OrderStatusHistoryEmbeddable> timeline = new ArrayList<>();
+
     protected OrderJpaEntity() { }
 
     public static OrderJpaEntity fromDomain(Order order) {
@@ -94,6 +100,9 @@ public class OrderJpaEntity {
         e.items = new ArrayList<>(order.getItems().stream()
                 .map(OrderLineEmbeddable::fromDomain)
                 .toList());
+        e.timeline = new ArrayList<>(order.getTimeline().stream()
+                .map(OrderStatusHistoryEmbeddable::fromDomain)
+                .toList());
         return e;
     }
 
@@ -104,7 +113,8 @@ public class OrderJpaEntity {
                 shippingCost == null ? null : new Money(shippingCost),
                 trackingNumber,
                 paymentInfo == null ? null : paymentInfo.toDomain(),
-                updatedAt, version);
+                updatedAt, version,
+                timeline.stream().map(OrderStatusHistoryEmbeddable::toDomain).toList());
     }
 
     public String getId() { return id; }
@@ -113,6 +123,7 @@ public class OrderJpaEntity {
     public Instant getCreatedAt() { return createdAt; }
     public long getVersion() { return version; }
     public List<OrderLineEmbeddable> getItems() { return items; }
+    public List<OrderStatusHistoryEmbeddable> getTimeline() { return timeline; }
 
     @Embeddable
     public static class OrderLineEmbeddable {
@@ -153,6 +164,38 @@ public class OrderJpaEntity {
         public int getQuantity() { return quantity; }
         public BigDecimal getUnitPrice() { return unitPrice; }
         public int getPosition() { return position; }
+    }
+
+    @Embeddable
+    public static class OrderStatusHistoryEmbeddable {
+
+        @Enumerated(EnumType.STRING)
+        @Column(nullable = false, length = 20)
+        private OrderStatus status;
+
+        @Column(name = "occurred_at", nullable = false)
+        private Instant occurredAt;
+
+        @Column(nullable = false, length = 120)
+        private String label;
+
+        protected OrderStatusHistoryEmbeddable() { }
+
+        public static OrderStatusHistoryEmbeddable fromDomain(OrderTimelineEntry entry) {
+            OrderStatusHistoryEmbeddable e = new OrderStatusHistoryEmbeddable();
+            e.status = entry.status();
+            e.occurredAt = entry.occurredAt();
+            e.label = entry.label();
+            return e;
+        }
+
+        public OrderTimelineEntry toDomain() {
+            return new OrderTimelineEntry(status, occurredAt, label);
+        }
+
+        public OrderStatus getStatus() { return status; }
+        public Instant getOccurredAt() { return occurredAt; }
+        public String getLabel() { return label; }
     }
 
     @Embeddable

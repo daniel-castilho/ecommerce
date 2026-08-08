@@ -1,5 +1,7 @@
 package com.loja.productcatalog.domain.model;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -29,6 +31,7 @@ public class Product {
     private String description;
     private final Money price;
     private final Money compareAtPrice;
+    private Money costPrice;
     private int stock;
     private ProductStatus status;
     private Integer weightGrams;
@@ -39,6 +42,14 @@ public class Product {
 
     public Product(String id, Sku sku, Slug slug, String name, String shortDescription, String description,
                    Money price, Money compareAtPrice, int stock, ProductStatus status,
+                   Integer weightGrams, String metaTitle, String metaDescription,
+                   Set<Long> categoryIds, List<ProductImage> images) {
+        this(id, sku, slug, name, shortDescription, description, price, compareAtPrice, null,
+                stock, status, weightGrams, metaTitle, metaDescription, categoryIds, images);
+    }
+
+    public Product(String id, Sku sku, Slug slug, String name, String shortDescription, String description,
+                   Money price, Money compareAtPrice, Money costPrice, int stock, ProductStatus status,
                    Integer weightGrams, String metaTitle, String metaDescription,
                    Set<Long> categoryIds, List<ProductImage> images) {
         if (sku == null) {
@@ -62,6 +73,9 @@ public class Product {
         if (compareAtPrice != null && compareAtPrice.getAmount().compareTo(price.getAmount()) <= 0) {
             throw new IllegalArgumentException("Compare-at price must be greater than the price");
         }
+        if (costPrice != null && costPrice.getAmount().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Cost price cannot be negative");
+        }
         if (stock < 0) {
             throw new IllegalArgumentException("Stock cannot be negative");
         }
@@ -73,6 +87,7 @@ public class Product {
         this.description = description;
         this.price = price;
         this.compareAtPrice = compareAtPrice;
+        this.costPrice = costPrice;
         this.stock = stock;
         this.status = status != null ? status : ProductStatus.DRAFT;
         this.weightGrams = weightGrams;
@@ -146,6 +161,32 @@ public class Product {
     public String getDescription() { return description; }
     public Money getPrice() { return price; }
     public Money getCompareAtPrice() { return compareAtPrice; }
+    public Money getCostPrice() { return costPrice; }
+
+    public void setCostPrice(Money costPrice) {
+        if (costPrice != null && costPrice.getAmount().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Cost price cannot be negative");
+        }
+        this.costPrice = costPrice;
+    }
+
+    /**
+     * Gross profit margin over the given revenue, as a percentage rounded to two
+     * decimals: {@code (revenue - costPrice * unitsSold) / revenue * 100}. Returns
+     * {@code null} when no cost price is recorded, no units were sold or revenue
+     * is zero/absent — a margin cannot be derived from that data.
+     */
+    public BigDecimal profitMargin(Money revenue, long unitsSold) {
+        if (costPrice == null || revenue == null || unitsSold <= 0L
+                || revenue.getAmount().signum() == 0) {
+            return null;
+        }
+        BigDecimal totalCost = costPrice.getAmount().multiply(BigDecimal.valueOf(unitsSold));
+        return revenue.getAmount().subtract(totalCost)
+                .divide(revenue.getAmount(), 6, RoundingMode.HALF_EVEN)
+                .multiply(BigDecimal.valueOf(100))
+                .setScale(2, RoundingMode.HALF_EVEN);
+    }
     public int getStock() { return stock; }
     public ProductStatus getStatus() { return status; }
     public Integer getWeightGrams() { return weightGrams; }

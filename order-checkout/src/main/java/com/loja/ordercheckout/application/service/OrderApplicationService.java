@@ -2,6 +2,7 @@ package com.loja.ordercheckout.application.service;
 
 import com.loja.ordercheckout.application.dto.CheckoutCommand;
 import com.loja.ordercheckout.application.dto.ItemCheckoutRequest;
+import com.loja.ordercheckout.domain.exception.AccountSuspendedException;
 import com.loja.ordercheckout.domain.exception.PaymentFailedException;
 import com.loja.ordercheckout.domain.exception.ShippingException;
 import com.loja.ordercheckout.domain.model.Order;
@@ -18,6 +19,8 @@ import com.loja.productcatalog.application.dto.ReservationRequest;
 import com.loja.productcatalog.domain.model.Product;
 import com.loja.productcatalog.domain.port.out.InventoryReservationPort;
 import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
+import com.loja.useraccount.domain.model.User;
+import com.loja.useraccount.domain.port.out.UserRepositoryPort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -39,6 +42,7 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
     private final ShippingRatePort shippingRate;
     private final NotificationPort notification;
     private final InventoryReservationPort inventoryReservation;
+    private final UserRepositoryPort userRepository;
 
     @Inject
     public OrderApplicationService(OrderRepositoryPort orderRepository,
@@ -46,13 +50,15 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
                                    PaymentGatewayPort paymentGateway,
                                    ShippingRatePort shippingRate,
                                    NotificationPort notification,
-                                   InventoryReservationPort inventoryReservation) {
+                                   InventoryReservationPort inventoryReservation,
+                                   UserRepositoryPort userRepository) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.paymentGateway = paymentGateway;
         this.shippingRate = shippingRate;
         this.notification = notification;
         this.inventoryReservation = inventoryReservation;
+        this.userRepository = userRepository;
     }
 
     @Transactional
@@ -62,6 +68,13 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
         Optional<Order> existing = orderRepository.findById(orderId);
         if (existing.isPresent()) {
             return existing.get();
+        }
+
+        User customer = userRepository.findById(command.userId())
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + command.userId()));
+        if (!customer.isActive()) {
+            throw new AccountSuspendedException(
+                    "Your account has been blocked. Contact support to restore access.");
         }
 
         Order order = new Order(orderId, command.userId(), command.customerEmail());

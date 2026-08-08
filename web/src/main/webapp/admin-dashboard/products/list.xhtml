@@ -118,6 +118,21 @@
             #{product.price.amount}
           </h:column>
           <h:column>
+            <f:facet name="header">Cost Price</f:facet>
+            <h:outputText
+              value="#{productManagementBean.costPriceOf(product)}"
+              rendered="#{productManagementBean.costPriceOf(product) ne null}"
+            />
+            <h:outputText
+              value="—"
+              rendered="#{productManagementBean.costPriceOf(product) eq null}"
+            />
+          </h:column>
+          <h:column>
+            <f:facet name="header">Profit Margin (%)</f:facet>
+            #{productManagementBean.formatMargin(productManagementBean.profitMargin(product))}
+          </h:column>
+          <h:column>
             <f:facet name="header">Stock</f:facet>
             #{product.stock}
           </h:column>

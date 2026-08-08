@@ -1,142 +1,176 @@
 # Coding Standards — Java / Jakarta EE / JSF
 
-*A practical reference for solo development. The goal: consistency across time, not ceremony. Revisit and edit this as your preferences evolve — it's a living document.*
+Practical reference for solo and AI-assisted development. Goal: **consistency over time**, not ceremony. Living document — edit as the project evolves.
 
-**Relationship to `AGENTS.md`:** `AGENTS.md` is authoritative for this project's conventions (hexagonal structure, ports in `domain/port`, framework-free `domain`, release flow, commands). This file adds practical detail that doesn't fit in the top-level agent brief. Where the two conflict, `AGENTS.md` wins.
+**Relationship to other docs:**
+
+| Doc | Wins when |
+|-----|-----------|
+| `AGENTS.md` | Project conventions, release flow, hard agent rules |
+| **This file** | Day-to-day coding detail that does not fit in AGENTS |
+| `docs/lessons.md` | Durable rules learned the hard way |
+
+Where this file conflicts with `AGENTS.md`, **`AGENTS.md` wins**.
 
 ---
 
-## 1. Naming Conventions
+## 1. Naming
 
 | Element | Convention | Example |
-|---|---|---|
-| Packages | all lowercase, reverse domain, `com.loja.<module>.<layer>` | `com.loja.useraccount.domain.model` |
-| Classes / Interfaces | UpperCamelCase | `ProductApplicationService`, `PasswordHasherPort` |
-| Managed Beans (CDI) | UpperCamelCase class, `@Named` value lowerCamelCase | `@Named("manageProductBean")` |
-| Methods / Variables | lowerCamelCase | `calculateTotal()`, `unitPrice` |
+|---------|------------|---------|
+| Packages | lowercase, `com.loja.<module>.<layer>` | `com.loja.useraccount.domain.model` |
+| Classes / interfaces | UpperCamelCase | `ProductApplicationService`, `PasswordHasherPort` |
+| CDI beans | Class UpperCamelCase; `@Named` lowerCamelCase | `@Named("manageProductBean")` |
+| Methods / variables | lowerCamelCase | `calculateTotal()`, `unitPrice` |
 | Constants | UPPER_SNAKE_CASE | `MAX_RETRY_COUNT` |
-| JSF pages (.xhtml) | kebab-case | `password-reset-confirm.xhtml` |
-| Database tables/columns | snake_case | `user_address` |
-| Test classes | `<ClassUnderTest>Test` (unit) / `<ClassUnderTest>IT` (integration) | `ProductTest`, `ProductRepositoryJpaAdapterIT` |
+| JSF pages | kebab-case | `password-reset-confirm.xhtml` |
+| DB tables / columns | snake_case | `user_address` |
+| Tests | `*Test` (unit) / `*IT` (integration) | `ProductTest`, `ProductRepositoryJpaAdapterIT` |
 
-**Rule of thumb:** name things for what they *do* or *are*, not how they're implemented. `ProductRepositoryPort`, not `ProductDAOImpl2`.
+Name for **what it is or does**, not the implementation: `ProductRepositoryPort`, not `ProductDAOImpl2`.
 
 ---
 
-## 2. Project & Package Structure
-
-Organize by **feature (module) first, layer second**. Each business module follows:
+## 2. Package structure (feature first, layer second)
 
 ```
 com.loja.<module>
-├── domain/model          # entities + value objects, zero framework imports
-├── domain/port/in        # use-case interfaces the module offers
-├── domain/port/out       # outbound ports (RepositoryPort, PasswordHasherPort, ...)
-├── domain/exception      # domain exceptions
-├── application/service   # use-case implementations (DIP: depend only on ports)
-├── adapter/in/web        # thin JSF managed beans, no business rules
-└── adapter/out           # persistence / storage / notification adapters + mappers
+├── domain/model          # entities + VOs — zero framework imports
+├── domain/port/in        # use-case interfaces
+├── domain/port/out       # repository, hasher, mail, …
+├── domain/exception
+├── application/service   # use-case implementations (depend on ports only)
+├── application/dto       # commands / results — never nested inside ports
+├── adapter/in/web        # thin JSF beans
+└── adapter/out           # JPA, S3, notification, mocks + mappers
 ```
 
-**Hard rule:** `domain/` and `application/` never import `jakarta.*`, `javax.*`, JPA, or AWS SDK classes. Verify with the module's ArchUnit test (e.g. `ProductHexagonalArchitectureTest`, `UserHexagonalArchitectureTest`).
+**Framework boundary (as enforced by ArchUnit):**
+
+| Layer | Framework imports |
+|-------|-------------------|
+| `domain/` | **None** — no `jakarta.*`, `javax.*`, JPA, AWS SDK |
+| `application/` | **Minimal CDI/JTA only** (`@ApplicationScoped`, `@Transactional`) when needed; no JPA entities, no Faces, no AWS |
+| `adapter/` | Full framework stack allowed |
+
+Cross-module access is **ports only**. `admin-dashboard` is composition-only (no own business rules for orders/products/users).
 
 ---
 
-## 3. Jakarta EE / CDI / JSF Specifics
+## 3. Jakarta EE / CDI / JSF
 
-- **100% `jakarta.*`, always.** Never introduce or reintroduce a `javax.*` import. If you touch a file with any leftover `javax.*`, migrate the whole file in the same step — never leave a file half-migrated.
-- **Zero EJB, zero DAO.** No `@Stateless`, `@EJB`, `@Entity` in `domain`. Persistence goes behind a repository port implemented in `adapter/out/persistence`; orchestration goes in `@ApplicationScoped` + `@Transactional` application services.
-- **Bean scope discipline.** Default to `@RequestScoped`. Use `@ViewScoped`, `@SessionScoped`, or `@ApplicationScoped` only with justification — session/application scope beans are where memory leaks and stale-state bugs live.
-- **Keep managed beans thin.** A JSF bean coordinates between the view and the service layer: input binding, calling a use case, handling navigation outcomes and exception-to-`FacesMessage` translation. Business rules belong in the domain/application layers.
-- **Prefer CDI injection (`@Inject`) over JNDI lookups or `new`.**
-- **Facelets templating:** prefer a shared template (`<ui:insert>`) over duplicating header/footer markup per page once more than one page shares chrome (rule of two — see `docs/design-system.md`).
-- **Validation:** use Bean Validation (`@NotNull`, `@Size`, etc.) on DTOs/inputs rather than scattered `if` checks in beans.
-- **No business logic in `.xhtml`.** EL expressions call simple getters or bean methods — no multi-conditional chains inline.
+- **100% `jakarta.*`.** Never reintroduce `javax.*`. If a file still has leftovers, migrate the whole file in the same change.
+- **Zero EJB / DAO.** No `@Stateless`, `@EJB`. No `@Entity` in `domain`. Persistence behind repository ports in `adapter/out`.
+- **Bean scope.** Default `@RequestScoped`. Use `@ViewScoped` / `@SessionScoped` / `@ApplicationScoped` only with a reason (multi-step forms, session user, caches).
+- **Thin managed beans.** Bind input → call use case → navigation / `FacesMessage`. No business rules in beans or `.xhtml`.
+- Prefer `@Inject` over JNDI or `new` for application services.
+- **Facelets:** shared template once chrome is shared twice (`docs/design-system.md`, rule of two).
+- **`rendered`:** only on JSF components (`h:panelGroup`, `ui:fragment`), never on raw HTML — otherwise it is a no-op.
+- **EL:** JavaBean getters only (`isX` / `getX`). Prefer numeric character references in XHTML (`&#171;`) over named entities that Facelets may not resolve.
+- **Bean Validation:** put `@NotNull` / `@Size` / … on **adapter-layer beans or view models**, not on domain types (keeps domain free of `jakarta.validation`). Enable empty-field validation in `web.xml` when using `@NotBlank`.
+- No multi-branch business logic in EL.
 
 ---
 
 ## 4. Formatting
 
-- Indentation: **4 spaces**, no tabs.
-- Line length: soft limit **120 chars**.
-- Braces: opening brace on same line (`if (x) {`).
-- One class per file; filename matches the public class name.
-- Import order: `java.*` → `jakarta.*` → third-party → own packages. No wildcard imports.
-- Run a formatter before committing so this section stops being a manual concern.
+- 4 spaces, no tabs
+- Soft line length ~120
+- Opening brace on the same line
+- One public top-level type per file
+- Imports: `java.*` → `jakarta.*` → third-party → own packages; **no wildcards**
+- Format before commit (IDE or project formatter — keep diffs boring)
 
 ---
 
-## 5. Error Handling & Logging
+## 5. Errors & logging
 
-- **Never swallow exceptions silently.** No empty `catch` blocks. At minimum, log with context.
-- **Prefer unchecked exceptions** for programmer errors; reserve checked exceptions for recoverable conditions the caller should explicitly handle.
-- **Small exception hierarchy** (domain exceptions in `domain/exception`; application errors surfaced as domain exceptions). Map to JSF `FacesMessage`s at the bean layer.
-- **Logging:** use `java.util.logging` (`Logger.getLogger(...)`), which this project already uses — no extra dependency.
-  - `ERROR`: something failed and needs attention.
-  - `WARN`: unexpected but handled.
-  - `INFO`: significant lifecycle events.
-  - `DEBUG`: detail useful only while debugging.
-- Log messages include enough context to diagnose without a debugger: relevant IDs, not just "error occurred".
+- Never empty `catch`. Log with context (ids, operation), not only `"error occurred"`.
+- Prefer unchecked exceptions for domain/application failures; map to `FacesMessage` in the bean.
+- Domain exceptions live under `domain/exception`.
+- Logging: **`java.util.logging`** only (no extra logging dependency).
+  - `SEVERE` / error: needs attention
+  - `WARNING`: handled anomaly
+  - `INFO`: significant lifecycle
+  - `FINE` / debug: diagnostic detail
+
+Never log passwords, tokens, or full card data.
 
 ---
 
 ## 6. Persistence (JPA)
 
-- One `EntityManager` per request (container-managed, injected) — don't manage it manually.
-- Keep JPA entities free of business logic beyond simple derived getters; put business rules in the domain model.
-- Specify `fetch = FetchType.LAZY` on `@OneToMany`/`@ManyToMany` explicitly rather than relying on defaults.
-- Use named/typed queries or Criteria over string-concatenated JPQL.
-- Wrap multi-step writes in `@Transactional` (application service) — don't rely on implicit auto-commit.
-- **`@Version` round-trips through the mapper** (domain ↔ JPA) for entities with cascading collections — see `docs/lessons.md` #1.
-- Migrations: `flyway/sql/Vn__<name>.sql`, registered manually in `flyway_schema_history` (no Flyway runner in this repo).
+- Container-managed `EntityManager` (injected); do not open long-lived EMs in app code.
+- JPA entities are persistence records — business invariants stay in the domain model.
+- Explicit `FetchType.LAZY` on collections; avoid N+1 (join fetch / entity graph where needed).
+- Criteria or typed/named queries — never concatenate user input into JPQL/SQL.
+- Multi-step writes: `@Transactional` on the **application** service.
+- **`@Version` must round-trip** domain ↔ JPA in the mapper (see `docs/lessons.md`).
+- **New entities:** register in the WAR `persistence.xml` when `exclude-unlisted-classes` is true.
+- Schema: Flyway scripts under the project’s migration path; follow the **current** repo process (README / existing `V*__*.sql` pattern). Prefer a rollback note for non-trivial DDL.
+
+Integration tests: explicit transactions helper, close `EntityManager` in `@AfterEach` (`docs/lessons.md`).
 
 ---
 
 ## 7. Testing
 
-- Unit test domain and services with JUnit 5 + AssertJ (Mockito for ports). These run without a container.
-- Keep beans thin enough that the bean itself often needs little direct testing — test the service, not the wiring.
-- Integration tests (`*IT`) use `AbstractIntegrationTest` (Testcontainers Postgres). They need explicit transactions and an `EntityManager` closed in `@AfterEach` — see `docs/lessons.md` #3.
-- Naming: `methodName_condition_expectedResult()`, e.g. `reserveStock_withInsufficientStock_returnsFalse()`.
-- Fast feedback: filter with `-Dtest=...` (full `mvn test` on a module spins up Testcontainers).
+| Kind | Tooling | Notes |
+|------|---------|--------|
+| Domain | JUnit 5, no mocks | Pure invariants and state machines |
+| Application | JUnit 5 + mocked ports | AssertJ / Mockito as already used |
+| Adapters | `*IT` + Testcontainers | Postgres (and LocalStack where relevant) |
+| Architecture | ArchUnit per module | Ports are interfaces; DTOs not nested in ports |
+
+- Method names: `method_condition_expectedResult`
+- Fast loop: `-Dtest='*Test'` to skip containers
+- After WAR-level changes: smoke on Open Liberty (`./scripts/run-liberty.sh`)
 
 ---
 
 ## 8. Documentation
 
-- Javadoc on public classes/methods where the *purpose* isn't obvious from the name — skip it for trivial getters/setters.
-- Comment the *why*, not the *what*.
-- All documentation in English. `README.md` and `docs/*` are sources of truth — keep them updated; `tasks/*.md` specs mark superseded status when code diverges.
-- Version notes live in `docs/releases/`; promote durable lessons into `docs/lessons.md`.
+- Javadoc where purpose is not obvious from the name; skip trivial getters.
+- Comment **why**, not what.
+- English only for code, comments, commits, and docs.
+- Releases: `docs/releases/v0.X.0.md`. Durable rules: `docs/lessons.md`. Epic status: `tasks/*`.
 
 ---
 
-## 9. Version Control Hygiene
+## 9. Version control
 
-- Commit messages: imperative mood, short summary line, body if needed — `Fix null pointer in CheckoutService.calculateTotal`, not `fixed bug`.
-- Small, focused commits over sprawling ones — easier to `git bisect` your own past self later.
-- `.gitignore` build artifacts (`target/`, `.class`, IDE folders) — already done at repo root.
-- **Do not push unless the human asks.** Tag releases only at milestones with Definition of Done met (annotated tag `v0.X.0`; see AGENTS.md "Releases and tags").
-
----
-
-## 10. Security Basics (don't skip these even solo)
-
-- Never trust JSF form input without server-side validation, even if client-side validation exists.
-- Parameterized queries / JPA — never string-concatenate user input into JPQL or SQL.
-- Escape output in `.xhtml` (JSF does this by default via `#{}` — don't disable escaping unless you know exactly why).
-- Keep secrets (DB passwords, API keys) out of source control — externalize to environment variables or a config file excluded via `.gitignore`. Passwords are **Argon2id** hashes only (`UserPassword`) — never plaintext.
-- RBAC: `@RolesAllowed("ADMIN")` on the bean plus a session-role page guard (`#{userBean.hasRole('ADMIN')}`) as belt-and-braces. Since 2026-08-01 the container does RBAC for real: `UserIdentityStore` (Jakarta Security `IdentityStore`) + `LoginAuthenticationMechanism` (`@AutoApplySession`, `isAuthenticationRequest()` + `notifyContainerAboutLogin`) + `HttpServletRequest.login()` establish the caller; `web.xml` security-constraints gate admin URLs (`/user-account/admin/*`, `manageProduct.xhtml`); `@RolesAllowed` and `SecurityContext.isCallerInRole(...)` resolve against real groups.
+- Imperative commit subject: `Fix null pointer in checkout total calculation`
+- Small, focused commits
+- Do **not** push unless the human asks
+- Annotated tags only at milestones with DoD met (`v0.X.0` — see `AGENTS.md`)
 
 ---
 
-## Quick Pre-Commit Checklist
+## 10. Security
 
-- [ ] Formatted (4-space indent, no wildcard imports, ~120 cols)
-- [ ] No `System.out.println`, no empty catch blocks
-- [ ] No `javax.*` imports anywhere in touched files
-- [ ] No `@Stateless`/`@EJB`/DAO introduced
-- [ ] New business logic covered by a unit test
-- [ ] No secrets/credentials in the diff
-- [ ] Managed bean scope justified (not defaulting to `@SessionScoped` out of laziness)
-- [ ] Commit message describes *what changed and why*, not just "update"
+- Server-side validation always; never trust the browser alone.
+- Parameterized JPA/SQL only.
+- Default EL escaping in Facelets — do not disable without a documented reason.
+- Secrets via environment / excluded config — never in git. Passwords: **Argon2id** hashes only.
+- **RBAC (current):** Jakarta Security `IdentityStore` + authentication mechanism + `HttpServletRequest.login()`; `web.xml` constraints for admin URLs; `@RolesAllowed` on admin beans; `SecurityContext` / `UserBean.hasRole` for EL. Extend this model — do not invent a second one.
+- HTML in user content (e.g. review body, product description): sanitize with the project’s existing OWASP helper pattern.
+
+---
+
+## Quick pre-commit checklist
+
+- [ ] Formatted; no wildcard imports
+- [ ] No `System.out.println`; no empty catch
+- [ ] No `javax.*` in touched files
+- [ ] No `@Stateless` / `@EJB` / DAO
+- [ ] Domain free of framework; DTOs in `application/dto`
+- [ ] New entity registered in `persistence.xml` if needed
+- [ ] Unit test for new domain/application behaviour
+- [ ] No secrets in the diff
+- [ ] Bean scope justified
+- [ ] Commit message says what and why
+
+---
+
+*Earlier wording that required zero `jakarta.*` in `application/` (stricter than ArchUnit and the codebase) is superseded by the boundary table in §2.*
+```

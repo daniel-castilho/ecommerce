@@ -6,6 +6,7 @@ import com.loja.ordercheckout.adapter.out.shipping.ShippingRateMockAdapter;
 import com.loja.ordercheckout.application.dto.CheckoutCommand;
 import com.loja.ordercheckout.application.dto.ItemCheckoutRequest;
 import com.loja.ordercheckout.application.service.OrderApplicationService;
+import com.loja.ordercheckout.domain.exception.AccountSuspendedException;
 import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.OrderStatus;
 import com.loja.ordercheckout.domain.model.PaymentMethod;
@@ -18,6 +19,12 @@ import com.loja.productcatalog.domain.model.Slug;
 import com.loja.productcatalog.domain.port.out.InventoryReservationPort;
 import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
 import com.loja.shared.domain.Money;
+import com.loja.useraccount.domain.model.Email;
+import com.loja.useraccount.domain.model.User;
+import com.loja.useraccount.domain.model.UserPassword;
+import com.loja.useraccount.domain.model.UserProfile;
+import com.loja.useraccount.domain.port.out.PasswordHasherPort;
+import com.loja.useraccount.domain.port.out.UserRepositoryPort;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityTransaction;
 import org.junit.jupiter.api.AfterEach;
@@ -37,12 +44,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,6 +69,7 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
     private PaymentGatewayMockAdapter paymentGateway;
     private ShippingRateMockAdapter shippingRate;
     private NotificationMockAdapter notification;
+    private UserRepositoryPort userRepository;
     private OrderApplicationService service;
 
     @BeforeEach
@@ -72,8 +82,10 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
         paymentGateway = new PaymentGatewayMockAdapter();
         shippingRate = new ShippingRateMockAdapter();
         notification = new NotificationMockAdapter();
+        userRepository = mock(UserRepositoryPort.class);
+        when(userRepository.findById("user-1")).thenReturn(Optional.of(activeUser()));
         service = new OrderApplicationService(orderRepository, productRepository,
-                paymentGateway, shippingRate, notification, inventoryReservation);
+                paymentGateway, shippingRate, notification, inventoryReservation, userRepository);
 
         em.getTransaction().begin();
         em.createNativeQuery("TRUNCATE TABLE tb_order_item, tb_order RESTART IDENTITY CASCADE")
@@ -117,6 +129,22 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
         return new CheckoutCommand(requestId, "user-1", "ana@example.com",
                 List.of(new ItemCheckoutRequest("p1", 2)), address, "pac",
                 new PaymentMethod("card", "tok_test"));
+    }
+
+    private static User activeUser() {
+        return User.create(new Email("ana@example.com"),
+                UserPassword.hash("password1234", new PasswordHasherPort() {
+                    @Override
+                    public String hash(String plainPassword) {
+                        return "hash:" + plainPassword;
+                    }
+
+                    @Override
+                    public boolean verify(String plainPassword, String hash) {
+                        return ("hash:" + plainPassword).equals(hash);
+                    }
+                }),
+                UserProfile.fromFullName("Test User"));
     }
 
     @Test
@@ -174,7 +202,7 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
                 workerRepository.em = workerEm;
                 OrderApplicationService workerService = new OrderApplicationService(workerRepository,
                         productRepository, new PaymentGatewayMockAdapter(),
-                        new ShippingRateMockAdapter(), notification, inventoryReservation);
+                        new ShippingRateMockAdapter(), notification, inventoryReservation, userRepository);
                 EntityTransaction workerTx = workerEm.getTransaction();
                 workerTx.begin();
                 try {
@@ -205,5 +233,20 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
         verify(inventoryReservation, times(2)).reserve("e2e-race",
                 List.of(new ReservationRequest("p1", 2)));
         verify(inventoryReservation, atLeastOnce()).confirm("e2e-race");
+    }
+
+    @Test
+    void checkout_blockedCustomer_throwsWithoutPersisting() {
+        User blocked = activeUser();
+        blocked.deactivate();
+        when(userRepository.findById("user-1")).thenReturn(Optional.of(blocked));
+
+        assertThatThrownBy(() -> inTx(() -> service.checkout(command("e2e-blocked"))))
+                .isInstanceOf(AccountSuspendedException.class);
+        Long rowCount = inTx(() -> (Long) em.createNativeQuery(
+                "SELECT COUNT(*) FROM tb_order WHERE id = 'e2e-blocked'").getSingleResult());
+        assertThat(rowCount).isEqualTo(0L);
+        verify(inventoryReservation, never()).reserve(anyString(), anyList());
+        assertThat(notification.getNotifications()).isEmpty();
     }
 }

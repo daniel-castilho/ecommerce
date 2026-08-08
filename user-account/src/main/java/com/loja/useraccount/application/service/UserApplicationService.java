@@ -2,6 +2,7 @@ package com.loja.useraccount.application.service;
 
 import com.loja.shared.domain.Result;
 import com.loja.shared.event.DomainEventPublisherPort;
+import com.loja.useraccount.application.dto.AuditLogSearchCriteria;
 import com.loja.useraccount.application.dto.PageResult;
 import com.loja.useraccount.application.dto.UserSearchCriteria;
 import com.loja.useraccount.domain.event.AddressAddedEvent;
@@ -315,10 +316,18 @@ public class UserApplicationService
     }
 
     @Override
-    public PageResult<com.loja.useraccount.domain.model.AuditLogEvent> listAuditLogs(int page, int pageSize) {
+    public PageResult<com.loja.useraccount.domain.model.AuditLogEvent> listAuditLogs(AuditLogSearchCriteria criteria, int page, int pageSize) {
         if (!currentUserHasRole(Role.ADMIN)) {
             throw new InsufficientPermissionException("Only admins can view audit logs");
         }
-        return auditLogQueryPort.findAuditLogs(page, pageSize);
+        return auditLogQueryPort.findAuditLogs(criteria, page, pageSize);
+    }
+
+    @Override
+    public java.util.List<String> distinctEventTypes() {
+        if (!currentUserHasRole(Role.ADMIN)) {
+            throw new InsufficientPermissionException("Only admins can view audit logs");
+        }
+        return auditLogQueryPort.distinctEventTypes();
     }
 }

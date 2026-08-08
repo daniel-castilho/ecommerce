@@ -20,6 +20,7 @@ import com.loja.productcatalog.domain.port.in.FindProductByIdUseCase;
 // image use-cases are routed through UpdateProductForAdminUseCase now
 import com.loja.productcatalog.domain.port.out.CategoryRepositoryPort;
 import com.loja.productcatalog.domain.port.out.ProductImageStoragePort;
+import com.loja.shared.domain.Money;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.security.RolesAllowed;
@@ -62,6 +63,7 @@ public class ProductEditBean implements Serializable {
     private String description;
     private BigDecimal price;
     private BigDecimal compareAtPrice;
+    private BigDecimal costPrice;
     private int stock;
     private Integer weightGrams;
     private String metaTitle;
@@ -218,6 +220,7 @@ public class ProductEditBean implements Serializable {
                 slug,
                 shortDescription,
                 description,
+                costPrice != null ? new Money(costPrice) : null,
                 stock,
                 weightGrams,
                 metaTitle,
@@ -234,6 +237,8 @@ public class ProductEditBean implements Serializable {
         price = currentProduct.getPrice().getAmount();
         compareAtPrice = currentProduct.getCompareAtPrice() != null
                 ? currentProduct.getCompareAtPrice().getAmount() : null;
+        costPrice = currentProduct.getCostPrice() != null
+                ? currentProduct.getCostPrice().getAmount() : null;
         stock = currentProduct.getStock();
         weightGrams = currentProduct.getWeightGrams();
         metaTitle = currentProduct.getMetaTitle();
@@ -263,6 +268,9 @@ public class ProductEditBean implements Serializable {
 
     public BigDecimal getCompareAtPrice() { return compareAtPrice; }
     public void setCompareAtPrice(BigDecimal compareAtPrice) { this.compareAtPrice = compareAtPrice; }
+
+    public BigDecimal getCostPrice() { return costPrice; }
+    public void setCostPrice(BigDecimal costPrice) { this.costPrice = costPrice; }
 
     public int getStock() { return stock; }
     public void setStock(int stock) { this.stock = stock; }

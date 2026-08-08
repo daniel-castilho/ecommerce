@@ -30,6 +30,9 @@ public final class ProductJpaMapper {
         if (p.getCompareAtPrice() != null) {
             e.setCompareAtPrice(p.getCompareAtPrice().getAmount());
         }
+        if (p.getCostPrice() != null) {
+            e.setCostPrice(p.getCostPrice().getAmount());
+        }
         e.setStock(p.getStock());
         e.setStatus(p.getStatus());
         e.setVersion(p.getVersion());
@@ -47,6 +50,7 @@ public final class ProductJpaMapper {
 
     public static Product toDomain(ProductJpaEntity e) {
         Money compareAtPrice = e.getCompareAtPrice() != null ? new Money(e.getCompareAtPrice()) : null;
+        Money costPrice = e.getCostPrice() != null ? new Money(e.getCostPrice()) : null;
         List<ProductImage> images = e.getImages().stream()
                 .sorted(Comparator.comparingInt(ProductImageJpaEntity::getPosition))
                 .map(image -> new ProductImage(
@@ -62,6 +66,7 @@ public final class ProductJpaMapper {
                 e.getDescription(),
                 new Money(e.getPrice()),
                 compareAtPrice,
+                costPrice,
                 e.getStock(),
                 e.getStatus(),
                 e.getWeightGrams(),

@@ -22,7 +22,7 @@
       <div class="card">
         <h3>
           Order
-          <strong>#{adminOrderDetailBean.selectedOrder.id}</strong> &mdash;
+          <strong>#{adminOrderDetailBean.selectedOrder.id}</strong> —
           <my:statusBadge
             status="#{adminOrderDetailBean.selectedOrder.status}"
           />
@@ -99,6 +99,54 @@
             >
           </p>
         </ui:fragment>
+
+        <h3>Status timeline</h3>
+        <h:dataTable
+          value="#{adminOrderDetailBean.selectedOrder.timeline}"
+          var="event"
+          styleClass="data-table"
+        >
+          <h:column>
+            <f:facet name="header">When</f:facet>
+            #{adminOrderDetailBean.formatDate(event.occurredAt)}
+          </h:column>
+          <h:column>
+            <f:facet name="header">Status</f:facet>
+            <my:statusBadge status="#{event.status}" />
+          </h:column>
+          <h:column>
+            <f:facet name="header">Event</f:facet>
+            #{event.label}
+          </h:column>
+        </h:dataTable>
+
+        <h3>Payment transactions</h3>
+        <ui:fragment rendered="#{empty adminOrderDetailBean.selectedOrder.payments}">
+          <p>No payment transactions recorded.</p>
+        </ui:fragment>
+        <h:dataTable
+          value="#{adminOrderDetailBean.selectedOrder.payments}"
+          var="payment"
+          styleClass="data-table"
+          rendered="#{not empty adminOrderDetailBean.selectedOrder.payments}"
+        >
+          <h:column>
+            <f:facet name="header">Type</f:facet>
+            #{payment.type}
+          </h:column>
+          <h:column>
+            <f:facet name="header">Amount</f:facet>
+            #{payment.amount.amount}
+          </h:column>
+          <h:column>
+            <f:facet name="header">When</f:facet>
+            #{adminOrderDetailBean.formatDate(payment.occurredAt)}
+          </h:column>
+          <h:column>
+            <f:facet name="header">Reference</f:facet>
+            #{payment.reference}
+          </h:column>
+        </h:dataTable>
       </div>
     </ui:fragment>
 

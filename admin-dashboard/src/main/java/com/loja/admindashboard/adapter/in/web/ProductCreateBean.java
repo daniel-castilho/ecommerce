@@ -37,6 +37,7 @@ public class ProductCreateBean implements Serializable {
     private String description;
     private BigDecimal price;
     private BigDecimal compareAtPrice;
+    private BigDecimal costPrice;
     private int stock;
     private Integer weightGrams;
     private String metaTitle;
@@ -70,6 +71,7 @@ public class ProductCreateBean implements Serializable {
                 description,
                 price != null ? new Money(price) : null,
                 compareAtPrice != null ? new Money(compareAtPrice) : null,
+                costPrice != null ? new Money(costPrice) : null,
                 stock,
                 weightGrams,
                 metaTitle,
@@ -97,6 +99,9 @@ public class ProductCreateBean implements Serializable {
 
     public BigDecimal getCompareAtPrice() { return compareAtPrice; }
     public void setCompareAtPrice(BigDecimal compareAtPrice) { this.compareAtPrice = compareAtPrice; }
+
+    public BigDecimal getCostPrice() { return costPrice; }
+    public void setCostPrice(BigDecimal costPrice) { this.costPrice = costPrice; }
 
     public int getStock() { return stock; }
     public void setStock(int stock) { this.stock = stock; }

@@ -6,6 +6,7 @@
              version="3.1">
     <persistence-unit name="ecommercePU" transaction-type="RESOURCE_LOCAL">
         <class>com.loja.ordercheckout.adapter.out.persistence.OrderJpaEntity</class>
+        <class>com.loja.ordercheckout.adapter.out.persistence.RefundRequestJpaEntity</class>
         <properties>
             <property name="jakarta.persistence.schema-generation.database.action" value="drop-and-create"/>
             <property name="jakarta.persistence.jdbc.driver" value="org.postgresql.Driver"/>

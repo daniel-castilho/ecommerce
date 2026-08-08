@@ -27,8 +27,8 @@ import jakarta.inject.Inject;
  * Product performance report over all-time sales. Depends only on repository
  * ports (DIP): order lines come from {@link OrderRepositoryPort}, catalog
  * identity (SKU/name/categories) from the product-catalog ports; used by the
- * admin-dashboard module (backlog S21). The report is right-sized to the current
- * domain — there is no cost price on the product, so no profit margin column.
+ * admin-dashboard module (backlog S21). Profit margin per row is derived from
+ * the product's cost price (nullable) and the row's revenue/units.
  */
 @ApplicationScoped
 public class ProductPerformanceReportService implements ProductPerformanceReportUseCase {
@@ -60,9 +60,10 @@ public class ProductPerformanceReportService implements ProductPerformanceReport
                 continue;
             }
             ProductSalesAggregate sales = salesByProduct.get(product.getId());
+            long unitsSold = sales == null ? 0L : sales.unitsSold();
+            Money revenue = sales == null ? Money.zero() : sales.revenue();
             rows.add(new ProductPerformanceRow(product.getSkuValue(), product.getName(),
-                    sales == null ? 0L : sales.unitsSold(),
-                    sales == null ? Money.zero() : sales.revenue()));
+                    unitsSold, revenue, product.profitMargin(revenue, unitsSold)));
         }
 
         Comparator<ProductPerformanceRow> byUnitsDesc = Comparator

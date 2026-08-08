@@ -12,6 +12,7 @@ public record CreateProductCommand(
         String description,
         Money price,
         Money compareAtPrice,
+        Money costPrice,
         int stock,
         Integer weightGrams,
         String metaTitle,

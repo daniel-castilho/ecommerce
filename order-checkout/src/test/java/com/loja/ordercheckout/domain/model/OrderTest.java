@@ -153,6 +153,54 @@ class OrderTest {
         assertThat(order.getItems()).isEmpty();
     }
 
+    // ---- status timeline ----
+
+    @Test
+    void timeline_newOrder_seededWithPlacementEntry() {
+        Order order = newPendingOrder();
+
+        assertThat(order.getTimeline()).hasSize(1);
+        OrderTimelineEntry entry = order.getTimeline().get(0);
+        assertThat(entry.status()).isEqualTo(OrderStatus.PENDING);
+        assertThat(entry.label()).isEqualTo("Order placed");
+        assertThat(entry.occurredAt()).isNotNull();
+    }
+
+    @Test
+    void timeline_statusTransitionsAppendEntriesInOrder() {
+        Order order = newPendingOrder();
+        order.addItem(line("p1", 1, TEN, 0));
+        order.confirm();
+        order.process();
+        order.ship("TRACK-1");
+        order.deliver();
+
+        assertThat(order.getTimeline()).extracting(OrderTimelineEntry::status)
+                .containsExactly(OrderStatus.PENDING, OrderStatus.CONFIRMED,
+                        OrderStatus.PROCESSING, OrderStatus.SHIPPED, OrderStatus.DELIVERED);
+        assertThat(order.getTimeline()).extracting(OrderTimelineEntry::label)
+                .contains("Status changed to CONFIRMED");
+    }
+
+    @Test
+    void timeline_restoredSnapshotKeepsPersistedEntries() {
+        Instant createdAt = Instant.now();
+        Order restored = Order.restore("order-1", "user-1", "user-1@example.com", createdAt,
+                OrderStatus.CONFIRMED, List.of(), null, null, null, null, createdAt, 0L,
+                List.of(new OrderTimelineEntry(OrderStatus.PENDING, createdAt, "Order placed")));
+
+        assertThat(restored.getTimeline()).hasSize(1);
+        assertThat(restored.getTimeline().get(0).status()).isEqualTo(OrderStatus.PENDING);
+    }
+
+    @Test
+    void timeline_restoredWithoutHistory_seedsNothing() {
+        Order restored = Order.restore("order-1", "user-1", "user-1@example.com", Instant.now(),
+                OrderStatus.CONFIRMED, List.of(), null, null, null, null, Instant.now());
+
+        assertThat(restored.getTimeline()).isEmpty();
+    }
+
     @Test
     void create_buildsOrderFromLinesAndAddress() {
         Order order = Order.create("user-1", List.of(line("p1", 2, TEN, 0)), ADDRESS);

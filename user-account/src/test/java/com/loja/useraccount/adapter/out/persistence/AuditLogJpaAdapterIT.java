@@ -1,8 +1,11 @@
 package com.loja.useraccount.adapter.out.persistence;
 
+import com.loja.useraccount.application.dto.AuditLogSearchCriteria;
 import jakarta.persistence.EntityTransaction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -14,6 +17,11 @@ class AuditLogJpaAdapterIT extends AbstractIntegrationTest {
     void setUp() {
         setUpEntityManager();
         adapter = new AuditLogJpaAdapter(em);
+        EntityTransaction tx = em.getTransaction();
+        tx.begin();
+        em.createQuery("DELETE FROM UserAuditLogJpaEntity").executeUpdate();
+        tx.commit();
+        em.clear();
     }
 
     @Test
@@ -47,5 +55,86 @@ class AuditLogJpaAdapterIT extends AbstractIntegrationTest {
                 .setParameter("uid", "user-2")
                 .getResultList();
         assertThat(results).hasSize(2);
+    }
+
+    @Test
+    void shouldFilterAuditLogsByActorSubstring() {
+        seed("user-a", "admin-1", "LOGIN_SUCCESS", "Actor A login");
+        seed("user-b", "admin-2", "LOGIN_SUCCESS", "Actor B login");
+        seed("user-a", "admin-2", "REGISTRATION", "Registered");
+
+        var result = adapter.findAuditLogs(
+                new AuditLogSearchCriteria("admin-1", null, null, null, null), 0, 20);
+
+        assertThat(result.items()).hasSize(1);
+        assertThat(result.items().get(0).actorId()).isEqualTo("admin-1");
+        assertThat(result.totalElements()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldFilterAuditLogsByEventType() {
+        seed("user-a", "admin-1", "LOGIN_SUCCESS", "Login");
+        seed("user-a", "admin-1", "REGISTRATION", "Registered");
+
+        var result = adapter.findAuditLogs(
+                new AuditLogSearchCriteria(null, "REGISTRATION", null, null, null), 0, 20);
+
+        assertThat(result.items()).hasSize(1);
+        assertThat(result.items().get(0).eventType()).isEqualTo("REGISTRATION");
+    }
+
+    @Test
+    void shouldFilterAuditLogsByDetailsKeyword() {
+        seed("user-a", "admin-1", "LOGIN_SUCCESS", "Successful login from browser");
+        seed("user-b", "admin-2", "LOGIN_SUCCESS", "Failed login attempt");
+
+        var result = adapter.findAuditLogs(
+                new AuditLogSearchCriteria(null, null, "browser", null, null), 0, 20);
+
+        assertThat(result.items()).hasSize(1);
+        assertThat(result.items().get(0).userId()).isEqualTo("user-a");
+    }
+
+    @Test
+    void shouldFilterAuditLogsByDateRange() {
+        seed("user-a", "admin-1", "LOGIN_SUCCESS", "Older event");
+        seed("user-b", "admin-2", "LOGIN_SUCCESS", "Newer event");
+
+        Instant now = Instant.now();
+        var result = adapter.findAuditLogs(
+                new AuditLogSearchCriteria(null, null, null, now.minusSeconds(5), now.plusSeconds(5)), 0, 20);
+
+        assertThat(result.items()).hasSize(2);
+    }
+
+    @Test
+    void shouldCombineAllFilters() {
+        seed("user-a", "admin-1", "LOGIN_SUCCESS", "Login on chrome");
+        seed("user-b", "admin-2", "LOGIN_SUCCESS", "Login on chrome");
+
+        var result = adapter.findAuditLogs(
+                new AuditLogSearchCriteria("admin-1", "LOGIN_SUCCESS", "chrome", null, null), 0, 20);
+
+        assertThat(result.items()).hasSize(1);
+        assertThat(result.items().get(0).actorId()).isEqualTo("admin-1");
+    }
+
+    @Test
+    void shouldReturnDistinctEventTypes() {
+        seed("user-a", "admin-1", "REGISTRATION", "Registered");
+        seed("user-a", "admin-1", "LOGIN_SUCCESS", "Login");
+        seed("user-b", "admin-2", "LOGIN_SUCCESS", "Login");
+
+        var eventTypes = adapter.distinctEventTypes();
+
+        assertThat(eventTypes).containsExactly("LOGIN_SUCCESS", "REGISTRATION");
+    }
+
+    private void seed(String userId, String actorId, String eventType, String details) {
+        EntityTransaction tx = em.getTransaction();
+        tx.begin();
+        adapter.logEvent(userId, actorId, eventType, "127.0.0.1", "TestAgent", details);
+        tx.commit();
+        em.clear();
     }
 }

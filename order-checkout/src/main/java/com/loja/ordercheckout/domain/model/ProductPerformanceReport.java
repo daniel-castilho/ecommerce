@@ -4,8 +4,9 @@ import java.util.List;
 
 /**
  * Product performance report over all-time sales (admin reporting, backlog
- * S21). Right-sized to the current domain: the order model has no cost-price
- * input, so "profit margin" is not part of the report yet.
+ * S21). Each row carries the gross profit margin derived from the product's
+ * cost price; rows for products without a cost price or without sales report a
+ * {@code null} margin.
  *
  * @param topSellers      top 10 products by units sold (units desc, name asc).
  * @param topByRevenue    top 10 products by revenue (revenue desc, name asc).

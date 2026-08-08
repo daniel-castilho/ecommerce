@@ -1,101 +1,101 @@
+# Reviews & Ratings — Backlog Status
+
+**Companion documents:**
+`reviews-ratings-module-spec.md` · `reviews-ratings-implementation-sequence.md`
+**Release:** [v0.10.0](../docs/releases/v0.10.0.md) (2026-08-05)
+
+**Epic goal:** Customers leave star ratings and text reviews; product pages show averages and approved reviews; admins moderate a pending queue.
+
 ---
 
-### 3. `reviews-ratings-backlog.md`
+## Current Status Summary
 
-```markdown
-# Reviews & Ratings Module — Agile Backlog
+| Area                                   | Status          | Notes                                                             |
+| -------------------------------------- | --------------- | ----------------------------------------------------------------- |
+| Domain model + exceptions (S1)         | ✅ Done         | `Review` state machine, `Rating`, aggregate summary types         |
+| Ports + application service (S2–S3)    | ✅ Done         | 8 inbound use cases; thin cross-module adapters                   |
+| Persistence + Flyway (S4)              | ✅ Done         | `V17__product_reviews.sql`; unique `(author_id, product_id)`      |
+| Submit + verified-purchase flag (S5)   | ✅ Done         | Badge only — does **not** block non-purchasers                    |
+| Rating summary + approved list (S6–S7) | ✅ Done         | Average, histogram, pagination                                    |
+| Public UI on product-detail (S8)       | ✅ Done         | Stars, histogram (`barChart`), form, FacesMessages                |
+| Admin moderation list/detail (S9–S11)  | ✅ Done         | PENDING queue; approve; reject with mandatory reason              |
+| ArchUnit + RBAC (S12)                  | ✅ Done         | `ReviewHexagonalArchitectureTest`; admin coverage extended        |
+| Full test suite (S13)                  | ✅ Done         | 85 module tests green                                             |
+| Hide own review UI (S14)               | ⚠️ Partial      | Use case may exist; **no** dedicated customer “my reviews” screen |
+| Notifications on moderate              | ❌ Deferred     | `NotificationPort` not wired                                      |
+| Images / voting / vendor replies       | ❌ Out of scope | Explicit debt                                                     |
 
-**Epic goal:** Customers can leave verified star ratings and text reviews; admins can moderate them; product pages display ratings and approved reviews.
+**MVP (S1–S8 + S12–S13) and admin moderation (S9–S11): delivered in v0.10.0.**
 
-**Total stories:** 14
-**MVP subset (shippable):** S1–S8 + S12–S13
+---
 
-## Story Map
+## Implemented Stories
+
+### Foundation
+
+- **S1** — `Review` (PENDING → APPROVED / REJECTED / HIDDEN), `Rating` VO, domain exceptions
+- **S2** — Inbound use cases + `ReviewRepositoryPort`, `ProductLookupPort`, `OrderVerificationPort`
+- **S3** — `ReviewApplicationService` + DTOs in `application/dto`
+- **S4** — JPA adapter, unique constraint, aggregate summary query, Flyway `V17` + rollback script
+
+### Public flow
+
+- **S5** — Authenticated submit (title + body, OWASP-sanitized); duplicate blocked
+- **S6** — Summary: average, count, 1★–5★ histogram
+- **S7** — Paginated APPROVED reviews (newest first)
+- **S8** — Integrated into `product-detail.xhtml`
+
+Verified purchase: order must be CONFIRMED / SHIPPED / DELIVERED for the **badge**; submission is still allowed without purchase.
+
+### Admin moderation
+
+- **S9** — `/admin-dashboard/reviews/list.xhtml` (PENDING queue, pagination)
+- **S10** — Approve
+- **S11** — Reject with required reason
+
+### Quality
+
+- **S12** — ArchUnit (8 rules; nested DTOs moved to `application/dto`) + ADMIN RBAC
+- **S13** — Domain + service + bean unit tests + adapter ITs
+
+---
+
+## Still Pending / Explicit Debt
+
+| Item                                                           | Notes                                            |
+| -------------------------------------------------------------- | ------------------------------------------------ |
+| Author “my reviews” / edit UI                                  | Backend capability may exist; no customer screen |
+| Moderation email notifications                                 | Deferred with notification module                |
+| Review media, helpfulness votes, vendor replies, AI moderation | Out of scope                                     |
+| Rating on catalog cards / search                               | Stays on product-detail only                     |
+| Block non-purchasers from reviewing                            | Product decision — currently badge-only          |
+
+---
+
+## How the module is structured today
+
+```
+product-reviews/          → full hexagonal module
+web/.../product-detail    → public reviews section
+web/.../admin-dashboard/reviews/ → moderation pages
 ```
 
-FOUNDATION
-S1 Domain model + exceptions
-S2 Ports (in + out)
-S3 Application service
-S4 Persistence adapter + Flyway
+Cross-module: only **ports** from `product-catalog` and `order-checkout` (no adapter imports).
 
-PUBLIC CUSTOMER FLOW
-S5 Submit review (with verified-purchase)
-S6 Product rating summary (average + histogram)
-S7 List approved reviews on product page
-S8 “Write a review” form + success feedback
+---
 
-ADMIN MODERATION
-S9 Pending reviews list (filters + pagination)
-S10 Approve review
-S11 Reject review (with reason)
+## Definition of Done (Epic)
 
-CROSS-CUTTING
-S12 ArchUnit + RBAC guards
-S13 Integration tests (Testcontainers)
-S14 (Optional) Hide own review + notification
+- [x] Submit review + duplicate guard
+- [x] Public average / histogram / approved list
+- [x] Admin approve / reject
+- [x] ArchUnit + tests + WAR builds
+- [ ] Optional author self-service UI and notifications
+
+---
+
+_This backlog is a living status document. For the original INVEST story list, see the git history of this file._
 
 ```
 
-## Stories (INVEST)
-
-### S1 — Domain Model & Exceptions
-**Points:** 5 | **Priority:** Must
-Create `Review`, `Rating`, `ReviewStatus`, factory methods, business methods (approve/reject), and all domain exceptions.
-**DoD:** Unit tests green, zero framework imports, English Javadoc.
-
-### S2 — Ports
-**Points:** 3 | **Priority:** Must
-All inbound UseCase interfaces + outbound ports (`ReviewRepositoryPort`, `ProductLookupPort`, `OrderVerificationPort`).
-
-### S3 — Application Service
-**Points:** 5 | **Priority:** Must
-`ReviewApplicationService` implements every UseCase, orchestrates verified-purchase check, uniqueness, status transitions.
-
-### S4 — Persistence + Migration
-**Points:** 8 | **Priority:** Must
-`ReviewJpaEntity`, mapper, `ReviewRepositoryAdapter`, Flyway script, unique constraint, indexes.
-ITs with Testcontainers.
-
-### S5 — Submit Review
-**Points:** 5 | **Priority:** Must
-Authenticated user can submit rating + optional title/body. Verified-purchase flag calculated. Duplicate prevented.
-
-### S6 — Rating Summary
-**Points:** 3 | **Priority:** Must
-`GetProductRatingSummaryUseCase` returns average, count, histogram (1★…5★).
-
-### S7 — List Approved Reviews
-**Points:** 3 | **Priority:** Must
-Paginated list of APPROVED reviews for a product (newest first).
-
-### S8 — Public UI (product-detail)
-**Points:** 5 | **Priority:** Must
-Stars + average + review cards + “Write a review” form integrated into existing product-detail page. Design tokens only.
-
-### S9 — Admin Pending List
-**Points:** 5 | **Priority:** Must
-Admin page with filters (status, product, date), pagination, status badges.
-
-### S10 — Approve Review
-**Points:** 3 | **Priority:** Must
-Admin can approve → status = APPROVED, moderatedAt set, optional notification.
-
-### S11 — Reject Review
-**Points:** 3 | **Priority:** Must
-Admin can reject with mandatory reason → status = REJECTED.
-
-### S12 — ArchUnit + RBAC
-**Points:** 3 | **Priority:** Must
-Hexagonal rules + `@RolesAllowed("ADMIN")` on all moderation beans + coverage test style of AdminAccessControlCoverageTest.
-
-### S13 — Full Test Suite
-**Points:** 5 | **Priority:** Must
-Domain + service unit tests + adapter ITs + end-to-end happy path.
-
-### S14 — Hide Own Review (optional)
-**Points:** 3 | **Priority:** Should
-Customer can hide their own approved review.
-
-**MVP Definition of Done:** S1–S8 + S12–S13 green, public product page shows ratings, admin can moderate, `mvn clean package -pl web -am` succeeds, no new dependencies.
 ```

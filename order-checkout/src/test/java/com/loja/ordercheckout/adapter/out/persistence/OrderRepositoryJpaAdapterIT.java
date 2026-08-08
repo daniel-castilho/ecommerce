@@ -6,6 +6,7 @@ import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.OrderLine;
 import com.loja.ordercheckout.domain.model.OrderRevenueReport;
 import com.loja.ordercheckout.domain.model.OrderStatus;
+import com.loja.ordercheckout.domain.model.OrderTimelineEntry;
 import com.loja.ordercheckout.domain.model.PaymentAuthorization;
 import com.loja.ordercheckout.domain.model.PaymentCapture;
 import com.loja.ordercheckout.domain.model.PaymentInfo;
@@ -421,6 +422,23 @@ class OrderRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         List<OrderLine> items = restored.get().getItems();
         assertThat(items).extracting(OrderLine::getPosition).containsExactly(0, 1, 2);
         assertThat(items).extracting(OrderLine::getProductId).containsExactly("a", "b", "c");
+    }
+
+    @Test
+    void shouldPersistAndRoundTripTimelineEntries() {
+        Order order = new Order("order-50", "user-50");
+        order.addItem(line("p1", "Product A", 1, new Money(new BigDecimal("10.00")), 0));
+        order.confirm();
+        order.process();
+
+        inTx(() -> adapter.save(order));
+
+        Optional<Order> restored = inTx(() -> adapter.findById("order-50"));
+        assertThat(restored).isPresent();
+        assertThat(restored.get().getTimeline()).extracting(OrderTimelineEntry::status)
+                .containsExactly(OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.PROCESSING);
+        assertThat(restored.get().getTimeline()).extracting(OrderTimelineEntry::label)
+                .contains("Order placed", "Status changed to CONFIRMED");
     }
 
     @Test

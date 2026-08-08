@@ -94,7 +94,7 @@ public class ProductApplicationService
 
         Product product = new Product(UUID.randomUUID().toString(), sku, slug, command.name(),
                 command.shortDescription(), sanitizeDescription(command.description()),
-                command.price(), command.compareAtPrice(), command.stock(),
+                command.price(), command.compareAtPrice(), command.costPrice(), command.stock(),
                 ProductStatus.DRAFT, command.weightGrams(), command.metaTitle(),
                 command.metaDescription(), command.categoryIds(), List.of());
         return productRepository.save(product);
@@ -120,6 +120,7 @@ public class ProductApplicationService
         product.setName(command.name());
         product.setShortDescription(command.shortDescription());
         product.setDescription(sanitizeDescription(command.description()));
+        product.setCostPrice(command.costPrice());
         product.setStock(command.stock());
         product.setWeightGrams(command.weightGrams());
         product.setMetaTitle(command.metaTitle());

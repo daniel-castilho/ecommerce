@@ -6,6 +6,19 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.13.0](docs/releases/v0.13.0.md) — 2026-08-07
+
+**Order timeline, blocked-checkout guard, cost price & audit filters**
+Four back-office improvements closing long-standing debt: suspended/blocked accounts can no longer
+check out (`AccountSuspendedException`); the admin order detail shows a **status timeline** (V18
+`order_status_history`, seeded on placement, appended on every transition) plus the **payment
+snapshot**; products gain an admin-only **cost price** (V19) with **gross profit margin** columns on
+the admin product list and the product performance report; and the **audit log** gains actor/event
+type/details keyword/date-range **filters** with a full-text **tooltip** on long details (S24 debt
+closed). Includes QA fixes surfaced only by browser smoke (MyFaces `Instant` conversion, invalid
+XML named entities on five pages, UTC date filters). The wishlist module (V20) landed as a separate
+commit in this window; its customer-facing UI is deferred.
+
 ## [v0.12.0](docs/releases/v0.12.0.md) — 2026-08-06
 
 **Report Export (S23)**

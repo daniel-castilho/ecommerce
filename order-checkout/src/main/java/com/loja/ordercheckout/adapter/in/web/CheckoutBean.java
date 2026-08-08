@@ -2,6 +2,7 @@ package com.loja.ordercheckout.adapter.in.web;
 
 import com.loja.ordercheckout.application.dto.CheckoutCommand;
 import com.loja.ordercheckout.application.dto.ItemCheckoutRequest;
+import com.loja.ordercheckout.domain.exception.AccountSuspendedException;
 import com.loja.ordercheckout.domain.exception.PaymentFailedException;
 import com.loja.ordercheckout.domain.exception.ShippingException;
 import com.loja.ordercheckout.domain.model.Order;
@@ -195,7 +196,7 @@ public class CheckoutBean implements Serializable {
             ctx.getExternalContext().getFlash().setKeepMessages(true);
             return "/order-checkout/order-confirmed.xhtml?faces-redirect=true&orderId=" + confirmedOrder.getId();
         } catch (PaymentFailedException | ShippingException | InsufficientStockException
-                 | IllegalArgumentException e) {
+                 | AccountSuspendedException | IllegalArgumentException e) {
             step = STEP_PAYMENT;
             addGlobal(FacesMessage.SEVERITY_ERROR, "Checkout failed", e.getMessage());
             return null;

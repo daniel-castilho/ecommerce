@@ -24,6 +24,7 @@ public final class Order {
     private Instant updatedAt;
     private long version;
     private final List<OrderLine> items = new ArrayList<>();
+    private final List<OrderTimelineEntry> timeline = new ArrayList<>();
     private ShippingAddress shippingAddress;
     private Money shippingCost;
     private OrderStatus status;
@@ -32,16 +33,19 @@ public final class Order {
 
     public Order(String id, String userId) {
         this(id, userId, Instant.now(), OrderStatus.PENDING);
+        recordPlacement(createdAt);
     }
 
     public Order(String id, String userId, String customerEmail) {
         this(id, userId, Instant.now(), OrderStatus.PENDING);
         this.customerEmail = customerEmail;
+        recordPlacement(createdAt);
     }
 
     /** Persistence round-trip constructor (createdAt comes from the store). */
     public Order(String id, String userId, Instant createdAt) {
         this(id, userId, createdAt, OrderStatus.PENDING);
+        recordPlacement(createdAt);
     }
 
     public static Order create(String userId, List<OrderLine> lines, ShippingAddress shippingAddress) {
@@ -64,7 +68,7 @@ public final class Order {
                                 Money shippingCost, String trackingNumber, PaymentInfo paymentInfo,
                                 Instant updatedAt) {
         return restore(id, userId, customerEmail, createdAt, status, items, shippingAddress,
-                shippingCost, trackingNumber, paymentInfo, updatedAt, 0L);
+                shippingCost, trackingNumber, paymentInfo, updatedAt, 0L, List.of());
     }
 
     /** Restores an exact persisted snapshot including the optimistic-lock version. */
@@ -72,9 +76,22 @@ public final class Order {
                                 OrderStatus status, List<OrderLine> items, ShippingAddress shippingAddress,
                                 Money shippingCost, String trackingNumber, PaymentInfo paymentInfo,
                                 Instant updatedAt, long version) {
+        return restore(id, userId, customerEmail, createdAt, status, items, shippingAddress,
+                shippingCost, trackingNumber, paymentInfo, updatedAt, version, List.of());
+    }
+
+    /**
+     * Restores an exact persisted snapshot including the optimistic-lock version
+     * and the recorded status timeline.
+     */
+    public static Order restore(String id, String userId, String customerEmail, Instant createdAt,
+                                OrderStatus status, List<OrderLine> items, ShippingAddress shippingAddress,
+                                Money shippingCost, String trackingNumber, PaymentInfo paymentInfo,
+                                Instant updatedAt, long version, List<OrderTimelineEntry> timeline) {
         Order order = new Order(id, userId, createdAt, status);
         order.customerEmail = customerEmail;
         order.items.addAll(items);
+        order.timeline.addAll(timeline);
         order.shippingAddress = shippingAddress;
         order.shippingCost = shippingCost;
         order.trackingNumber = trackingNumber;
@@ -91,6 +108,10 @@ public final class Order {
         this.updatedAt = createdAt;
         this.status = status;
         this.shippingCost = Money.zero();
+    }
+
+    private void recordPlacement(Instant at) {
+        timeline.add(new OrderTimelineEntry(OrderStatus.PENDING, at, "Order placed"));
     }
 
     // ---- cart building (PENDING only) ----
@@ -212,6 +233,7 @@ public final class Order {
         }
         this.status = target;
         this.updatedAt = Instant.now();
+        timeline.add(new OrderTimelineEntry(target, updatedAt, "Status changed to " + target));
     }
 
     private void requireState(OrderStatus expected) {
@@ -239,6 +261,7 @@ public final class Order {
     public Instant getUpdatedAt() { return updatedAt; }
     public OrderStatus getStatus() { return status; }
     public List<OrderLine> getItems() { return Collections.unmodifiableList(items); }
+    public List<OrderTimelineEntry> getTimeline() { return Collections.unmodifiableList(timeline); }
     public ShippingAddress getShippingAddress() { return shippingAddress; }
     public Money getShippingCost() { return shippingCost; }
     public PaymentInfo getPaymentInfo() { return paymentInfo; }

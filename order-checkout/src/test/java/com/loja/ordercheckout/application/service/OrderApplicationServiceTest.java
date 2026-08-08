@@ -1,5 +1,6 @@
 package com.loja.ordercheckout.application.service;
 
+import com.loja.ordercheckout.domain.exception.AccountSuspendedException;
 import com.loja.ordercheckout.domain.exception.PaymentFailedException;
 import com.loja.ordercheckout.domain.exception.ShippingException;
 import com.loja.ordercheckout.domain.model.Order;
@@ -24,6 +25,12 @@ import com.loja.productcatalog.domain.model.Slug;
 import com.loja.productcatalog.domain.port.out.InventoryReservationPort;
 import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
 import com.loja.shared.domain.Money;
+import com.loja.useraccount.domain.model.Email;
+import com.loja.useraccount.domain.model.User;
+import com.loja.useraccount.domain.model.UserPassword;
+import com.loja.useraccount.domain.model.UserProfile;
+import com.loja.useraccount.domain.port.out.PasswordHasherPort;
+import com.loja.useraccount.domain.port.out.UserRepositoryPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -55,6 +62,7 @@ class OrderApplicationServiceTest {
     private final ShippingRatePort shippingRate = mock(ShippingRatePort.class);
     private final NotificationPort notification = mock(NotificationPort.class);
     private final InventoryReservationPort inventoryReservation = mock(InventoryReservationPort.class);
+    private final UserRepositoryPort userRepository = mock(UserRepositoryPort.class);
 
     private OrderApplicationService service;
     private final Map<String, Order> store = new HashMap<>();
@@ -62,7 +70,9 @@ class OrderApplicationServiceTest {
     @BeforeEach
     void setUp() {
         service = new OrderApplicationService(orderRepository, productRepository,
-                paymentGateway, shippingRate, notification, inventoryReservation);
+                paymentGateway, shippingRate, notification, inventoryReservation, userRepository);
+        when(userRepository.findById("user-1"))
+                .thenReturn(Optional.of(user("ana@example.com", true)));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
             Order saved = inv.getArgument(0);
             store.put(saved.getId(), saved);
@@ -79,6 +89,26 @@ class OrderApplicationServiceTest {
         return new Product(id, new Sku("SKU-" + id), new Slug("slug-" + id), "Product " + id,
                 null, null, price, null, stock, ProductStatus.ACTIVE,
                 null, null, null, Set.of(1L), List.of());
+    }
+
+    private static User user(String email, boolean active) {
+        User user = User.create(new Email(email),
+                UserPassword.hash("password1234", new PasswordHasherPort() {
+                    @Override
+                    public String hash(String plainPassword) {
+                        return "hash:" + plainPassword;
+                    }
+
+                    @Override
+                    public boolean verify(String plainPassword, String hash) {
+                        return ("hash:" + plainPassword).equals(hash);
+                    }
+                }),
+                UserProfile.fromFullName("Test User"));
+        if (!active) {
+            user.deactivate();
+        }
+        return user;
     }
 
     private ShippingAddress address() {
@@ -219,6 +249,35 @@ class OrderApplicationServiceTest {
         assertThatThrownBy(() -> service.checkout(command))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Product not found");
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void checkout_blockedCustomer_throwsBeforePaymentIsAttempted() {
+        stubProductsAndStock();
+        when(userRepository.findById("user-1")).thenReturn(Optional.of(user("ana@example.com", false)));
+
+        assertThatThrownBy(() -> service.checkout(command("req-7")))
+                .isInstanceOf(AccountSuspendedException.class)
+                .hasMessageContaining("blocked");
+        verify(paymentGateway, never()).authorize(any(), any());
+        verify(paymentGateway, never()).capture(anyString());
+        verify(inventoryReservation, never()).reserve(anyString(), anyList());
+        verify(inventoryReservation, never()).confirm(anyString());
+        verify(inventoryReservation, never()).release(anyString());
+        verify(orderRepository, never()).save(any());
+        verify(notification, never()).notifyOrderConfirmed(any());
+    }
+
+    @Test
+    void checkout_unknownCustomer_throwsBeforePaymentIsAttempted() {
+        stubProductsAndStock();
+        when(userRepository.findById("user-1")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.checkout(command("req-8")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("User not found");
+        verify(paymentGateway, never()).authorize(any(), any());
         verify(orderRepository, never()).save(any());
     }
 }

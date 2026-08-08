@@ -13,7 +13,9 @@ WEB_TARGET=web/target/liberty
 WEB_PROFILE_MF="$WEB_TARGET/wlp/lib/features/io.openliberty.webProfile-11.0.mf"
 
 # Build the WAR without `clean`, so an existing Liberty install is preserved.
-mvn -q -pl web -am package -DskipTests
+# `install` also publishes the sibling module jars to the local repo, which the
+# fresh-install path below needs when it runs `liberty:create` on `web` alone.
+mvn -q -pl web -am install -DskipTests
 
 # Fresh install? Create the server config and install the declared features.
 if [ ! -f "$WEB_PROFILE_MF" ]; then

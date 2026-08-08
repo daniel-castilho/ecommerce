@@ -53,7 +53,32 @@ class ProductPerformanceReportServiceTest {
                 .containsExactly("SKU-1", "SKU-2", "SKU-3");
         assertThat(report.bottomPerformers()).extracting(ProductPerformanceRow::sku)
                 .containsExactly("SKU-3", "SKU-2", "SKU-1");
+        assertThat(report.topSellers()).extracting(ProductPerformanceRow::profitMargin)
+                .containsExactly(new BigDecimal("40.00"), new BigDecimal("40.00"), null);
         verify(orderRepository).productSales();
+    }
+
+    @Test
+    void productPerformanceReport_computesProfitMarginFromCostPrice() {
+        when(productRepository.findAll()).thenReturn(List.of(
+                product("p1", "SKU-1", "Alpha", Set.of(1L))));
+        when(orderRepository.productSales()).thenReturn(List.of(sales("p1", 10L, "100.00")));
+
+        ProductPerformanceReport report = service.productPerformanceReport(null);
+
+        assertThat(report.topSellers().get(0).profitMargin())
+                .isEqualByComparingTo("40.00");
+    }
+
+    @Test
+    void productPerformanceReport_withoutCostPrice_hasNullMargin() {
+        when(productRepository.findAll()).thenReturn(List.of(
+                productWithoutCostPrice("p1", "SKU-1", "Alpha", Set.of(1L))));
+        when(orderRepository.productSales()).thenReturn(List.of(sales("p1", 10L, "100.00")));
+
+        ProductPerformanceReport report = service.productPerformanceReport(null);
+
+        assertThat(report.topSellers().get(0).profitMargin()).isNull();
     }
 
     @Test
@@ -122,6 +147,13 @@ class ProductPerformanceReportServiceTest {
     }
 
     private static Product product(String id, String sku, String name, Set<Long> categoryIds) {
+        return new Product(id, new Sku(sku), new Slug(sku.toLowerCase() + "-" + id),
+                name, null, null, new Money(new BigDecimal("10.00")), null,
+                new Money(new BigDecimal("6.00")), 5,
+                ProductStatus.ACTIVE, null, null, null, categoryIds, List.of());
+    }
+
+    private static Product productWithoutCostPrice(String id, String sku, String name, Set<Long> categoryIds) {
         return new Product(id, new Sku(sku), new Slug(sku.toLowerCase() + "-" + id),
                 name, null, null, new Money(new BigDecimal("10.00")), null, 5,
                 ProductStatus.ACTIVE, null, null, null, categoryIds, List.of());

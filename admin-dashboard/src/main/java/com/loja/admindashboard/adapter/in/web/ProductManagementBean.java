@@ -3,8 +3,11 @@ package com.loja.admindashboard.adapter.in.web;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 import com.loja.admindashboard.domain.port.in.ListProductsForAdminUseCase;
+import com.loja.ordercheckout.domain.model.ProductSalesAggregate;
+import com.loja.ordercheckout.domain.port.in.ProductSalesStatsUseCase;
 import com.loja.productcatalog.application.dto.PageResult;
 import com.loja.productcatalog.application.dto.ProductSearchCriteria;
 import com.loja.productcatalog.domain.model.Category;
@@ -31,8 +34,12 @@ public class ProductManagementBean implements Serializable {
     @Inject
     private CategoryRepositoryPort categoryRepository;
 
+    @Inject
+    private ProductSalesStatsUseCase productSalesStatsUseCase;
+
     private List<Product> products = List.of();
     private List<Category> categories = List.of();
+    private Map<String, ProductSalesAggregate> salesByProductId = Map.of();
     private long totalElements;
     private int page;
     private String keyword;
@@ -51,6 +58,10 @@ public class ProductManagementBean implements Serializable {
         this.categoryRepository = categoryRepository;
     }
 
+    void setProductSalesStatsUseCase(ProductSalesStatsUseCase productSalesStatsUseCase) {
+        this.productSalesStatsUseCase = productSalesStatsUseCase;
+    }
+
     @PostConstruct
     void load() {
         refresh();
@@ -58,6 +69,7 @@ public class ProductManagementBean implements Serializable {
 
     public void refresh() {
         categories = categoryRepository.findAllActive();
+        salesByProductId = productSalesStatsUseCase.salesByProductId();
         ProductSearchCriteria criteria = new ProductSearchCriteria(
                 keyword,
                 categoryId,
@@ -183,5 +195,30 @@ public class ProductManagementBean implements Serializable {
 
     public ProductStatus[] getAvailableStatuses() {
         return ProductStatus.values();
+    }
+
+    /**
+     * Gross profit margin percentage for one product row, derived from the
+     * product's cost price and its all-time sales (backlog S10). {@code null}
+     * when there is no cost price or no sales to compute against.
+     */
+    public BigDecimal profitMargin(Product product) {
+        if (product == null) {
+            return null;
+        }
+        ProductSalesAggregate sales = salesByProductId.get(product.getId());
+        if (sales == null) {
+            return null;
+        }
+        return product.profitMargin(sales.revenue(), sales.unitsSold());
+    }
+
+    public String formatMargin(BigDecimal margin) {
+        return margin == null ? "—" : margin.toPlainString() + "%";
+    }
+
+    public BigDecimal costPriceOf(Product product) {
+        return product != null && product.getCostPrice() != null
+                ? product.getCostPrice().getAmount() : null;
     }
 }

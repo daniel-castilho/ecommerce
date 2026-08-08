@@ -89,6 +89,79 @@ class ProductTest {
     }
 
     @Test
+    void shouldKeepCostPriceWhenProvided() {
+        Product product = new Product("p1", new Sku("ABC-123"), new Slug("abc-123"), "Name",
+                null, null, money("1000.00"), null, money("700.00"), 5, ProductStatus.DRAFT,
+                null, null, null, Set.of(1L), List.of());
+
+        assertThat(product.getCostPrice().getAmount()).isEqualByComparingTo("700.00");
+    }
+
+    @Test
+    void shouldLeaveCostPriceNullByDefault() {
+        assertThat(product().getCostPrice()).isNull();
+    }
+
+    @Test
+    void shouldRejectNegativeCostPrice() {
+        assertThatThrownBy(() -> new Product("p1", new Sku("ABC-123"), new Slug("abc-123"), "Name",
+                null, null, money("1000.00"), null, money("-1.00"), 5, ProductStatus.DRAFT,
+                null, null, null, Set.of(1L), List.of()))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldRejectNegativeCostPriceViaSetter() {
+        Product product = product();
+
+        assertThatThrownBy(() -> product.setCostPrice(money("-0.01")))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(product.getCostPrice()).isNull();
+    }
+
+    @Test
+    void shouldUpdateCostPriceViaSetter() {
+        Product product = product();
+        product.setCostPrice(money("650.00"));
+
+        assertThat(product.getCostPrice().getAmount()).isEqualByComparingTo("650.00");
+    }
+
+    @Test
+    void shouldComputeProfitMargin() {
+        Product product = new Product("p1", new Sku("ABC-123"), new Slug("abc-123"), "Name",
+                null, null, money("1000.00"), null, money("700.00"), 5, ProductStatus.DRAFT,
+                null, null, null, Set.of(1L), List.of());
+
+        assertThat(product.profitMargin(money("10000.00"), 10L))
+                .isEqualByComparingTo("30.00");
+    }
+
+    @Test
+    void shouldReturnNullMarginWhenLosingMoney() {
+        Product product = new Product("p1", new Sku("ABC-123"), new Slug("abc-123"), "Name",
+                null, null, money("1000.00"), null, money("1100.00"), 5, ProductStatus.DRAFT,
+                null, null, null, Set.of(1L), List.of());
+
+        assertThat(product.profitMargin(money("10000.00"), 10L))
+                .isEqualByComparingTo("-10.00");
+    }
+
+    @Test
+    void shouldReturnNullMarginWhenCostPriceMissing() {
+        assertThat(product().profitMargin(money("10000.00"), 10L)).isNull();
+    }
+
+    @Test
+    void shouldReturnNullMarginWithoutSales() {
+        Product product = new Product("p1", new Sku("ABC-123"), new Slug("abc-123"), "Name",
+                null, null, money("1000.00"), null, money("700.00"), 5, ProductStatus.DRAFT,
+                null, null, null, Set.of(1L), List.of());
+
+        assertThat(product.profitMargin(money("0.00"), 0L)).isNull();
+    }
+
+    @Test
     void shouldDefaultStatusToDraftWhenNull() {
         Product product = new Product("p1", new Sku("ABC-123"), new Slug("abc-123"), "Name",
                 null, null, money("1000.00"), null, 5, null, null, null, null,

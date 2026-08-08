@@ -4,6 +4,7 @@ import com.loja.ordercheckout.adapter.out.persistence.OrderJpaEntity.OrderLineEm
 import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.OrderLine;
 import com.loja.ordercheckout.domain.model.OrderStatus;
+import com.loja.ordercheckout.domain.model.OrderTimelineEntry;
 import com.loja.ordercheckout.domain.model.PaymentAuthorization;
 import com.loja.ordercheckout.domain.model.PaymentCapture;
 import com.loja.ordercheckout.domain.model.PaymentInfo;
@@ -138,6 +139,21 @@ class OrderJpaMapperTest {
 
         assertThat(restored.getStatus()).isEqualTo(OrderStatus.SHIPPED);
         assertThat(restored.getTrackingNumber()).isEqualTo("TRACK-1");
+    }
+
+    @Test
+    void shouldRoundTripTimelineEntries() {
+        Order original = new Order("order-8", "user-8");
+        original.addItem(line("p1", "Product A", 1, "10.00", 0));
+        original.confirm();
+        original.process();
+
+        Order restored = OrderJpaEntity.fromDomain(original).toDomain();
+
+        assertThat(restored.getTimeline()).extracting(OrderTimelineEntry::status)
+                .containsExactly(OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.PROCESSING);
+        assertThat(restored.getTimeline()).extracting(OrderTimelineEntry::label)
+                .contains("Order placed", "Status changed to CONFIRMED");
     }
 
     @Test

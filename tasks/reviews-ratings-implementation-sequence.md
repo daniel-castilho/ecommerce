@@ -1,112 +1,119 @@
+# Reviews & Ratings — Implementation Sequence (As-Built)
+
+**Companion docs:** `reviews-ratings-module-spec.md` · `reviews-ratings-backlog.md`
+**Release:** [v0.10.0](../docs/releases/v0.10.0.md) (2026-08-05)
+
+This document records the **actual delivery order**.
+The original pre-build step list is preserved in git history of this file.
+
 ---
 
-### 4. `reviews-ratings-implementation-sequence.md`
+## Guiding principles used
 
-```markdown
-# Reviews & Ratings — Implementation Sequence
+- New top-level Maven module: **`product-reviews`**
+- Hexagonal layout under `com.loja.productreviews`
+- Cross-module access **only** via ports (`product-catalog`, `order-checkout`)
+- DTOs in `application/dto` (never nested in ports — ArchUnit)
+- Verified purchase = **badge**, not a hard gate on submit
+- Admin UI under `/admin-dashboard/reviews/` with `@RolesAllowed("ADMIN")`
+- Browser smoke required after WAR wiring (lesson #19)
 
-**Rule:** Execute steps in strict order. Do not start step N+1 until the “Done when” checklist of step N is 100 % satisfied.
+---
 
-## Step 0 — Module Skeleton & Prerequisites
+## Actual delivery sequence
 
-1. Create Maven module `product-reviews` (same structure as `product-catalog`).
-2. Add it to root `pom.xml` `<modules>` and dependencyManagement.
-3. Create package tree under `com.loja.productreviews`.
-4. Confirm next Flyway version number.
-5. Confirm design-system tokens for stars/status exist (or request human approval for new ones).
+### Phase 1 — Module foundation
 
-**Done when:** `mvn -pl product-reviews test-compile` succeeds (empty).
+| Step | Deliverable                                                                                          |
+| ---- | ---------------------------------------------------------------------------------------------------- |
+| 1    | Maven module skeleton + root POM wiring                                                              |
+| 2    | Domain: `Review`, `Rating`, `ReviewStatus`, exceptions; pure unit tests                              |
+| 3    | Ports in/out + application DTOs                                                                      |
+| 4    | `ReviewApplicationService` (mocked ports)                                                            |
+| 5    | JPA entity/mapper/adapter + Flyway **`V17__product_reviews.sql`** + unique `(author_id, product_id)` |
+| 6    | Thin adapters: `ProductLookupAdapter`, `OrderVerificationAdapter` (CONFIRMED/SHIPPED/DELIVERED)      |
 
-## Step 1 — Domain Model & Exceptions
+---
 
-Create `Review`, `Rating`, `ReviewStatus`, all value objects, factory methods, business methods (`approve`, `reject`, `hide`) and the five domain exceptions.
-Zero framework imports. Full unit tests (`ReviewTest`, `RatingTest`…).
+### Phase 2 — Public flow
 
-**Done when:** Domain tests green, ArchUnit domain-free-of-jakarta rule would pass.
+| Step | Deliverable                                                                                |
+| ---- | ------------------------------------------------------------------------------------------ |
+| 7    | Submit / summary / list approved use cases wired                                           |
+| 8    | Public bean + reviews section on `product-detail.xhtml` (stars, histogram, form, messages) |
+| 9    | Register `ReviewJpaEntity` in `web` `persistence.xml`                                      |
 
-## Step 2 — Ports (in + out)
+---
 
-All UseCase interfaces + `ReviewRepositoryPort`, `ProductLookupPort`, `OrderVerificationPort`.
-Javadoc with Given/When/Then examples.
+### Phase 3 — Admin moderation + quality
 
-**Done when:** Interfaces compile, no implementations yet.
+| Step | Deliverable                                                      |
+| ---- | ---------------------------------------------------------------- |
+| 10   | Admin list + detail pages; approve / reject with reason          |
+| 11   | `web.xml` constraint + `AdminAccessControlCoverageTest` extended |
+| 12   | `ReviewHexagonalArchitectureTest` (8 rules); nested DTOs fixed   |
+| 13   | Full suite green (85 tests); end-to-end smoke                    |
 
-## Step 3 — Application Service
+**Outcome:** v0.10.0 tagged; full submit → moderate → public visibility path works.
 
-`ReviewApplicationService` implements every UseCase.
-Inject ports, enforce uniqueness, call verified-purchase check, transition status, return DTOs or throw domain exceptions.
+---
 
-**Done when:** Service compiles, unit tests with mocked ports green.
+## What was deliberately _not_ done
 
-## Step 4 — Persistence Adapter + Flyway
+| Planned / optional                  | Reality                |
+| ----------------------------------- | ---------------------- |
+| Block non-purchasers from reviewing | Badge only             |
+| Notification on approve/reject      | Deferred               |
+| Author “my reviews” / edit UI       | No customer screen yet |
+| Review media, votes, vendor replies | Out of scope           |
+| Rating on catalog cards             | Product-detail only    |
 
-- `ReviewJpaEntity` + static mapper
-- `ReviewRepositoryAdapter`
-- Flyway `Vxx__product_reviews.sql` (table + unique + indexes)
-- Adapter ITs with Testcontainers
+---
 
-**Done when:** ITs green, unique constraint enforced.
+## Recommended order for any _new_ work
 
-## Step 5 — Thin Integration Ports
+1. Prefer extending use cases/ports inside `product-reviews`
+2. Keep domain free of `jakarta.*`
+3. New JPA types → register in `persistence.xml`
+4. Update ArchUnit + unit/IT in the same change
+5. After UI changes, smoke product-detail + admin reviews (lesson #19: EL getters, Instant formatting, L2 cache)
+6. Do not change “badge vs block” verified-purchase policy without human confirmation
 
-Implement `ProductLookupPort` and `OrderVerificationPort` adapters (call existing product-catalog / order-checkout ports or repositories via the allowed dependency direction).
+---
 
-**Done when:** Both adapters compile and have at least one IT.
+## Useful commands
 
-## Step 6 — Public Use Cases Wiring + DTOs
+```bash
+# Fast unit + ArchUnit
+mvn -pl product-reviews test -Dtest='*Test' -DfailIfNoTests=false
 
-Finalize all public DTOs (`ReviewDTO`, `RatingSummaryDTO`, `SubmitReviewCommand`…).
-Wire Submit / List / Summary use cases.
+# ITs
+mvn -pl product-reviews test -Dtest='*IT' -Dsurefire.failIfNoSpecifiedTests=false
 
-**Done when:** Application layer complete and unit-tested.
+# WAR + run
+mvn clean package -pl web -am
+./scripts/run-liberty.sh
+```
 
-## Step 7 — Public JSF Bean + product-detail Integration
+Smoke path:
 
-- `ProductReviewBean` (`@RequestScoped` / `@ViewScoped`)
-- Add rating summary + review list + form to existing `product-detail.xhtml`
-- Use only design-system tokens
-- Success / error FacesMessages
+1. Login → product detail → submit review
+2. Admin → `/admin-dashboard/reviews/` → approve
+3. Reload product detail → review + histogram visible
 
-**Done when:** Manual smoke on Open Liberty shows stars and form.
+---
 
-## Step 8 — Admin Moderation UI
+## Definition of Done (sequence)
 
-- Admin bean(s) with `@RolesAllowed("ADMIN")`
-- List page (PENDING filter default) + detail/moderation page
-- Approve / Reject actions
-- Follow exact visual patterns of existing refund / user management pages
+- [x] Domain + persistence + public UI
+- [x] Admin moderation + RBAC
+- [x] ArchUnit + 85 tests + release notes
+- [ ] Optional self-service UI and notifications
 
-**Done when:** Admin can approve/reject and the change is visible on the public page.
+---
 
-## Step 9 — RBAC & Security Constraints
+_This is the as-built execution record. For the original strict 12-step pre-implementation plan, see the git history of this file._
 
-- `web.xml` security-constraint for `/admin-dashboard/reviews/*` (or equivalent)
-- `@RolesAllowed` on every admin bean
-- Coverage-style test (scan pages + annotations) if the pattern from admin-dashboard exists
+```
 
-**Done when:** Non-admin receives 403.
-
-## Step 10 — ArchUnit Rules
-
-Copy and adapt `ProductHexagonalArchitectureTest` → `ReviewHexagonalArchitectureTest` (domain free of jakarta, ports are interfaces, adapters implement ports, no cross-adapter imports, etc.).
-
-**Done when:** All ArchUnit rules green.
-
-## Step 11 — Full Test Suite & Polish
-
-- Complete unit + IT coverage
-- Sanitize review body (reuse OWASP pattern)
-- Pagination, empty states, error messages
-- English-only check
-
-**Done when:** `mvn -pl product-reviews,web -am test` green.
-
-## Step 12 — Final Integration & Release Prep
-
-- Add module to CI if needed
-- Update README / AGENTS.md with the new module
-- Smoke the full flow: submit → moderate → appear on product page
-- Tag readiness for v0.9.0 (or next)
-
-**Done when:** Entire epic Definition of Done is satisfied.
 ```

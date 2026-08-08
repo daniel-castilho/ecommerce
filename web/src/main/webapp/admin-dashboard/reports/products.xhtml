@@ -89,6 +89,10 @@
           <f:facet name="header">Revenue</f:facet>
           #{productPerformanceReportBean.formatMoney(row.revenue)}
         </h:column>
+        <h:column>
+          <f:facet name="header">Profit Margin (%)</f:facet>
+          #{productPerformanceReportBean.formatMargin(row.profitMargin)}
+        </h:column>
       </h:dataTable>
 
       <h2>Top by revenue</h2>
@@ -118,6 +122,10 @@
         <h:column>
           <f:facet name="header">Revenue</f:facet>
           #{productPerformanceReportBean.formatMoney(row.revenue)}
+        </h:column>
+        <h:column>
+          <f:facet name="header">Profit Margin (%)</f:facet>
+          #{productPerformanceReportBean.formatMargin(row.profitMargin)}
         </h:column>
       </h:dataTable>
 
@@ -149,6 +157,10 @@
         <h:column>
           <f:facet name="header">Revenue</f:facet>
           #{productPerformanceReportBean.formatMoney(row.revenue)}
+        </h:column>
+        <h:column>
+          <f:facet name="header">Profit Margin (%)</f:facet>
+          #{productPerformanceReportBean.formatMargin(row.profitMargin)}
         </h:column>
       </h:dataTable>
 

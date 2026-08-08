@@ -17,7 +17,7 @@ import java.util.Optional;
 public class RefundRequestJpaAdapter implements RefundRequestRepositoryPort {
 
     @PersistenceContext(unitName = "ecommercePU")
-    private EntityManager em;
+    EntityManager em;
 
     @Override
     public void save(RefundRequest request) {
@@ -71,6 +71,18 @@ public class RefundRequestJpaAdapter implements RefundRequestRepositoryPort {
 
         List<RefundRequest> items = entities.stream().map(this::mapToDomain).toList();
         return new PageResult<>(items, totalElements, page, pageSize);
+    }
+
+    @Override
+    public List<RefundRequest> findByOrderId(String orderId) {
+        String jpql = "SELECT r FROM RefundRequestJpaEntity r WHERE r.orderId = :orderId "
+                + "ORDER BY r.createdAt DESC";
+        return em.createQuery(jpql, RefundRequestJpaEntity.class)
+                .setParameter("orderId", orderId)
+                .getResultList()
+                .stream()
+                .map(this::mapToDomain)
+                .toList();
     }
 
     private RefundRequest mapToDomain(RefundRequestJpaEntity entity) {
