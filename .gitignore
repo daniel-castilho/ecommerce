@@ -15,6 +15,9 @@
 # Logs
 *.log
 
+# Scratch / AI-agent working files (not project content)
+project_dump.txt
+
 # Local tooling / caches (not project content)
 .github/modernize/
 docker/.localstack/
