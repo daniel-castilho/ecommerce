@@ -60,7 +60,7 @@ https://localhost:9443/web/
 
 ## Current State
 
-**Latest release: [v0.14.0](docs/releases/v0.14.0.md)** (2026-08-07)
+**Latest release: [v0.14.1](docs/releases/v0.14.1.md)** (2026-08-07)
 
 - Wishlist module complete (S1–S10): add/remove toggle on the product detail, a
   `/web/wishlist/wishlist.xhtml` list page (login-guarded, per-item remove, empty state),

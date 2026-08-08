@@ -6,6 +6,14 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.14.1](docs/releases/v0.14.1.md) — 2026-08-07
+
+**Wishlist catalog-card heart icon (S10)**
+Closes the wishlist epic (S1–S10). Every catalog card gets a **♥/♡ heart** toggle that adds or
+removes the product from the wishlist (guests see a heart linking to login), reusing the same
+use cases. Adds `WishlistBean.toggleFor` / `inWishlistFor`, heart styles from existing tokens,
+6 new bean tests, and lesson #27 (EL method invocation needs the literal method name).
+
 ## [v0.14.0](docs/releases/v0.14.0.md) — 2026-08-07
 
 **Wishlist public UI**

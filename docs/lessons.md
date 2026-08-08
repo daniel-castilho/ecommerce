@@ -8,6 +8,19 @@ Full historical write-ups of every lesson remain in git history of this file.
 
 ---
 
+## 27. EL method invocation needs the literal Java method name (2026-08-07)
+
+`#{bean.foo}` (property access) resolves `getFoo()` / `isFoo()`, but `#{bean.foo(x)}`
+(method invocation with an argument) must match a method literally named `foo`.
+A boolean method `isInWishlistFor(String)` is found as a property but **not** as the
+method `inWishlistFor(...)` — at render time that fails with
+`jakarta.el.MethodNotFoundException: Method not found: ...inWishlistFor(java.lang.String)`,
+visible only when the page loads in a browser (no unit test catches it).
+
+**Golden rule:** Name the Java method exactly as the EL call, e.g. `public boolean
+inWishlistFor(String id)`. Keep the `is`/`get` prefix only for no-arg bean-property
+getters. Browser-smoke any new EL call with arguments.
+
 ## 26. `h:link` hrefs already include the context path — and dropins can serve a stale WAR (2026-08-07)
 
 `h:link outcome="/wishlist/wishlist.xhtml"` renders a context-relative `href` that begins with the
