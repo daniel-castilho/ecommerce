@@ -8,6 +8,28 @@ Full historical write-ups of every lesson remain in git history of this file.
 
 ---
 
+## 26. `h:link` hrefs already include the context path — and dropins can serve a stale WAR (2026-08-07)
+
+`h:link outcome="/wishlist/wishlist.xhtml"` renders a context-relative `href` that begins with the
+app context path (`/web/...`). Browser-QA scripts that string-prefix the base URL
+(`https://localhost:9443/web` + href) end up hitting `/web/web/...` and getting 404s. Separately,
+copying a freshly built WAR over `dropins/` while the app is running can leave the old version
+served, so a smoke failure may be pointing at stale code.
+
+**Golden rule:** Build page URLs from the captured `href` directly
+(`https://localhost:9443${href}`). When a browser check "should" work, verify the deployed page
+matches the source before debugging the app.
+
+## 25. `h:messages globalOnly="true"` renders the summary only (2026-08-07)
+
+`h:messages` defaults to `showSummary="true"` and `showDetail="false"`. With `globalOnly` (the
+common template pattern) a bean message like `new FacesMessage(INFO, "Wishlist", "Product added to
+your wishlist.")` renders as just *"Wishlist"* — the important text never appears.
+
+**Golden rule:** Put the user-facing text in the **summary** and keep the empty detail, matching
+the page's existing convention (e.g. `ProductReviewBean` on `product-detail.xhtml`). Use
+`showDetail="true" showSummary="false"` only on dedicated form pages like login/checkout.
+
 ## 24. A fresh Liberty runtime needs sibling jars installed, and the first feature download is silent (2026-08-07)
 
 After `mvn clean`, `mvn -pl web liberty:create` resolves sibling modules from `~/.m2` — a `package`

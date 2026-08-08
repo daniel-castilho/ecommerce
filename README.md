@@ -60,15 +60,16 @@ https://localhost:9443/web/
 
 ## Current State
 
-**Latest release: [v0.13.0](docs/releases/v0.13.0.md)** (2026-08-07)
+**Latest release: [v0.14.0](docs/releases/v0.14.0.md)** (2026-08-07)
 
+- Wishlist module complete (S1–S9): add/remove toggle on the product detail and a
+  `/web/wishlist/wishlist.xhtml` list page (login-guarded, per-item remove, empty state)
 - Order status timeline + payment snapshot on admin order detail
 - Blocked / suspended accounts cannot place orders
 - Product cost price with gross profit margin on the admin product list and product performance report
 - Audit log filters (actor, event type, details, date range) with full-text tooltip on long details
 - Full **Reviews & Ratings** module (`product-reviews`)
 - Admin reporting lane completed: Revenue, Product Performance, Customer Insights reports with **CSV/PDF export**
-- Wishlist module (add/remove/list) — customer-facing UI deferred
 - Real Jakarta Security RBAC
 - Design-system tokens and shared components
 - ArchUnit architectural guards on every module

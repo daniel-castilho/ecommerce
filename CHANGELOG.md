@@ -6,6 +6,15 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.14.0](docs/releases/v0.14.0.md) — 2026-08-07
+
+**Wishlist public UI**
+Completes the Wishlist epic (S1–S9). Customers can now **add/remove products from a wishlist** on
+the product detail page (toggle button; guests see *Log in to save*) and manage it at
+`/web/wishlist/wishlist.xhtml` (list with image, name, price and added date, per-item remove,
+empty state). Also fixes `WishlistBean` FacesMessages so the text renders (summary-only
+`h:messages` convention) and adds the wishlist page styles from existing design tokens only.
+
 ## [v0.13.0](docs/releases/v0.13.0.md) — 2026-08-07
 
 **Order timeline, blocked-checkout guard, cost price & audit filters**
