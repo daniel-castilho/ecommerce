@@ -38,6 +38,10 @@
         </dependency>
         <dependency>
             <groupId>com.loja.ecommerce</groupId>
+            <artifactId>wishlist</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.loja.ecommerce</groupId>
             <artifactId>admin-dashboard</artifactId>
         </dependency>
         <dependency>
