@@ -32,6 +32,10 @@
             <groupId>com.loja.ecommerce</groupId>
             <artifactId>order-checkout</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.loja.ecommerce</groupId>
+            <artifactId>promotions</artifactId>
+        </dependency>
         <!-- Report export (backlog S23, human-approved 2026-08-06) -->
         <dependency>
             <groupId>org.apache.commons</groupId>

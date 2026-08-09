@@ -30,6 +30,8 @@ public final class Order {
     private OrderStatus status;
     private PaymentInfo paymentInfo;
     private String trackingNumber;
+    private String couponCode;
+    private Money discountAmount = Money.zero();
 
     public Order(String id, String userId) {
         this(id, userId, Instant.now(), OrderStatus.PENDING);
@@ -68,7 +70,8 @@ public final class Order {
                                 Money shippingCost, String trackingNumber, PaymentInfo paymentInfo,
                                 Instant updatedAt) {
         return restore(id, userId, customerEmail, createdAt, status, items, shippingAddress,
-                shippingCost, trackingNumber, paymentInfo, updatedAt, 0L, List.of());
+                shippingCost, trackingNumber, paymentInfo, updatedAt, 0L, List.of(),
+                null, Money.zero());
     }
 
     /** Restores an exact persisted snapshot including the optimistic-lock version. */
@@ -77,7 +80,8 @@ public final class Order {
                                 Money shippingCost, String trackingNumber, PaymentInfo paymentInfo,
                                 Instant updatedAt, long version) {
         return restore(id, userId, customerEmail, createdAt, status, items, shippingAddress,
-                shippingCost, trackingNumber, paymentInfo, updatedAt, version, List.of());
+                shippingCost, trackingNumber, paymentInfo, updatedAt, version, List.of(),
+                null, Money.zero());
     }
 
     /**
@@ -88,6 +92,20 @@ public final class Order {
                                 OrderStatus status, List<OrderLine> items, ShippingAddress shippingAddress,
                                 Money shippingCost, String trackingNumber, PaymentInfo paymentInfo,
                                 Instant updatedAt, long version, List<OrderTimelineEntry> timeline) {
+        return restore(id, userId, customerEmail, createdAt, status, items, shippingAddress,
+                shippingCost, trackingNumber, paymentInfo, updatedAt, version, timeline,
+                null, Money.zero());
+    }
+
+    /**
+     * Restores an exact persisted snapshot including the coupon snapshot
+     * ({@code couponCode} + {@code discountAmount}).
+     */
+    public static Order restore(String id, String userId, String customerEmail, Instant createdAt,
+                                OrderStatus status, List<OrderLine> items, ShippingAddress shippingAddress,
+                                Money shippingCost, String trackingNumber, PaymentInfo paymentInfo,
+                                Instant updatedAt, long version, List<OrderTimelineEntry> timeline,
+                                String couponCode, Money discountAmount) {
         Order order = new Order(id, userId, createdAt, status);
         order.customerEmail = customerEmail;
         order.items.addAll(items);
@@ -98,6 +116,8 @@ public final class Order {
         order.paymentInfo = paymentInfo;
         order.updatedAt = updatedAt;
         order.version = version;
+        order.couponCode = couponCode;
+        order.discountAmount = discountAmount == null ? Money.zero() : discountAmount;
         return order;
     }
 
@@ -242,11 +262,32 @@ public final class Order {
         }
     }
 
-    public Money getTotal() {
-        Money linesTotal = items.stream()
+    /** Sum of the line totals, before any discount or shipping. */
+    public Money getMerchandiseSubtotal() {
+        return items.stream()
                 .map(OrderLine::lineTotal)
                 .reduce(Money.zero(), Money::add);
-        return shippingCost == null ? linesTotal : linesTotal.add(shippingCost);
+    }
+
+    public Money getTotal() {
+        Money payableMerchandise = getMerchandiseSubtotal().subtract(discountAmount);
+        return shippingCost == null ? payableMerchandise : payableMerchandise.add(shippingCost);
+    }
+
+    /** Snapshot the coupon discount on the order (PENDING only). */
+    public void applyCoupon(String code, Money discount) {
+        requireState(OrderStatus.PENDING);
+        if (code == null || code.isBlank()) {
+            throw new IllegalArgumentException("Coupon code is required");
+        }
+        if (discount == null) {
+            throw new IllegalArgumentException("Discount amount is required");
+        }
+        if (discount.getAmount().compareTo(getMerchandiseSubtotal().getAmount()) > 0) {
+            throw new IllegalArgumentException("Discount cannot exceed the merchandise subtotal");
+        }
+        this.couponCode = code;
+        this.discountAmount = discount;
     }
 
     public String getId() { return id; }
@@ -266,4 +307,6 @@ public final class Order {
     public Money getShippingCost() { return shippingCost; }
     public PaymentInfo getPaymentInfo() { return paymentInfo; }
     public String getTrackingNumber() { return trackingNumber; }
+    public String getCouponCode() { return couponCode; }
+    public Money getDiscountAmount() { return discountAmount; }
 }

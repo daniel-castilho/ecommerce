@@ -398,4 +398,73 @@ class OrderTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("XXXXX-XXX");
     }
+
+    // ---- coupon snapshot ----
+
+    @Test
+    void applyCoupon_onPendingOrder_snapshotsCodeAndDiscountAndReducesTotal() {
+        Order order = newPendingOrder();
+        order.addItem(line("p1", 2, TEN, 0));
+        order.addItem(line("p2", 3, FIVE, 1));
+        order.setShippingCost(new Money(new BigDecimal("7.50")));
+
+        order.applyCoupon("SAVE10", new Money(new BigDecimal("7.00")));
+
+        assertThat(order.getCouponCode()).isEqualTo("SAVE10");
+        assertThat(order.getDiscountAmount().getAmount()).isEqualByComparingTo("7.00");
+        assertThat(order.getMerchandiseSubtotal().getAmount()).isEqualByComparingTo("35.00");
+        assertThat(order.getTotal().getAmount()).isEqualByComparingTo("35.50");
+    }
+
+    @Test
+    void getMerchandiseSubtotal_ignoresShippingAndDiscount() {
+        Order order = newPendingOrder();
+        order.addItem(line("p1", 2, TEN, 0));
+        order.setShippingCost(new Money(new BigDecimal("5.00")));
+        order.applyCoupon("SAVE", new Money(new BigDecimal("2.00")));
+
+        assertThat(order.getMerchandiseSubtotal().getAmount()).isEqualByComparingTo("20.00");
+    }
+
+    @Test
+    void applyCoupon_onNonPendingOrder_throwsInvalidOrderStateException() {
+        Order order = confirmedOrder();
+
+        assertThatThrownBy(() -> order.applyCoupon("SAVE10", TEN))
+                .isInstanceOf(InvalidOrderStateException.class);
+    }
+
+    @Test
+    void applyCoupon_withBlankCode_throwsIllegalArgumentException() {
+        Order order = newPendingOrder();
+        order.addItem(line("p1", 1, TEN, 0));
+
+        assertThatThrownBy(() -> order.applyCoupon("  ", TEN))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("required");
+    }
+
+    @Test
+    void applyCoupon_withDiscountAboveSubtotal_throwsIllegalArgumentException() {
+        Order order = newPendingOrder();
+        order.addItem(line("p1", 1, TEN, 0));
+
+        assertThatThrownBy(() -> order.applyCoupon("SAVE10", new Money(new BigDecimal("20.00"))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("subtotal");
+    }
+
+    @Test
+    void restore_withCouponSnapshot_restoresCouponAndDiscount() {
+        Order order = newPendingOrder();
+        order.addItem(line("p1", 2, TEN, 0));
+
+        Order restored = Order.restore("order-9", "user-1", "ana@example.com", Instant.now(),
+                OrderStatus.PENDING, List.of(line("p1", 2, TEN, 0)), null, null, null, null,
+                Instant.now(), 0L, List.of(), "SAVE10", new Money(new BigDecimal("4.00")));
+
+        assertThat(restored.getCouponCode()).isEqualTo("SAVE10");
+        assertThat(restored.getDiscountAmount().getAmount()).isEqualByComparingTo("4.00");
+        assertThat(restored.getTotal().getAmount()).isEqualByComparingTo("16.00");
+    }
 }

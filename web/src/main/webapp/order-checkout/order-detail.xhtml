@@ -63,6 +63,10 @@
                 </h:dataTable>
 
                 <p>Shipping cost: #{orderHistoryBean.selectedOrder.shippingCost.amount}</p>
+                <ui:fragment rendered="#{not empty orderHistoryBean.selectedOrder.couponCode}">
+                    <p>Coupon #{orderHistoryBean.selectedOrder.couponCode}:
+                        -#{orderHistoryBean.selectedOrder.discountAmount.amount}</p>
+                </ui:fragment>
                 <p>Total: <strong>#{orderHistoryBean.selectedOrder.total.amount}</strong></p>
 
                 <ui:fragment rendered="#{not empty orderHistoryBean.selectedOrder.trackingNumber}">

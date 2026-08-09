@@ -13,6 +13,7 @@
         <module>shared-kernel</module>
         <module>user-account</module>
         <module>product-catalog</module>
+        <module>promotions</module>
         <module>order-checkout</module>
         <module>product-reviews</module>
         <module>wishlist</module>
@@ -55,6 +56,11 @@
             <dependency>
                 <groupId>com.loja.ecommerce</groupId>
                 <artifactId>order-checkout</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.loja.ecommerce</groupId>
+                <artifactId>promotions</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

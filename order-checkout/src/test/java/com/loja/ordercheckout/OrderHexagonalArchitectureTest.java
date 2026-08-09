@@ -33,6 +33,7 @@ public class OrderHexagonalArchitectureTest {
             "..ordercheckout.domain..",
             "com.loja.productcatalog..",
             "com.loja.useraccount..",
+            "com.loja.promotions..",
             "com.loja.shared..",
             "jakarta..",
             "java..",

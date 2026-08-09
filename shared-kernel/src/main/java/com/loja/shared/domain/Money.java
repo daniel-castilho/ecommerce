@@ -28,8 +28,16 @@ public final class Money {
         return new Money(this.amount.add(other.amount));
     }
 
+    public Money subtract(Money other) {
+        return new Money(this.amount.subtract(other.amount));
+    }
+
     public Money multiply(int quantity) {
         return new Money(this.amount.multiply(BigDecimal.valueOf(quantity)));
+    }
+
+    public Money multiply(BigDecimal factor) {
+        return new Money(this.amount.multiply(factor));
     }
 
     public BigDecimal getAmount() {

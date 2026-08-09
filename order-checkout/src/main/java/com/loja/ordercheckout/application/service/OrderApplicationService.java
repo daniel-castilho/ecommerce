@@ -19,6 +19,9 @@ import com.loja.productcatalog.application.dto.ReservationRequest;
 import com.loja.productcatalog.domain.model.Product;
 import com.loja.productcatalog.domain.port.out.InventoryReservationPort;
 import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
+import com.loja.promotions.application.dto.DiscountQuote;
+import com.loja.promotions.domain.port.in.QuoteDiscountUseCase;
+import com.loja.promotions.domain.port.in.RecordCouponRedemptionUseCase;
 import com.loja.useraccount.domain.model.User;
 import com.loja.useraccount.domain.port.out.UserRepositoryPort;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -43,6 +46,8 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
     private final NotificationPort notification;
     private final InventoryReservationPort inventoryReservation;
     private final UserRepositoryPort userRepository;
+    private final QuoteDiscountUseCase couponQuote;
+    private final RecordCouponRedemptionUseCase couponRedemption;
 
     @Inject
     public OrderApplicationService(OrderRepositoryPort orderRepository,
@@ -51,7 +56,9 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
                                    ShippingRatePort shippingRate,
                                    NotificationPort notification,
                                    InventoryReservationPort inventoryReservation,
-                                   UserRepositoryPort userRepository) {
+                                   UserRepositoryPort userRepository,
+                                   QuoteDiscountUseCase couponQuote,
+                                   RecordCouponRedemptionUseCase couponRedemption) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.paymentGateway = paymentGateway;
@@ -59,6 +66,8 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
         this.notification = notification;
         this.inventoryReservation = inventoryReservation;
         this.userRepository = userRepository;
+        this.couponQuote = couponQuote;
+        this.couponRedemption = couponRedemption;
     }
 
     @Transactional
@@ -91,6 +100,12 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
         }
         order.validateForCheckout();
 
+        String couponCode = command.couponCode();
+        if (couponCode != null && !couponCode.isBlank()) {
+            DiscountQuote quote = couponQuote.quote(couponCode, order.getMerchandiseSubtotal());
+            order.applyCoupon(quote.code(), quote.discountAmount());
+        }
+
         List<ReservationRequest> reservations = order.getItems().stream()
                 .map(line -> new ReservationRequest(line.getProductId(), line.getQuantity()))
                 .toList();
@@ -116,6 +131,9 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
         }
 
         Order saved = orderRepository.save(order);
+        if (saved.getCouponCode() != null) {
+            couponRedemption.redeem(saved.getCouponCode());
+        }
         notification.notifyOrderConfirmed(saved);
         return saved;
     }

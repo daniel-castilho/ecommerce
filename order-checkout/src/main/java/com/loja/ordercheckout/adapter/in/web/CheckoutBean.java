@@ -15,6 +15,9 @@ import com.loja.ordercheckout.domain.port.out.ShippingRatePort;
 import com.loja.productcatalog.domain.exception.InsufficientStockException;
 import com.loja.productcatalog.domain.model.Product;
 import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
+import com.loja.promotions.domain.exception.CouponNotApplicableException;
+import com.loja.promotions.domain.exception.CouponNotFoundException;
+import com.loja.promotions.domain.port.in.QuoteDiscountUseCase;
 import com.loja.shared.domain.Money;
 import com.loja.useraccount.domain.model.User;
 import com.loja.useraccount.domain.port.out.SessionPort;
@@ -65,6 +68,9 @@ public class CheckoutBean implements Serializable {
     @Inject
     private SessionPort session;
 
+    @Inject
+    private QuoteDiscountUseCase couponQuote;
+
     private int step = STEP_REVIEW;
     private final String requestId = UUID.randomUUID().toString();
 
@@ -85,6 +91,7 @@ public class CheckoutBean implements Serializable {
 
     private String customerEmail;
     private String paymentToken = "tok_test";
+    private String couponCode;
 
     @PostConstruct
     void init() {
@@ -191,12 +198,14 @@ public class CheckoutBean implements Serializable {
         try {
             confirmedOrder = createOrder.checkout(new CheckoutCommand(
                     requestId, user.get().getId(), email, items, buildAddress(),
-                    shippingMethod, new PaymentMethod("card", paymentToken.trim())));
+                    shippingMethod, new PaymentMethod("card", paymentToken.trim()),
+                    couponCode == null ? null : couponCode.trim()));
             FacesContext ctx = FacesContext.getCurrentInstance();
             ctx.getExternalContext().getFlash().setKeepMessages(true);
             return "/order-checkout/order-confirmed.xhtml?faces-redirect=true&orderId=" + confirmedOrder.getId();
         } catch (PaymentFailedException | ShippingException | InsufficientStockException
-                 | AccountSuspendedException | IllegalArgumentException e) {
+                 | AccountSuspendedException | CouponNotFoundException | CouponNotApplicableException
+                 | IllegalArgumentException e) {
             step = STEP_PAYMENT;
             addGlobal(FacesMessage.SEVERITY_ERROR, "Checkout failed", e.getMessage());
             return null;
@@ -252,8 +261,20 @@ public class CheckoutBean implements Serializable {
                 .orElse(Money.zero());
     }
 
+    /** Live discount for the entered coupon code; zero when none or invalid. */
+    public Money getDiscount() {
+        if (couponCode == null || couponCode.isBlank()) {
+            return Money.zero();
+        }
+        try {
+            return couponQuote.quote(couponCode.trim(), getSubtotal()).discountAmount();
+        } catch (CouponNotFoundException | CouponNotApplicableException e) {
+            return Money.zero();
+        }
+    }
+
     public Money getOrderTotal() {
-        return getSubtotal().add(getShippingCost());
+        return getSubtotal().subtract(getDiscount()).add(getShippingCost());
     }
 
     private ShippingAddress buildAddress() {
@@ -297,6 +318,8 @@ public class CheckoutBean implements Serializable {
     public void setCustomerEmail(String customerEmail) { this.customerEmail = customerEmail; }
     public String getPaymentToken() { return paymentToken; }
     public void setPaymentToken(String paymentToken) { this.paymentToken = paymentToken; }
+    public String getCouponCode() { return couponCode; }
+    public void setCouponCode(String couponCode) { this.couponCode = couponCode; }
 
     /** Read-only row model for the review tables (resolved against the catalog). */
     public static class CartLineView {

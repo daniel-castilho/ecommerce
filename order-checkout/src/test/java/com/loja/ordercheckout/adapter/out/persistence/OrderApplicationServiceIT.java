@@ -18,6 +18,8 @@ import com.loja.productcatalog.domain.model.Sku;
 import com.loja.productcatalog.domain.model.Slug;
 import com.loja.productcatalog.domain.port.out.InventoryReservationPort;
 import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
+import com.loja.promotions.domain.port.in.QuoteDiscountUseCase;
+import com.loja.promotions.domain.port.in.RecordCouponRedemptionUseCase;
 import com.loja.shared.domain.Money;
 import com.loja.useraccount.domain.model.Email;
 import com.loja.useraccount.domain.model.User;
@@ -70,6 +72,8 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
     private ShippingRateMockAdapter shippingRate;
     private NotificationMockAdapter notification;
     private UserRepositoryPort userRepository;
+    private QuoteDiscountUseCase couponQuote;
+    private RecordCouponRedemptionUseCase couponRedemption;
     private OrderApplicationService service;
 
     @BeforeEach
@@ -83,9 +87,12 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
         shippingRate = new ShippingRateMockAdapter();
         notification = new NotificationMockAdapter();
         userRepository = mock(UserRepositoryPort.class);
+        couponQuote = mock(QuoteDiscountUseCase.class);
+        couponRedemption = mock(RecordCouponRedemptionUseCase.class);
         when(userRepository.findById("user-1")).thenReturn(Optional.of(activeUser()));
         service = new OrderApplicationService(orderRepository, productRepository,
-                paymentGateway, shippingRate, notification, inventoryReservation, userRepository);
+                paymentGateway, shippingRate, notification, inventoryReservation, userRepository,
+                couponQuote, couponRedemption);
 
         em.getTransaction().begin();
         em.createNativeQuery("TRUNCATE TABLE tb_order_item, tb_order RESTART IDENTITY CASCADE")
@@ -128,7 +135,7 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
                 "Centro", "Sao Paulo", "SP", "01310-100", null);
         return new CheckoutCommand(requestId, "user-1", "ana@example.com",
                 List.of(new ItemCheckoutRequest("p1", 2)), address, "pac",
-                new PaymentMethod("card", "tok_test"));
+                new PaymentMethod("card", "tok_test"), null);
     }
 
     private static User activeUser() {
@@ -202,7 +209,8 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
                 workerRepository.em = workerEm;
                 OrderApplicationService workerService = new OrderApplicationService(workerRepository,
                         productRepository, new PaymentGatewayMockAdapter(),
-                        new ShippingRateMockAdapter(), notification, inventoryReservation, userRepository);
+                        new ShippingRateMockAdapter(), notification, inventoryReservation, userRepository,
+                        couponQuote, couponRedemption);
                 EntityTransaction workerTx = workerEm.getTransaction();
                 workerTx.begin();
                 try {

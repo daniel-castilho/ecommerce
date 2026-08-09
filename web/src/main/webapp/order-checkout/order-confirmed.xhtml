@@ -65,6 +65,10 @@
                 </h:dataTable>
 
                 <p>Shipping cost: #{checkoutBean.confirmedOrder.shippingCost.amount}</p>
+                <ui:fragment rendered="#{not empty checkoutBean.confirmedOrder.couponCode}">
+                    <p>Coupon #{checkoutBean.confirmedOrder.couponCode}:
+                        -#{checkoutBean.confirmedOrder.discountAmount.amount}</p>
+                </ui:fragment>
                 <p>Total: <strong>#{checkoutBean.confirmedOrder.total.amount}</strong></p>
             </div>
         </ui:fragment>

@@ -1,0 +1,83 @@
+<ui:composition
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:f="jakarta.faces.core"
+  xmlns:my="https://loja.com/design-system"
+  template="/WEB-INF/templates/main.xhtml"
+>
+  <ui:define name="title">Admin - Create Coupon</ui:define>
+
+  <ui:define name="content">
+    <h1 class="page-title">New Coupon</h1>
+    <h:messages globalOnly="true" styleClass="messages" />
+
+    <div class="card">
+      <h:form id="couponCreateForm">
+        <my:formFieldGroup label="Code" forId="code">
+          <h:inputText
+            id="code"
+            value="#{couponCreateBean.code}"
+            required="true"
+          />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Type" forId="type">
+          <h:selectOneMenu id="type" value="#{couponCreateBean.type}">
+            <f:selectItems
+              value="#{couponCreateBean.types}"
+              var="type"
+              itemValue="#{type}"
+              itemLabel="#{type}"
+            />
+          </h:selectOneMenu>
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Value" forId="value">
+          <h:inputText
+            id="value"
+            value="#{couponCreateBean.value}"
+            required="true"
+            converterMessage="Value must be a number"
+          />
+          <p class="form-hint">
+            PERCENT: 1-100 (e.g. 10 = 10% off). FIXED: amount deducted (e.g.
+            20.00).
+          </p>
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Active" forId="active">
+          <h:selectBooleanCheckbox id="active" value="#{couponCreateBean.active}" />
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Valid from (UTC)" forId="validFrom">
+          <h:inputText id="validFrom" value="#{couponCreateBean.validFrom}">
+            <f:convertDateTime type="localDateTime" pattern="yyyy-MM-dd'T'HH:mm" />
+          </h:inputText>
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Valid to (UTC)" forId="validTo">
+          <h:inputText id="validTo" value="#{couponCreateBean.validTo}">
+            <f:convertDateTime type="localDateTime" pattern="yyyy-MM-dd'T'HH:mm" />
+          </h:inputText>
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Maximum total uses" forId="maxTotalUses">
+          <h:inputText id="maxTotalUses" value="#{couponCreateBean.maxTotalUses}" />
+        </my:formFieldGroup>
+
+        <div class="form-actions">
+          <h:commandButton
+            value="Create coupon"
+            action="#{couponCreateBean.submit}"
+            styleClass="button button-primary"
+          />
+          <h:link
+            outcome="/admin-dashboard/coupons/list.xhtml"
+            value="Cancel"
+          />
+        </div>
+      </h:form>
+    </div>
+  </ui:define>
+</ui:composition>

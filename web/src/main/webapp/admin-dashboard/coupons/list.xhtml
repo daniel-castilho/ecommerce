@@ -1,0 +1,133 @@
+<ui:composition
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:f="jakarta.faces.core"
+  xmlns:my="https://loja.com/design-system"
+  template="/WEB-INF/templates/main.xhtml"
+>
+  <ui:define name="title">Admin - Coupons</ui:define>
+
+  <ui:define name="content">
+    <h1 class="page-title">Coupon Management</h1>
+    <h:messages globalOnly="true" styleClass="messages" />
+
+    <div class="card">
+      <h:form id="filtersForm">
+        <div class="form-grid">
+          <my:formFieldGroup label="Code contains" forId="codeFragment">
+            <h:inputText
+              id="codeFragment"
+              value="#{couponManagementBean.codeFragment}"
+            />
+          </my:formFieldGroup>
+
+          <my:formFieldGroup label="Status" forId="active">
+            <h:selectOneMenu id="active" value="#{couponManagementBean.active}">
+              <f:selectItem itemValue="#{null}" itemLabel="All" />
+              <f:selectItem itemValue="#{true}" itemLabel="Active" />
+              <f:selectItem itemValue="#{false}" itemLabel="Inactive" />
+            </h:selectOneMenu>
+          </my:formFieldGroup>
+
+          <div class="form-actions">
+            <h:commandButton
+              value="Search"
+              action="#{couponManagementBean.search}"
+              styleClass="button"
+            />
+            <h:commandButton
+              value="New coupon"
+              action="#{couponManagementBean.newCoupon}"
+              styleClass="button button-primary"
+            />
+          </div>
+        </div>
+      </h:form>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h:link
+          outcome="/admin-dashboard/dashboard.xhtml"
+          value="Back to dashboard"
+          styleClass="button button-secondary"
+        />
+      </div>
+
+      <h:form id="couponTableForm">
+        <h:dataTable
+          value="#{couponManagementBean.coupons}"
+          var="coupon"
+          styleClass="data-table"
+          rendered="#{not empty couponManagementBean.coupons}"
+        >
+          <h:column>
+            <f:facet name="header">Code</f:facet>
+            #{coupon.code}
+          </h:column>
+          <h:column>
+            <f:facet name="header">Type</f:facet>
+            #{coupon.type}
+          </h:column>
+          <h:column>
+            <f:facet name="header">Value</f:facet>
+            <h:outputText value="#{coupon.value}" />
+          </h:column>
+          <h:column>
+            <f:facet name="header">Status</f:facet>
+            <h:outputText value="#{coupon.active ? 'Active' : 'Inactive'}" />
+          </h:column>
+          <h:column>
+            <f:facet name="header">Used / Max</f:facet>
+            <h:outputText
+              value="#{coupon.usedCount} / #{coupon.maxTotalUses == null ? '∞' : coupon.maxTotalUses}"
+            />
+          </h:column>
+          <h:column>
+            <f:facet name="header">Valid</f:facet>
+            <h:outputText value="#{coupon.validFrom}" rendered="#{coupon.validFrom != null}">
+              <f:convertDateTime type="both" timeZone="UTC" pattern="yyyy-MM-dd HH:mm" />
+            </h:outputText>
+            <h:outputText value="—" rendered="#{coupon.validFrom == null}" />
+            <h:outputText value=" → " rendered="#{coupon.validTo != null}" />
+            <h:outputText value="#{coupon.validTo}" rendered="#{coupon.validTo != null}">
+              <f:convertDateTime type="both" timeZone="UTC" pattern="yyyy-MM-dd HH:mm" />
+            </h:outputText>
+          </h:column>
+          <h:column>
+            <f:facet name="header">Action</f:facet>
+            <h:commandButton
+              value="#{coupon.active ? 'Deactivate' : 'Activate'}"
+              action="#{couponManagementBean.toggleActive(coupon)}"
+              styleClass="button button-secondary"
+            />
+          </h:column>
+        </h:dataTable>
+      </h:form>
+
+      <ui:fragment rendered="#{empty couponManagementBean.coupons}">
+        <p>No coupons found.</p>
+      </ui:fragment>
+
+      <div
+        class="pagination-controls"
+        rendered="#{couponManagementBean.hasPreviousPage or couponManagementBean.hasNextPage}"
+      >
+        <h:form>
+          <h:commandButton
+            value="Previous"
+            action="#{couponManagementBean.previousPage}"
+            disabled="#{not couponManagementBean.hasPreviousPage}"
+          />
+          <span>Page #{couponManagementBean.page + 1}</span>
+          <h:commandButton
+            value="Next"
+            action="#{couponManagementBean.nextPage}"
+            disabled="#{not couponManagementBean.hasNextPage}"
+          />
+        </h:form>
+      </div>
+    </div>
+  </ui:define>
+</ui:composition>

@@ -69,6 +69,12 @@ public class OrderJpaEntity {
     @Column(name = "tracking_number", length = 64)
     private String trackingNumber;
 
+    @Column(name = "coupon_code", length = 36)
+    private String couponCode;
+
+    @Column(name = "discount_amount", precision = 19, scale = 2)
+    private BigDecimal discountAmount;
+
     @Embedded
     private PaymentInfoEmbeddable paymentInfo;
 
@@ -95,6 +101,8 @@ public class OrderJpaEntity {
         e.shippingAddress = ShippingAddressEmbeddable.fromDomain(order.getShippingAddress());
         e.shippingCost = order.getShippingCost() == null ? null : order.getShippingCost().getAmount();
         e.trackingNumber = order.getTrackingNumber();
+        e.couponCode = order.getCouponCode();
+        e.discountAmount = order.getDiscountAmount() == null ? null : order.getDiscountAmount().getAmount();
         e.paymentInfo = PaymentInfoEmbeddable.fromDomain(order.getPaymentInfo());
         e.version = order.getVersion();
         e.items = new ArrayList<>(order.getItems().stream()
@@ -114,7 +122,8 @@ public class OrderJpaEntity {
                 trackingNumber,
                 paymentInfo == null ? null : paymentInfo.toDomain(),
                 updatedAt, version,
-                timeline.stream().map(OrderStatusHistoryEmbeddable::toDomain).toList());
+                timeline.stream().map(OrderStatusHistoryEmbeddable::toDomain).toList(),
+                couponCode, discountAmount == null ? null : new Money(discountAmount));
     }
 
     public String getId() { return id; }

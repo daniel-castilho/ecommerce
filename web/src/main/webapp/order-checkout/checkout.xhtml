@@ -137,6 +137,9 @@
                     <my:formFieldGroup label="Payment token" forId="paymentToken">
                         <h:inputText id="paymentToken" value="#{checkoutBean.paymentToken}" required="true" />
                     </my:formFieldGroup>
+                    <my:formFieldGroup label="Coupon code (optional)" forId="couponCode">
+                        <h:inputText id="couponCode" value="#{checkoutBean.couponCode}" />
+                    </my:formFieldGroup>
                     <p>Card details are tokenized by your payment provider in the browser; only the token reaches the server.</p>
                     <h:commandButton value="Continue to confirm" action="#{checkoutBean.nextFromPayment}"
                                      styleClass="button" />
@@ -163,6 +166,9 @@
                         </h:column>
                     </h:dataTable>
                     <p>Shipping (#{checkoutBean.shippingMethod}): #{checkoutBean.shippingCost.amount}</p>
+                    <ui:fragment rendered="#{checkoutBean.discount.amount gt 0}">
+                        <p>Coupon #{checkoutBean.couponCode}: -#{checkoutBean.discount.amount}</p>
+                    </ui:fragment>
                     <p>Total: <strong>#{checkoutBean.orderTotal.amount}</strong></p>
                     <p>
                         Deliver to: #{checkoutBean.recipientName}, #{checkoutBean.street}
