@@ -59,8 +59,9 @@
 ### Monitoring & Security (v0.7.0 + v0.13.0)
 
 - **S24** Audit log viewer — **v0.7.0**; filters (actor, event type, details keyword, date range)
-  and full-text tooltip on truncated details — **v0.13.0** (debt closed; remaining acceptance
-  criteria: resolved admin-name actor column, entity type/ID as separate columns).
+  and full-text tooltip on truncated details — **v0.13.0**. Remaining acceptance criteria now
+  closed: resolved admin-name actor column (`FindUserUseCase` → full name) and entity type/ID
+  as separate columns (`entity_type`/`entity_id`, V21 migration).
 - **S25** Admin user management
 - **S26** RBAC enforcement (`@RolesAllowed("ADMIN")` + `web.xml` constraints + `AdminAccessControlCoverageTest`)
 - **S27** ArchUnit boundary tests for `admin-dashboard`

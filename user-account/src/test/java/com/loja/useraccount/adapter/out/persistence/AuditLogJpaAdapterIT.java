@@ -28,7 +28,8 @@ class AuditLogJpaAdapterIT extends AbstractIntegrationTest {
     void shouldPersistAuditLogEntry() {
         EntityTransaction tx = em.getTransaction();
         tx.begin();
-        adapter.logEvent("user-1", "admin-9", "LOGIN_SUCCESS", "192.168.1.1", "Mozilla/5.0", "Logged in");
+        adapter.logEvent("user-1", "admin-9", "LOGIN_SUCCESS", "USER", "user-1",
+                "192.168.1.1", "Mozilla/5.0", "Logged in");
         tx.commit();
         em.clear();
 
@@ -38,6 +39,8 @@ class AuditLogJpaAdapterIT extends AbstractIntegrationTest {
                 .getSingleResult();
         assertThat(found.getEventType()).isEqualTo("LOGIN_SUCCESS");
         assertThat(found.getActorId()).isEqualTo("admin-9");
+        assertThat(found.getEntityType()).isEqualTo("USER");
+        assertThat(found.getEntityId()).isEqualTo("user-1");
         assertThat(found.getIpAddress()).isEqualTo("192.168.1.1");
         assertThat(found.getUserAgent()).isEqualTo("Mozilla/5.0");
         assertThat(found.getDetails()).isEqualTo("Logged in");
@@ -47,8 +50,8 @@ class AuditLogJpaAdapterIT extends AbstractIntegrationTest {
     void shouldPersistMultipleAuditEntries() {
         EntityTransaction tx = em.getTransaction();
         tx.begin();
-        adapter.logEvent("user-2", null, "REGISTRATION", null, null, "New user");
-        adapter.logEvent("user-2", null, "LOGIN_SUCCESS", "10.0.0.1", "Chrome", "Logged in");
+        adapter.logEvent("user-2", null, "REGISTRATION", "USER", "user-2", null, null, "New user");
+        adapter.logEvent("user-2", null, "LOGIN_SUCCESS", "USER", "user-2", "10.0.0.1", "Chrome", "Logged in");
         tx.commit();
 
         var results = em.createQuery("SELECT a FROM UserAuditLogJpaEntity a WHERE a.userId = :uid", UserAuditLogJpaEntity.class)
@@ -133,7 +136,7 @@ class AuditLogJpaAdapterIT extends AbstractIntegrationTest {
     private void seed(String userId, String actorId, String eventType, String details) {
         EntityTransaction tx = em.getTransaction();
         tx.begin();
-        adapter.logEvent(userId, actorId, eventType, "127.0.0.1", "TestAgent", details);
+        adapter.logEvent(userId, actorId, eventType, "USER", userId, "127.0.0.1", "TestAgent", details);
         tx.commit();
         em.clear();
     }

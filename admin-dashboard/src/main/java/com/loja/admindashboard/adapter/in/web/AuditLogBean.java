@@ -3,6 +3,7 @@ package com.loja.admindashboard.adapter.in.web;
 import com.loja.useraccount.application.dto.AuditLogSearchCriteria;
 import com.loja.useraccount.application.dto.PageResult;
 import com.loja.useraccount.domain.model.AuditLogEvent;
+import com.loja.useraccount.domain.port.in.FindUserUseCase;
 import com.loja.useraccount.domain.port.in.ListAuditLogsUseCase;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.security.RolesAllowed;
@@ -27,8 +28,15 @@ public class AuditLogBean implements Serializable {
     @Inject
     private ListAuditLogsUseCase listAuditLogsUseCase;
 
+    @Inject
+    private FindUserUseCase findUserUseCase;
+
     void setListAuditLogsUseCase(ListAuditLogsUseCase listAuditLogsUseCase) {
         this.listAuditLogsUseCase = listAuditLogsUseCase;
+    }
+
+    void setFindUserUseCase(FindUserUseCase findUserUseCase) {
+        this.findUserUseCase = findUserUseCase;
     }
 
     private List<AuditLogEvent> logs;
@@ -110,6 +118,21 @@ public class AuditLogBean implements Serializable {
 
     public LocalDateTime logDate(AuditLogEvent log) {
         return log.createdAt().atZone(ZoneOffset.UTC).toLocalDateTime();
+    }
+
+    /**
+     * Resolves the actor behind an audit entry to a human-readable name: the explicit
+     * actor (admin) when present, otherwise the subject user who acted on their own account.
+     * Falls back to the raw ID when the account no longer exists.
+     */
+    public String actorDisplayName(AuditLogEvent log) {
+        String id = log.actorId() != null ? log.actorId() : log.userId();
+        if (id == null || id.isBlank()) {
+            return "—";
+        }
+        return findUserUseCase.findById(id)
+                .map(user -> user.getFullName())
+                .orElse(id);
     }
 
     private AuditLogSearchCriteria criteria() {

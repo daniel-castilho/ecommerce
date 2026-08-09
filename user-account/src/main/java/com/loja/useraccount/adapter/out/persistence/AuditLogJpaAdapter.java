@@ -29,8 +29,10 @@ public class AuditLogJpaAdapter implements AuditLogPort, AuditLogQueryPort {
     }
 
     @Override
-    public void logEvent(String userId, String actorId, String eventType, String ipAddress, String userAgent, String details) {
-        UserAuditLogJpaEntity entity = new UserAuditLogJpaEntity(userId, actorId, eventType, ipAddress, userAgent, details);
+    public void logEvent(String userId, String actorId, String eventType, String entityType, String entityId,
+                         String ipAddress, String userAgent, String details) {
+        UserAuditLogJpaEntity entity = new UserAuditLogJpaEntity(
+                userId, actorId, eventType, entityType, entityId, ipAddress, userAgent, details);
         em.persist(entity);
     }
 
@@ -55,6 +57,7 @@ public class AuditLogJpaAdapter implements AuditLogPort, AuditLogQueryPort {
 
         var items = entities.stream().map(e -> new AuditLogEvent(
                 e.getId(), e.getUserId(), e.getActorId(), e.getEventType(),
+                e.getEntityType(), e.getEntityId(),
                 e.getIpAddress(), e.getUserAgent(), e.getDetails(), e.getCreatedAt()
         )).toList();
 

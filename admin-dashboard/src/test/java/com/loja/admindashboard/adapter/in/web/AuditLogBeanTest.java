@@ -3,6 +3,9 @@ package com.loja.admindashboard.adapter.in.web;
 import com.loja.useraccount.application.dto.AuditLogSearchCriteria;
 import com.loja.useraccount.application.dto.PageResult;
 import com.loja.useraccount.domain.model.AuditLogEvent;
+import com.loja.useraccount.domain.model.User;
+import com.loja.useraccount.domain.model.UserProfile;
+import com.loja.useraccount.domain.port.in.FindUserUseCase;
 import com.loja.useraccount.domain.port.in.ListAuditLogsUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,6 +14,7 @@ import org.mockito.ArgumentCaptor;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -22,13 +26,16 @@ import static org.mockito.Mockito.when;
 class AuditLogBeanTest {
 
     private ListAuditLogsUseCase listAuditLogsUseCase;
+    private FindUserUseCase findUserUseCase;
     private AuditLogBean bean;
 
     @BeforeEach
     void setUp() {
         listAuditLogsUseCase = mock(ListAuditLogsUseCase.class);
+        findUserUseCase = mock(FindUserUseCase.class);
         bean = new AuditLogBean();
         bean.setListAuditLogsUseCase(listAuditLogsUseCase);
+        bean.setFindUserUseCase(findUserUseCase);
         when(listAuditLogsUseCase.distinctEventTypes()).thenReturn(List.of("LOGIN_SUCCESS", "REGISTRATION"));
     }
 
@@ -124,7 +131,8 @@ class AuditLogBeanTest {
     @Test
     void displayDetails_truncatesLongDetails() {
         String longDetails = "x".repeat(200);
-        AuditLogEvent log = new AuditLogEvent(1L, "user-1", "admin-1", "LOGIN_SUCCESS", null, null, longDetails, Instant.now());
+        AuditLogEvent log = new AuditLogEvent(1L, "user-1", "admin-1", "LOGIN_SUCCESS", "USER", "user-1",
+                null, null, longDetails, Instant.now());
 
         assertThat(bean.isTruncated(log)).isTrue();
         assertThat(bean.displayDetails(log)).hasSize(61);
@@ -134,14 +142,49 @@ class AuditLogBeanTest {
 
     @Test
     void displayDetails_keepsShortDetails() {
-        AuditLogEvent log = new AuditLogEvent(1L, "user-1", "admin-1", "LOGIN_SUCCESS", null, null, "Short", Instant.now());
+        AuditLogEvent log = new AuditLogEvent(1L, "user-1", "admin-1", "LOGIN_SUCCESS", "USER", "user-1",
+                null, null, "Short", Instant.now());
 
         assertThat(bean.isTruncated(log)).isFalse();
         assertThat(bean.displayDetails(log)).isEqualTo("Short");
     }
 
+    @Test
+    void actorDisplayName_resolvesAdminName() {
+        when(findUserUseCase.findById("admin-1"))
+                .thenReturn(Optional.of(new User("admin-1", null, null, UserProfile.fromFullName("Ada Lovelace"))));
+
+        assertThat(bean.actorDisplayName(singleLog())).isEqualTo("Ada Lovelace");
+    }
+
+    @Test
+    void actorDisplayName_fallsBackToSubjectNameWhenActorIsNull() {
+        AuditLogEvent log = new AuditLogEvent(1L, "user-1", null, "LOGIN_SUCCESS", "USER", "user-1",
+                "127.0.0.1", "Mozilla", "Login", Instant.now());
+        when(findUserUseCase.findById("user-1"))
+                .thenReturn(Optional.of(new User("user-1", null, null, UserProfile.fromFullName("Grace Hopper"))));
+
+        assertThat(bean.actorDisplayName(log)).isEqualTo("Grace Hopper");
+    }
+
+    @Test
+    void actorDisplayName_fallsBackToRawIdWhenAccountMissing() {
+        when(findUserUseCase.findById("admin-1")).thenReturn(Optional.empty());
+
+        assertThat(bean.actorDisplayName(singleLog())).isEqualTo("admin-1");
+    }
+
+    @Test
+    void actorDisplayName_returnsDashWhenNoActor() {
+        AuditLogEvent log = new AuditLogEvent(1L, null, null, "PRODUCT_ARCHIVED", "PRODUCT", "p1",
+                "127.0.0.1", "Mozilla", "Archived", Instant.now());
+
+        assertThat(bean.actorDisplayName(log)).isEqualTo("—");
+    }
+
     private AuditLogEvent singleLog() {
-        return new AuditLogEvent(1L, "user-1", "admin-1", "LOGIN_SUCCESS", "127.0.0.1", "Mozilla", "Login", Instant.now());
+        return new AuditLogEvent(1L, "user-1", "admin-1", "LOGIN_SUCCESS", "USER", "user-1",
+                "127.0.0.1", "Mozilla", "Login", Instant.now());
     }
 
     private PageResult<AuditLogEvent> pageWith(List<AuditLogEvent> items, long total) {

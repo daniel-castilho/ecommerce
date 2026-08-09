@@ -23,7 +23,7 @@
             <div class="card">
                 <h:form id="filtersForm">
                     <div class="form-grid">
-                        <my:formFieldGroup label="Actor ID" forId="actorFilterId">
+                        <my:formFieldGroup label="Actor" forId="actorFilterId">
                             <h:inputText id="actorFilterId" value="#{auditLogBean.actorFilter}"
                                          placeholder="e.g. admin@loja.com" />
                         </my:formFieldGroup>
@@ -77,8 +77,16 @@
                         #{log.userId}
                     </h:column>
                     <h:column>
-                        <f:facet name="header">Actor ID</f:facet>
-                        #{log.actorId}
+                        <f:facet name="header">Admin</f:facet>
+                        #{auditLogBean.actorDisplayName(log)}
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Entity Type</f:facet>
+                        #{log.entityType}
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Entity ID</f:facet>
+                        #{log.entityId}
                     </h:column>
                     <h:column>
                         <f:facet name="header">Date</f:facet>

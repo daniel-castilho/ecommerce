@@ -7,6 +7,8 @@ public record AuditLogEvent(
     String userId,
     String actorId,
     String eventType,
+    String entityType,
+    String entityId,
     String ipAddress,
     String userAgent,
     String details,

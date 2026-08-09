@@ -43,7 +43,8 @@ class AuditLogObserverTest {
     void shouldLogRoleAssignedEvent() {
         observer.onRoleAssigned(new RoleAssignedEvent("user-1", Role.ADMIN, "admin-9"));
 
-        verify(auditLog).logEvent("user-1", "admin-9", "ROLE_ASSIGNED", null, null, "Role assigned: ADMIN");
+        verify(auditLog).logEvent("user-1", "admin-9", "ROLE_ASSIGNED", "USER", "user-1", null, null,
+                "Role assigned: ADMIN");
     }
 
     @Test
@@ -52,7 +53,7 @@ class AuditLogObserverTest {
 
         observer.onRefundProcessed(new RefundProcessedEvent("r-1", "o-1", java.time.Instant.now()));
 
-        verify(auditLog).logEvent("a1", null, "REFUND_PROCESSED", null, null,
+        verify(auditLog).logEvent("a1", "a1", "REFUND_PROCESSED", "REFUND", "r-1", null, null,
                 "Refund processed: id=r-1, order=o-1");
     }
 
@@ -62,7 +63,7 @@ class AuditLogObserverTest {
 
         observer.onRefundRejected(new RefundRejectedEvent("r-1", "o-1", "Policy violation", java.time.Instant.now()));
 
-        verify(auditLog).logEvent("a1", null, "REFUND_REJECTED", null, null,
+        verify(auditLog).logEvent("a1", "a1", "REFUND_REJECTED", "REFUND", "r-1", null, null,
                 "Refund rejected: id=r-1, order=o-1, reason=Policy violation");
     }
 
@@ -82,7 +83,8 @@ class AuditLogObserverTest {
         observer.onProductArchived(evt);
 
         ArgumentCaptor<String> detailsCaptor = ArgumentCaptor.forClass(String.class);
-        verify(auditLog, times(1)).logEvent(eq("u1"), (String) eq(null), eq("PRODUCT_ARCHIVED"), eq("203.0.113.5"), eq("JUnit-Agent/1.0"), detailsCaptor.capture());
+        verify(auditLog, times(1)).logEvent(eq("u1"), eq("u1"), eq("PRODUCT_ARCHIVED"), eq("PRODUCT"), eq("p1"),
+                eq("203.0.113.5"), eq("JUnit-Agent/1.0"), detailsCaptor.capture());
         String details = detailsCaptor.getValue();
         assert details.contains("p1");
         assert details.contains("SKU-X");

@@ -6,6 +6,16 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.15.0](docs/releases/v0.15.0.md) — 2026-08-08
+
+**Audit log: resolved admin name & entity columns**
+Closes the last deferred acceptance criterion of the S24 audit log viewer. The actor column now
+shows the **resolved admin full name** (via `FindUserUseCase`) instead of a raw id, and the
+**entity type/ID** (USER, PRODUCT, REFUND, ADDRESS) appear as separate columns from new
+`entity_type`/`entity_id` columns (migration V21). Also fixes `PRODUCT_ARCHIVED`/`REFUND_*`
+events so the actor is recorded in `actor_id` (previously overloaded the subject column), letting
+the Admin column resolve for cross-entity actions.
+
 ## [v0.14.1](docs/releases/v0.14.1.md) — 2026-08-07
 
 **Wishlist catalog-card heart icon (S10)**

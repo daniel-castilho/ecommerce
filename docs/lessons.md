@@ -8,7 +8,23 @@ Full historical write-ups of every lesson remain in git history of this file.
 
 ---
 
-## 27. EL method invocation needs the literal Java method name (2026-08-07)
+## 28. Audit-log actors resolve via a use-case port; entities belong in columns, not details (2026-08-08)
+
+Rendering the audit log with the raw actor id is unhelpful — resolve it through a use case
+(`FindUserUseCase.findById(...)` → full name) with fallbacks (subject for self-service events,
+then the raw id for deleted accounts). Embedding the affected entity in free-text details makes
+it unusable for filtering; record `entity_type` / `entity_id` as first-class columns.
+
+Also: when the subject column is `NOT NULL` but the event targets a non-user entity
+(product/refund), the observer previously stored the **actor** in the subject column with
+`actor_id` left null — overloading semantics. Keep `user_id` populated (DB constraint) but set
+`actor_id` explicitly too, so the actor column resolves for every event.
+
+**Golden rule:** An audit row needs three clear roles — subject (`user_id`), actor (`actor_id`),
+and affected entity (`entity_type`/`entity_id`). Never overload one column for two roles, and
+resolve display names through a domain port, never from the raw id in the UI.
+
+---
 
 `#{bean.foo}` (property access) resolves `getFoo()` / `isFoo()`, but `#{bean.foo(x)}`
 (method invocation with an argument) must match a method literally named `foo`.

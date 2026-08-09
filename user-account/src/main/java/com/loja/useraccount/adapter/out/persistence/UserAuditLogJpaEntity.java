@@ -25,6 +25,12 @@ public class UserAuditLogJpaEntity {
     @Column(name = "event_type", nullable = false, length = 50)
     private String eventType;
 
+    @Column(name = "entity_type", length = 50)
+    private String entityType;
+
+    @Column(name = "entity_id", length = 100)
+    private String entityId;
+
     @Column(name = "ip_address", length = 45)
     private String ipAddress;
 
@@ -39,10 +45,13 @@ public class UserAuditLogJpaEntity {
 
     protected UserAuditLogJpaEntity() {}
 
-    public UserAuditLogJpaEntity(String userId, String actorId, String eventType, String ipAddress, String userAgent, String details) {
+    public UserAuditLogJpaEntity(String userId, String actorId, String eventType, String entityType, String entityId,
+                                 String ipAddress, String userAgent, String details) {
         this.userId = userId;
         this.actorId = actorId;
         this.eventType = eventType;
+        this.entityType = entityType;
+        this.entityId = entityId;
         this.ipAddress = ipAddress;
         this.userAgent = userAgent;
         this.details = details;
@@ -53,6 +62,8 @@ public class UserAuditLogJpaEntity {
     public String getUserId() { return userId; }
     public String getActorId() { return actorId; }
     public String getEventType() { return eventType; }
+    public String getEntityType() { return entityType; }
+    public String getEntityId() { return entityId; }
     public String getIpAddress() { return ipAddress; }
     public String getUserAgent() { return userAgent; }
     public String getDetails() { return details; }

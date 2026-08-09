@@ -32,44 +32,51 @@ public class AuditLogObserver {
     private jakarta.servlet.http.HttpServletRequest request;
 
     void onUserRegistered(@Observes UserRegisteredEvent event) {
-        auditLog.logEvent(event.userId(), null, "REGISTRATION", null, null, "New user registered");
+        auditLog.logEvent(event.userId(), null, "REGISTRATION", "USER", event.userId(),
+                null, null, "New user registered");
     }
 
     void onUserLoggedIn(@Observes UserLoggedInEvent event) {
-        auditLog.logEvent(event.userId(), null, "LOGIN_SUCCESS", null, null, "Logged in successfully");
+        auditLog.logEvent(event.userId(), null, "LOGIN_SUCCESS", "USER", event.userId(),
+                null, null, "Logged in successfully");
     }
 
     void onPasswordChanged(@Observes PasswordChangedEvent event) {
-        auditLog.logEvent(event.userId(), null, "PASSWORD_CHANGE", null, null, "Password changed");
+        auditLog.logEvent(event.userId(), null, "PASSWORD_CHANGE", "USER", event.userId(),
+                null, null, "Password changed");
     }
 
     void onPasswordResetRequested(@Observes PasswordResetRequestedEvent event) {
-        auditLog.logEvent(event.userId(), null, "PASSWORD_RESET_REQUESTED", null, null, "Reset token sent");
+        auditLog.logEvent(event.userId(), null, "PASSWORD_RESET_REQUESTED", "USER", event.userId(),
+                null, null, "Reset token sent");
     }
 
     void onRoleAssigned(@Observes RoleAssignedEvent event) {
-        auditLog.logEvent(event.userId(), event.assignedBy(), "ROLE_ASSIGNED", null, null,
-                "Role assigned: " + event.role());
+        auditLog.logEvent(event.userId(), event.assignedBy(), "ROLE_ASSIGNED", "USER", event.userId(),
+                null, null, "Role assigned: " + event.role());
     }
 
     void onUserBlocked(@Observes UserBlockedEvent event) {
         String actorId = session.getCurrentUser().map(u -> u.getId()).orElse(null);
-        auditLog.logEvent(event.userId(), actorId, "USER_BLOCKED", null, null,
-                "User account blocked");
+        auditLog.logEvent(event.userId(), actorId, "USER_BLOCKED", "USER", event.userId(),
+                null, null, "User account blocked");
     }
 
     void onUserUnblocked(@Observes UserUnblockedEvent event) {
         String actorId = session.getCurrentUser().map(u -> u.getId()).orElse(null);
-        auditLog.logEvent(event.userId(), actorId, "USER_UNBLOCKED", null, null,
-                "User account unblocked");
+        auditLog.logEvent(event.userId(), actorId, "USER_UNBLOCKED", "USER", event.userId(),
+                null, null, "User account unblocked");
     }
 
     void onAddressAdded(@Observes AddressAddedEvent event) {
-        auditLog.logEvent(event.userId(), null, "ADDRESS_ADDED", null, null, "Address added: " + event.address().getStreet());
+        String addressId = event.address().getId() != null ? event.address().getId().toString() : null;
+        auditLog.logEvent(event.userId(), null, "ADDRESS_ADDED", "ADDRESS", addressId,
+                null, null, "Address added: " + event.address().getStreet());
     }
 
     void onAddressRemoved(@Observes AddressRemovedEvent event) {
-        auditLog.logEvent(event.userId(), null, "ADDRESS_REMOVED", null, null, "Address removed: " + event.addressId());
+        auditLog.logEvent(event.userId(), null, "ADDRESS_REMOVED", "ADDRESS", event.addressId().toString(),
+                null, null, "Address removed: " + event.addressId());
     }
 
     void onProductArchived(@Observes ProductArchivedEvent event) {
@@ -90,19 +97,19 @@ public class AuditLogObserver {
             userAgent = null;
         }
         String details = String.format("Product archived: id=%s, sku=%s, name=%s", event.productId(), event.sku(), event.name());
-        auditLog.logEvent(actorId, null, "PRODUCT_ARCHIVED", ip, userAgent, details);
+        auditLog.logEvent(actorId, actorId, "PRODUCT_ARCHIVED", "PRODUCT", event.productId(), ip, userAgent, details);
     }
 
     void onRefundProcessed(@Observes RefundProcessedEvent event) {
         String actorId = session.getCurrentUser().map(u -> u.getId()).orElse(null);
-        auditLog.logEvent(actorId, null, "REFUND_PROCESSED", null, null,
-                "Refund processed: id=" + event.refundId() + ", order=" + event.orderId());
+        auditLog.logEvent(actorId, actorId, "REFUND_PROCESSED", "REFUND", event.refundId(),
+                null, null, "Refund processed: id=" + event.refundId() + ", order=" + event.orderId());
     }
 
     void onRefundRejected(@Observes RefundRejectedEvent event) {
         String actorId = session.getCurrentUser().map(u -> u.getId()).orElse(null);
-        auditLog.logEvent(actorId, null, "REFUND_REJECTED", null, null,
-                "Refund rejected: id=" + event.refundId() + ", order=" + event.orderId()
+        auditLog.logEvent(actorId, actorId, "REFUND_REJECTED", "REFUND", event.refundId(),
+                null, null, "Refund rejected: id=" + event.refundId() + ", order=" + event.orderId()
                         + ", reason=" + event.reason());
     }
 }
