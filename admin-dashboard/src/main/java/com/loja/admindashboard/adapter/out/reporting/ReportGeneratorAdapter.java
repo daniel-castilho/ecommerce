@@ -24,11 +24,11 @@ import com.lowagie.text.pdf.PdfWriter;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 
+import com.loja.admindashboard.application.dto.CsvTable;
+import com.loja.admindashboard.application.dto.PdfDocument;
+import com.loja.admindashboard.application.dto.PdfKeyValue;
+import com.loja.admindashboard.application.dto.PdfSection;
 import com.loja.admindashboard.domain.exception.ReportGenerationException;
-import com.loja.admindashboard.domain.model.CsvTable;
-import com.loja.admindashboard.domain.model.PdfDocument;
-import com.loja.admindashboard.domain.model.PdfKeyValue;
-import com.loja.admindashboard.domain.model.PdfSection;
 import com.loja.admindashboard.domain.port.out.ReportExportPort;
 
 /**

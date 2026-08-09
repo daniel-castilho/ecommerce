@@ -1,4 +1,4 @@
-package com.loja.admindashboard.domain.model;
+package com.loja.admindashboard.application.dto;
 
 /**
  * A label/value pair of a {@link PdfDocument} key performance indicator

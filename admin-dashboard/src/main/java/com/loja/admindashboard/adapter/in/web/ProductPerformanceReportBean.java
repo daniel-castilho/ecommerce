@@ -10,10 +10,10 @@ import java.util.List;
 import java.util.Locale;
 
 import com.loja.admindashboard.application.dto.ChartBar;
+import com.loja.admindashboard.application.dto.CsvTable;
+import com.loja.admindashboard.application.dto.PdfDocument;
+import com.loja.admindashboard.application.dto.PdfSection;
 import com.loja.admindashboard.domain.exception.ReportGenerationException;
-import com.loja.admindashboard.domain.model.CsvTable;
-import com.loja.admindashboard.domain.model.PdfDocument;
-import com.loja.admindashboard.domain.model.PdfSection;
 import com.loja.admindashboard.domain.port.out.ReportExportPort;
 import com.loja.ordercheckout.domain.model.CategoryUnits;
 import com.loja.ordercheckout.domain.model.ProductPerformanceReport;

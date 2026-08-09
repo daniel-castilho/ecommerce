@@ -16,11 +16,11 @@ import java.util.Locale;
 import java.util.Map;
 
 import com.loja.admindashboard.application.dto.ChartBar;
+import com.loja.admindashboard.application.dto.CsvTable;
+import com.loja.admindashboard.application.dto.PdfDocument;
+import com.loja.admindashboard.application.dto.PdfKeyValue;
+import com.loja.admindashboard.application.dto.PdfSection;
 import com.loja.admindashboard.domain.exception.ReportGenerationException;
-import com.loja.admindashboard.domain.model.CsvTable;
-import com.loja.admindashboard.domain.model.PdfDocument;
-import com.loja.admindashboard.domain.model.PdfKeyValue;
-import com.loja.admindashboard.domain.model.PdfSection;
 import com.loja.admindashboard.domain.port.out.ReportExportPort;
 import com.loja.ordercheckout.domain.model.OrderRevenueReport;
 import com.loja.ordercheckout.domain.model.ReportGranularity;

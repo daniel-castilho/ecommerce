@@ -8,6 +8,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.logging.Logger;
+
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.security.RolesAllowed;
+import jakarta.faces.application.FacesMessage;
+import jakarta.faces.context.FacesContext;
+import jakarta.faces.view.ViewScoped;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
 
 import com.loja.admindashboard.domain.port.in.UpdateProductForAdminUseCase;
 import com.loja.productcatalog.application.dto.UpdateProductCommand;
@@ -22,18 +31,12 @@ import com.loja.productcatalog.domain.port.out.CategoryRepositoryPort;
 import com.loja.productcatalog.domain.port.out.ProductImageStoragePort;
 import com.loja.shared.domain.Money;
 
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.security.RolesAllowed;
-import jakarta.faces.application.FacesMessage;
-import jakarta.faces.context.FacesContext;
-import jakarta.faces.view.ViewScoped;
-import jakarta.inject.Inject;
-import jakarta.inject.Named;
-
 @Named("productEditBean")
 @ViewScoped
 @RolesAllowed("ADMIN")
 public class ProductEditBean implements Serializable {
+
+    private static final Logger LOG = Logger.getLogger(ProductEditBean.class.getName());
 
     @Inject
     private UpdateProductForAdminUseCase updateProductForAdminUseCase;
@@ -118,6 +121,7 @@ public class ProductEditBean implements Serializable {
             FacesContext.getCurrentInstance().getExternalContext().getFlash().setKeepMessages(true);
             return "/admin-dashboard/products/list.xhtml?faces-redirect=true";
         } catch (Exception e) {
+            LOG.warning("Cannot update product " + productId + ": " + e.getMessage());
             FacesContext.getCurrentInstance().addMessage(null,
                     new FacesMessage(FacesMessage.SEVERITY_ERROR, "Cannot update product", e.getMessage()));
             return null;
@@ -153,6 +157,7 @@ public class ProductEditBean implements Serializable {
             }
             return null;
         } catch (Exception e) {
+            LOG.warning("Image upload failed for product " + productId + ": " + e.getMessage());
                 String template = FacesContext.getCurrentInstance().getApplication().getResourceBundle(FacesContext.getCurrentInstance(), "msg").getString("image.upload.failed");
                 FacesContext.getCurrentInstance().addMessage(null,
                     new FacesMessage(FacesMessage.SEVERITY_ERROR, template.replace("{0}", e.getMessage()), template.replace("{0}", e.getMessage())));
@@ -175,6 +180,7 @@ public class ProductEditBean implements Serializable {
             }
             return null;
         } catch (Exception e) {
+            LOG.warning("Image meta update failed for product " + productId + ": " + e.getMessage());
                 String template = FacesContext.getCurrentInstance().getApplication().getResourceBundle(FacesContext.getCurrentInstance(), "msg").getString("image.update.failed");
                 FacesContext.getCurrentInstance().addMessage(null,
                     new FacesMessage(FacesMessage.SEVERITY_ERROR, template.replace("{0}", e.getMessage()), template.replace("{0}", e.getMessage())));
@@ -203,6 +209,7 @@ public class ProductEditBean implements Serializable {
             }
             return null;
         } catch (Exception e) {
+            LOG.warning("Image reorder failed for product " + productId + ": " + e.getMessage());
                 String template = FacesContext.getCurrentInstance().getApplication().getResourceBundle(FacesContext.getCurrentInstance(), "msg").getString("image.reorder.failed");
                 FacesContext.getCurrentInstance().addMessage(null,
                     new FacesMessage(FacesMessage.SEVERITY_ERROR, template.replace("{0}", e.getMessage()), template.replace("{0}", e.getMessage())));
@@ -321,6 +328,7 @@ public class ProductEditBean implements Serializable {
             ctx.addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, msg, msg));
             return "/admin-dashboard/products/list.xhtml?faces-redirect=true";
         } catch (Exception e) {
+            LOG.warning("Cannot deactivate product " + productId + ": " + e.getMessage());
             String template = FacesContext.getCurrentInstance().getApplication().getResourceBundle(FacesContext.getCurrentInstance(), "msg").getString("product.deactivate.failed");
             FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, template.replace("{0}", e.getMessage()), template.replace("{0}", e.getMessage())));
             return null;
@@ -344,6 +352,7 @@ public class ProductEditBean implements Serializable {
             ctx.addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO, msg, msg));
             return "/admin-dashboard/products/list.xhtml?faces-redirect=true";
         } catch (Exception e) {
+            LOG.warning("Cannot activate product " + productId + ": " + e.getMessage());
             String template = FacesContext.getCurrentInstance().getApplication().getResourceBundle(FacesContext.getCurrentInstance(), "msg").getString("product.activate.failed");
             FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, template.replace("{0}", e.getMessage()), template.replace("{0}", e.getMessage())));
             return null;

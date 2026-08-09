@@ -75,6 +75,23 @@ class AuditLogJpaAdapterIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void shouldFilterAuditLogsByActor_whenActorStoredInSubjectColumn() {
+        EntityTransaction tx = em.getTransaction();
+        tx.begin();
+        adapter.logEvent("admin-1", null, "PRODUCT_ARCHIVED", "PRODUCT", "p1",
+                "127.0.0.1", "TestAgent", "Product archived: id=p1");
+        tx.commit();
+        em.clear();
+
+        var result = adapter.findAuditLogs(
+                new AuditLogSearchCriteria("admin-1", null, null, null, null), 0, 20);
+
+        assertThat(result.items()).hasSize(1);
+        assertThat(result.items().get(0).userId()).isEqualTo("admin-1");
+        assertThat(result.items().get(0).actorId()).isNull();
+    }
+
+    @Test
     void shouldFilterAuditLogsByEventType() {
         seed("user-a", "admin-1", "LOGIN_SUCCESS", "Login");
         seed("user-a", "admin-1", "REGISTRATION", "Registered");

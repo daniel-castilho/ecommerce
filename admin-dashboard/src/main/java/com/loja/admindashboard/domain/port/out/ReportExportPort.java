@@ -1,8 +1,8 @@
 package com.loja.admindashboard.domain.port.out;
 
+import com.loja.admindashboard.application.dto.CsvTable;
+import com.loja.admindashboard.application.dto.PdfDocument;
 import com.loja.admindashboard.domain.exception.ReportGenerationException;
-import com.loja.admindashboard.domain.model.CsvTable;
-import com.loja.admindashboard.domain.model.PdfDocument;
 
 /**
  * Outbound port for report export (backlog S23). The admin-dashboard module owns

@@ -17,6 +17,7 @@
 
 # Scratch / AI-agent working files (not project content)
 project_dump.txt
+Screenshot*.png
 
 # Local tooling / caches (not project content)
 .github/modernize/

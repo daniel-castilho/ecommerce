@@ -73,7 +73,7 @@ public class AuditLogJpaAdapter implements AuditLogPort, AuditLogQueryPort {
     private String whereClause(AuditLogSearchCriteria criteria) {
         List<String> predicates = new ArrayList<>();
         if (criteria.actorId() != null && !criteria.actorId().isBlank()) {
-            predicates.add("a.actorId LIKE :actorId");
+            predicates.add("(a.actorId LIKE :actorId OR a.userId LIKE :actorId)");
         }
         if (criteria.eventType() != null && !criteria.eventType().isBlank()) {
             predicates.add("a.eventType = :eventType");

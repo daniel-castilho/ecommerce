@@ -1,4 +1,4 @@
-package com.loja.admindashboard.domain.model;
+package com.loja.admindashboard.application.dto;
 
 import java.util.List;
 
