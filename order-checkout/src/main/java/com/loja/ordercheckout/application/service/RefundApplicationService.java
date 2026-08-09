@@ -1,6 +1,7 @@
 package com.loja.ordercheckout.application.service;
 
 import com.loja.ordercheckout.application.dto.PageResult;
+import com.loja.ordercheckout.application.dto.RefundSearchCriteria;
 import com.loja.ordercheckout.domain.exception.OrderNotFoundException;
 import com.loja.ordercheckout.domain.exception.PaymentFailedException;
 import com.loja.ordercheckout.domain.model.Order;
@@ -58,11 +59,9 @@ public class RefundApplicationService implements RefundManagementUseCase {
     }
 
     @Override
-    public PageResult<RefundRequest> listRefundRequests(RefundStatus status, int page, int pageSize) {
-        if (status == null) {
-            return refundRepository.findAll(page, pageSize);
-        }
-        return refundRepository.findByStatus(status, page, pageSize);
+    public PageResult<RefundRequest> listRefundRequests(RefundSearchCriteria criteria, int page, int pageSize) {
+        RefundSearchCriteria effective = criteria != null ? criteria : RefundSearchCriteria.empty();
+        return refundRepository.find(effective, page, pageSize);
     }
 
     @Override

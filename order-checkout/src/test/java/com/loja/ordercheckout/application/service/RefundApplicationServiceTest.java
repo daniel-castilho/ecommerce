@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.loja.ordercheckout.application.dto.PageResult;
+import com.loja.ordercheckout.application.dto.RefundSearchCriteria;
 import com.loja.ordercheckout.domain.exception.OrderNotFoundException;
 import com.loja.ordercheckout.domain.exception.PaymentFailedException;
 import com.loja.ordercheckout.domain.model.Order;
@@ -142,25 +143,26 @@ class RefundApplicationServiceTest {
     }
 
     @Test
-    void listRefundRequests_withoutStatus_delegatesToFindAll() {
+    void listRefundRequests_delegatesToRepository() {
+        RefundSearchCriteria criteria = RefundSearchCriteria.empty();
         PageResult<RefundRequest> expected = new PageResult<>(List.of(), 0L, 0, 20);
-        when(refundRepository.findAll(0, 20)).thenReturn(expected);
+        when(refundRepository.find(criteria, 0, 20)).thenReturn(expected);
+
+        PageResult<RefundRequest> actual = service.listRefundRequests(criteria, 0, 20);
+
+        assertThat(actual).isSameAs(expected);
+        verify(refundRepository).find(criteria, 0, 20);
+    }
+
+    @Test
+    void listRefundRequests_withNullCriteria_usesEmptyCriteria() {
+        PageResult<RefundRequest> expected = new PageResult<>(List.of(), 0L, 0, 20);
+        when(refundRepository.find(RefundSearchCriteria.empty(), 0, 20)).thenReturn(expected);
 
         PageResult<RefundRequest> actual = service.listRefundRequests(null, 0, 20);
 
         assertThat(actual).isSameAs(expected);
-        verify(refundRepository).findAll(0, 20);
-    }
-
-    @Test
-    void listRefundRequests_withStatus_delegatesToFindByStatus() {
-        PageResult<RefundRequest> expected = new PageResult<>(List.of(), 0L, 0, 20);
-        when(refundRepository.findByStatus(RefundStatus.PENDING, 0, 20)).thenReturn(expected);
-
-        PageResult<RefundRequest> actual = service.listRefundRequests(RefundStatus.PENDING, 0, 20);
-
-        assertThat(actual).isSameAs(expected);
-        verify(refundRepository).findByStatus(RefundStatus.PENDING, 0, 20);
+        verify(refundRepository).find(RefundSearchCriteria.empty(), 0, 20);
     }
 
     private static Order orderIn(OrderStatus status) {

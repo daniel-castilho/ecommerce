@@ -1,8 +1,8 @@
 package com.loja.ordercheckout.domain.port.in;
 
 import com.loja.ordercheckout.application.dto.PageResult;
+import com.loja.ordercheckout.application.dto.RefundSearchCriteria;
 import com.loja.ordercheckout.domain.model.RefundRequest;
-import com.loja.ordercheckout.domain.model.RefundStatus;
 import com.loja.shared.domain.Money;
 import java.util.Optional;
 
@@ -14,9 +14,10 @@ public interface RefundManagementUseCase {
     void requestRefund(String orderId, Money amount, String reason);
 
     /**
-     * Lists refund requests, optionally filtered by status.
+     * Lists refund requests, optionally filtered by status, customer, date range
+     * and sort order (see {@link RefundSearchCriteria}).
      */
-    PageResult<RefundRequest> listRefundRequests(RefundStatus status, int page, int pageSize);
+    PageResult<RefundRequest> listRefundRequests(RefundSearchCriteria criteria, int page, int pageSize);
 
     /**
      * Finds a single refund request by id (admin detail view).

@@ -30,6 +30,47 @@
             </h:selectOneMenu>
           </my:formFieldGroup>
 
+          <my:formFieldGroup label="Customer" forId="customerId">
+            <h:inputText
+              id="customerId"
+              value="#{refundManagementBean.customerQuery}"
+              placeholder="e.g. email or recipient name"
+            />
+          </my:formFieldGroup>
+
+          <my:formFieldGroup label="From date" forId="fromDateId">
+            <h:inputText id="fromDateId" value="#{refundManagementBean.fromDate}">
+              <f:convertDateTime type="localDate" pattern="yyyy-MM-dd" />
+            </h:inputText>
+          </my:formFieldGroup>
+
+          <my:formFieldGroup label="To date" forId="toDateId">
+            <h:inputText id="toDateId" value="#{refundManagementBean.toDate}">
+              <f:convertDateTime type="localDate" pattern="yyyy-MM-dd" />
+            </h:inputText>
+          </my:formFieldGroup>
+
+          <my:formFieldGroup label="Sort by" forId="sortId">
+            <h:selectOneMenu
+              id="sortId"
+              value="#{refundManagementBean.sort}"
+            >
+              <f:selectItems
+                value="#{refundManagementBean.sortOptions}"
+                var="sort"
+                itemValue="#{sort}"
+                itemLabel="#{sort}"
+              />
+            </h:selectOneMenu>
+          </my:formFieldGroup>
+
+          <my:formFieldGroup label="Direction" forId="directionId">
+            <h:selectOneMenu id="directionId" value="#{refundManagementBean.ascending}">
+              <f:selectItem itemValue="#{false}" itemLabel="Newest first" />
+              <f:selectItem itemValue="#{true}" itemLabel="Oldest first" />
+            </h:selectOneMenu>
+          </my:formFieldGroup>
+
           <div class="form-actions">
             <h:commandButton
               value="Filter"

@@ -1,15 +1,20 @@
 package com.loja.ordercheckout.adapter.out.persistence;
 
 import com.loja.ordercheckout.application.dto.PageResult;
+import com.loja.ordercheckout.application.dto.RefundSearchCriteria;
+import com.loja.ordercheckout.application.dto.RefundSort;
 import com.loja.ordercheckout.domain.model.RefundRequest;
-import com.loja.ordercheckout.domain.model.RefundStatus;
 import com.loja.ordercheckout.domain.port.out.RefundRequestRepositoryPort;
 import com.loja.shared.domain.Money;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
 import jakarta.transaction.Transactional;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @ApplicationScoped
@@ -41,12 +46,21 @@ public class RefundRequestJpaAdapter implements RefundRequestRepositoryPort {
     }
 
     @Override
-    public PageResult<RefundRequest> findAll(int page, int pageSize) {
-        String countJpql = "SELECT COUNT(r) FROM RefundRequestJpaEntity r";
-        long totalElements = em.createQuery(countJpql, Long.class).getSingleResult();
+    public PageResult<RefundRequest> find(RefundSearchCriteria criteria, int page, int pageSize) {
+        RefundSearchCriteria effective = criteria != null ? criteria : RefundSearchCriteria.empty();
+        String whereClause = whereClause(effective);
+        Map<String, Object> params = params(effective);
 
-        String jpql = "SELECT r FROM RefundRequestJpaEntity r ORDER BY r.createdAt DESC";
-        List<RefundRequestJpaEntity> entities = em.createQuery(jpql, RefundRequestJpaEntity.class)
+        TypedQuery<Long> countQuery = em.createQuery(
+                "SELECT COUNT(r) FROM RefundRequestJpaEntity r" + whereClause, Long.class);
+        params.forEach(countQuery::setParameter);
+        long totalElements = countQuery.getSingleResult();
+
+        TypedQuery<RefundRequestJpaEntity> query = em.createQuery(
+                "SELECT r FROM RefundRequestJpaEntity r" + whereClause + " ORDER BY " + orderBy(effective),
+                RefundRequestJpaEntity.class);
+        params.forEach(query::setParameter);
+        List<RefundRequestJpaEntity> entities = query
                 .setFirstResult(page * pageSize)
                 .setMaxResults(pageSize)
                 .getResultList();
@@ -55,22 +69,45 @@ public class RefundRequestJpaAdapter implements RefundRequestRepositoryPort {
         return new PageResult<>(items, totalElements, page, pageSize);
     }
 
-    @Override
-    public PageResult<RefundRequest> findByStatus(RefundStatus status, int page, int pageSize) {
-        String countJpql = "SELECT COUNT(r) FROM RefundRequestJpaEntity r WHERE r.status = :status";
-        long totalElements = em.createQuery(countJpql, Long.class)
-                .setParameter("status", status)
-                .getSingleResult();
+    private String whereClause(RefundSearchCriteria criteria) {
+        List<String> predicates = new ArrayList<>();
+        if (criteria.status() != null) {
+            predicates.add("r.status = :status");
+        }
+        if (criteria.customerQuery() != null && !criteria.customerQuery().isBlank()) {
+            predicates.add("EXISTS (SELECT o FROM OrderJpaEntity o WHERE o.id = r.orderId "
+                    + "AND (o.customerEmail LIKE :customerQuery "
+                    + "OR o.shippingAddress.recipientName LIKE :customerQuery))");
+        }
+        if (criteria.from() != null) {
+            predicates.add("r.createdAt >= :fromInstant");
+        }
+        if (criteria.to() != null) {
+            predicates.add("r.createdAt <= :toInstant");
+        }
+        return predicates.isEmpty() ? "" : " WHERE " + String.join(" AND ", predicates);
+    }
 
-        String jpql = "SELECT r FROM RefundRequestJpaEntity r WHERE r.status = :status ORDER BY r.createdAt DESC";
-        List<RefundRequestJpaEntity> entities = em.createQuery(jpql, RefundRequestJpaEntity.class)
-                .setParameter("status", status)
-                .setFirstResult(page * pageSize)
-                .setMaxResults(pageSize)
-                .getResultList();
+    private Map<String, Object> params(RefundSearchCriteria criteria) {
+        Map<String, Object> params = new HashMap<>();
+        if (criteria.status() != null) {
+            params.put("status", criteria.status());
+        }
+        if (criteria.customerQuery() != null && !criteria.customerQuery().isBlank()) {
+            params.put("customerQuery", "%" + criteria.customerQuery().trim() + "%");
+        }
+        if (criteria.from() != null) {
+            params.put("fromInstant", criteria.from());
+        }
+        if (criteria.to() != null) {
+            params.put("toInstant", criteria.to());
+        }
+        return params;
+    }
 
-        List<RefundRequest> items = entities.stream().map(this::mapToDomain).toList();
-        return new PageResult<>(items, totalElements, page, pageSize);
+    private String orderBy(RefundSearchCriteria criteria) {
+        String column = criteria.sort() == RefundSort.AMOUNT ? "r.amount" : "r.createdAt";
+        return column + (criteria.ascending() ? " ASC" : " DESC");
     }
 
     @Override
