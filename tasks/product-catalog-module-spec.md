@@ -73,7 +73,7 @@ Pages live under `web/src/main/webapp/product-catalog/`.
 | Concern        | Implementation                                                            |
 | -------------- | ------------------------------------------------------------------------- |
 | CRUD + publish | `ProductApplicationService` implementing the inbound use-case ports       |
-| Search         | Criteria-based `search()` (ACTIVE by default on public path)              |
+| Search         | Criteria path; text queries run native PostgreSQL FTS (`to_tsvector`/`ts_rank`), ACTIVE by default on public path |
 | Images         | Upload validation (size/type/count); S3 key + public URL via storage port |
 | Description    | OWASP Java HTML sanitizer (application layer)                             |
 | Categories     | Existence checks on publish; admin multi-select                           |
@@ -86,6 +86,9 @@ DTOs live in `application/dto` only (never nested in ports).
 
 - Tables: `tb_product`, images, categories, inventory reservation (Flyway; early catalog extension e.g. `V7`)
 - Criteria API search + pagination; ARCHIVED excluded unless explicitly filtered
+- Text search (V25): native SQL over `to_tsvector('english', name || sku || short_description)`
+  with a GIN expression index; ranked by `ts_rank`, prefix AND tsquery, plus an ILIKE arm so
+  no former LIKE result is lost. Long description is deliberately not indexed (LOB type varies)
 - S3-compatible storage: LocalStack in dev (`localstack/localstack:3.8.1`), real S3 via env props
 - Config: env / system properties (`s3.endpoint-override`, bucket, keys, …) — no MicroProfile Config requirement
 - `forcePathStyle(true)` required for LocalStack hostname setups
@@ -115,13 +118,13 @@ DTOs live in `application/dto` only (never nested in ports).
 | Ports under `application/port`                                    | Ports under `domain/port/in                      | out` |
 | Inventory reservation “out of scope”                              | Implemented and used by checkout                 |
 | HTML sanitizer “open”                                             | OWASP sanitizer adopted                          |
-| Full-text engine (Elasticsearch)                                  | DB Criteria search; FTS optional later           |
+| Full-text engine (Elasticsearch)                                  | PostgreSQL FTS (tsvector/ts_rank, V25) adopted |
 
 ---
 
 ## 8. Explicit Debt / Optional Next Steps
 
-- PostgreSQL Full-Text Search / ranking if catalog size requires it
+- Index the long `description` in the FTS vector (blocked today by the LOB column type variance between environments)
 - Subcategory rollup in search filters
 - Bulk product import
 - Product variants (size/color) — schema should not block, not implemented
@@ -149,7 +152,7 @@ mvn -pl product-catalog test -Dtest='*IT'
 - [x] Category tree + cache
 - [x] Stock decrement + inventory reservation + expiry
 - [x] Hexagonal boundaries enforced
-- [ ] Optional advanced search ranking
+- [x] Optional advanced search ranking (PostgreSQL FTS)
 
 ---
 

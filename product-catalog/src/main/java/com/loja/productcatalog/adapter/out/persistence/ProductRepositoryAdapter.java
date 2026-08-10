@@ -2,8 +2,11 @@ package com.loja.productcatalog.adapter.out.persistence;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -23,6 +26,7 @@ import jakarta.persistence.EntityGraph;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.PersistenceException;
+import jakarta.persistence.Query;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Order;
@@ -35,9 +39,38 @@ import jakarta.persistence.criteria.Root;
  * The DB unique constraints on sku/slug are the safety net behind the
  * application-layer uniqueness pre-checks; a sku violation surfaces here
  * as {@link DuplicateSkuException}.
+ *
+ * <p><b>Search (FTS epic).</b> Text searches run a native PostgreSQL query that
+ * matches on a full-text vector ({@link #FTS_EXPRESSION}, backed by the GIN
+ * expression index created in migration V25) and ranks the hits with
+ * {@code ts_rank}. The term is also matched with {@code ILIKE} so nothing that a
+ * {@code LIKE} search used to find ever disappears; {@code ts_rank} only
+ * re-orders. The tsquery is a {@code token:* & token:*} prefix AND built from
+ * the user's words (see {@link #buildPrefixTsQuery}), so "smart" matches
+ * "smartphone". Queries without a text term keep the Criteria path unchanged.
  */
 @ApplicationScoped
 public class ProductRepositoryAdapter implements ProductRepositoryPort {
+
+    /**
+     * Full-text vector over the searchable text fields. {@code description} is
+     * intentionally left out: it is a {@code @Lob} column (stored as {@code oid}
+     * in the test schema, {@code text} in production) which the vector cast
+     * cannot handle portably. Kept in sync with the expression GIN index in
+     * migration V25 — they must produce the same expression tree (table aliases
+     * are equivalent for index matching).
+     */
+    private static final String FTS_EXPRESSION =
+            "to_tsvector('english', coalesce(p.name, '') || ' ' || coalesce(p.sku, '') || ' ' || "
+                    + "coalesce(p.short_description, ''))";
+
+    /** Words too common to rank by; also keeps the tsquery a valid AND of lexemes. */
+    private static final Set<String> ENGLISH_STOPWORDS = Set.of(
+            "a", "an", "and", "are", "as", "at", "be", "but", "by", "for", "from",
+            "has", "have", "he", "her", "his", "i", "in", "into", "is", "it", "its",
+            "me", "my", "of", "on", "or", "our", "she", "so", "than", "that", "the",
+            "their", "them", "there", "these", "they", "this", "to", "was", "we",
+            "were", "what", "when", "which", "who", "will", "with", "you", "your");
 
     @PersistenceContext(unitName = "ecommercePU")
     EntityManager em;
@@ -99,6 +132,18 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
 
     @Override
     public PageResult<Product> search(ProductSearchCriteria criteria) {
+        if (criteria.nameOrSkuContains() != null && !criteria.nameOrSkuContains().isBlank()) {
+            String tsquery = buildPrefixTsQuery(criteria.nameOrSkuContains());
+            if (!tsquery.isBlank()) {
+                return searchByText(criteria, tsquery);
+            }
+            // no usable FTS tokens (only stopwords/punctuation/digits) → LIKE path
+        }
+        return searchByCriteria(criteria);
+    }
+
+    /** Criteria path: LIKE name/sku + category/price/status filters + explicit sort. */
+    private PageResult<Product> searchByCriteria(ProductSearchCriteria criteria) {
         CriteriaBuilder cb = em.getCriteriaBuilder();
 
         CriteriaQuery<ProductJpaEntity> query = cb.createQuery(ProductJpaEntity.class);
@@ -121,6 +166,133 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
                 .getResultList().stream().map(ProductJpaMapper::toDomain).collect(Collectors.toList());
 
         return new PageResult<>(items, totalElements, criteria.page(), criteria.pageSize());
+    }
+
+    // ------------------------------------------------------------------ FTS text search
+
+    /**
+     * Full-text path: native SQL so PostgreSQL can use the GIN expression index
+     * (V25). The term must match {@code FTS_EXPRESSION @@ to_tsquery(...)} OR a
+     * plain {@code ILIKE} (no result regressions), and hits are ordered by
+     * {@code ts_rank} descending first — the requested sort is the tie-breaker.
+     * Callers only reach this method with a non-blank, pre-validated tsquery
+     * ({@link #buildPrefixTsQuery} drops stopwords and digit-only tokens), so
+     * {@code to_tsquery} is always fed a valid prefix AND.
+     */
+    private PageResult<Product> searchByText(ProductSearchCriteria criteria, String tsquery) {
+        String where = ftsWhere(criteria);
+        String like = "%" + criteria.nameOrSkuContains().trim().toLowerCase(Locale.ROOT) + "%";
+
+        Query countQuery = em.createNativeQuery("SELECT COUNT(*) FROM tb_product p " + where);
+        setFtsParams(countQuery, criteria, tsquery, like);
+        long totalElements = ((Number) countQuery.getSingleResult()).longValue();
+
+        Query pageQuery = em.createNativeQuery("SELECT p.id FROM tb_product p " + where
+                + " " + ftsOrderBy(criteria))
+                .setFirstResult(criteria.page() * criteria.pageSize())
+                .setMaxResults(criteria.pageSize());
+        setFtsParams(pageQuery, criteria, tsquery, like);
+
+        @SuppressWarnings("unchecked")
+        List<String> ids = (List<String>) pageQuery.getResultList();
+        return new PageResult<>(fetchByIdsInOrder(ids), totalElements,
+                criteria.page(), criteria.pageSize());
+    }
+
+    /**
+     * Turn a free-form term into a prefix AND tsquery, e.g. "smart phon" →
+     * {@code smart:* & phon:*}. Strips punctuation, drops stopwords and
+     * all-digit tokens, lowercases. Returns an empty string when nothing usable
+     * remains — callers then fall back to the LIKE-only path.
+     */
+    static String buildPrefixTsQuery(String term) {
+        String normalized = term.trim().toLowerCase(Locale.ROOT)
+                .replaceAll("[^\\p{L}\\p{N} ]", " ");
+        return Arrays.stream(normalized.split("\\s+"))
+                .filter(token -> !token.isBlank())
+                .filter(token -> !ENGLISH_STOPWORDS.contains(token))
+                .filter(token -> !token.chars().allMatch(Character::isDigit))
+                .map(token -> token + ":*")
+                .collect(Collectors.joining(" & "));
+    }
+
+    private String ftsWhere(ProductSearchCriteria criteria) {
+        StringBuilder sql = new StringBuilder("WHERE (")
+                .append(FTS_EXPRESSION)
+                .append(" @@ to_tsquery('english', :tsquery)")
+                .append(" OR p.name ILIKE :like")
+                .append(" OR p.sku ILIKE :like)");
+        if (criteria.categoryId() != null) {
+            sql.append(" AND EXISTS (SELECT 1 FROM tb_product_category c")
+                    .append(" WHERE c.product_id = p.id AND c.category_id = :categoryId)");
+        }
+        if (criteria.minPrice() != null) {
+            sql.append(" AND p.price >= :minPrice");
+        }
+        if (criteria.maxPrice() != null) {
+            sql.append(" AND p.price <= :maxPrice");
+        }
+        if (criteria.status() != null) {
+            sql.append(" AND p.status = :status");
+        } else if (!criteria.includeArchived()) {
+            sql.append(" AND p.status <> 'ARCHIVED'");
+        }
+        return sql.toString();
+    }
+
+    private String ftsOrderBy(ProductSearchCriteria criteria) {
+        String attribute = switch (criteria.sortField()) {
+            case PRICE -> "price";
+            case CREATED_AT -> "created_at";
+            default -> "name"; // RELEVANCE and NAME
+        };
+        String direction = criteria.sortDirection() == SortDirection.DESC ? "DESC" : "ASC";
+        return "ORDER BY ts_rank(" + FTS_EXPRESSION
+                + ", to_tsquery('english', :tsquery)) DESC, "
+                + "p." + attribute + " " + direction + ", p.id ASC";
+    }
+
+    private void setFtsParams(Query query, ProductSearchCriteria criteria, String tsquery, String like) {
+        query.setParameter("tsquery", tsquery);
+        query.setParameter("like", like);
+        if (criteria.categoryId() != null) {
+            query.setParameter("categoryId", criteria.categoryId());
+        }
+        if (criteria.minPrice() != null) {
+            query.setParameter("minPrice", criteria.minPrice());
+        }
+        if (criteria.maxPrice() != null) {
+            query.setParameter("maxPrice", criteria.maxPrice());
+        }
+        if (criteria.status() != null) {
+            query.setParameter("status", criteria.status().name());
+        }
+    }
+
+    /**
+     * Re-fetch entities by id so the eager-load graph and the domain mapper
+     * apply, preserving the relevance order returned by the native query.
+     */
+    private List<Product> fetchByIdsInOrder(List<String> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        List<ProductJpaEntity> entities = em.createQuery(
+                        "SELECT p FROM ProductJpaEntity p WHERE p.id IN :ids",
+                        ProductJpaEntity.class)
+                .setParameter("ids", ids)
+                .setHint("jakarta.persistence.loadgraph", detailsGraph())
+                .getResultList();
+        Map<String, ProductJpaEntity> byId = new LinkedHashMap<>();
+        entities.forEach(entity -> byId.put(entity.getId(), entity));
+        List<Product> ordered = new ArrayList<>(ids.size());
+        for (String id : ids) {
+            ProductJpaEntity entity = byId.get(id);
+            if (entity != null) {
+                ordered.add(ProductJpaMapper.toDomain(entity));
+            }
+        }
+        return ordered;
     }
 
     @Override
@@ -177,9 +349,9 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
 
     private List<Order> sortOrders(CriteriaBuilder cb, Root<ProductJpaEntity> root, ProductSearchCriteria criteria) {
         String attribute = switch (criteria.sortField()) {
-            case NAME -> "name";
             case PRICE -> "price";
             case CREATED_AT -> "createdAt";
+            default -> "name"; // RELEVANCE (no text term → alphabetical) and NAME
         };
         Path<Object> path = root.get(attribute);
         Order order = criteria.sortDirection() == SortDirection.DESC ? cb.desc(path) : cb.asc(path);

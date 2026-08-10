@@ -27,7 +27,7 @@
 | Scheduled reservation expiry     | ✅ Done               | Daemon sweep every 60s                                                     |
 | Archive / reactivate             | ✅ Done               | Admin path; `ARCHIVED → ACTIVE` allowed (v0.6.0)                           |
 | Product-detail page              | ✅ Done               | Gallery, price, stock, buy link; reviews section later (v0.10.0)           |
-| Postgres Full-Text Search        | ⚠️ Optional / planned | Criteria API today; FTS docs may exist under `tasks/` if started           |
+| Postgres Full-Text Search        | ✅ Done               | Native SQL `to_tsvector`/`ts_rank` + prefix tsquery; GIN expression index (V25); hybrid LIKE fallback |
 
 ---
 
@@ -74,10 +74,24 @@
 
 ## Explicit debt / optional next work
 
-- Richer search ranking (PostgreSQL FTS / `tsvector`) if catalog size demands it
+- Search index long description too (currently name + sku + short_description; the
+  `@Lob` description column type varies between environments — see V25 note)
 - Subcategory rollup in search filters (direct category assignment only today)
 - Bulk CSV import of products (never in original epic)
 - Real S3 (non-LocalStack) configuration for non-dev environments — env-driven, already supported by adapter
+
+---
+
+## Status (Postgres FTS)
+
+**Postgres Full-Text Search shipped (2026-08-09, migration V25).**
+Text searches now run a native query ranking hits by `ts_rank` over a
+`to_tsvector('english', name || sku || short_description)` expression, backed by a
+GIN expression index. The term is matched by a prefix AND tsquery (`smart:* & phon:*`,
+so "smart" finds "Smartphone") *or* a plain ILIKE, so no previous LIKE result
+disappears — FTS only re-orders. `ProductSortField.RELEVANCE` is the catalog default;
+when a term is present it is the primary sort, otherwise it behaves as NAME.
+`ProductSearchCriteria` / the application layer are unchanged (adapter-internal).
 
 ---
 

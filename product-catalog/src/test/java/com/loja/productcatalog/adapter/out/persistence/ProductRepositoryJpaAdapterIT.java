@@ -296,6 +296,124 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         assertThat(page.totalElements()).isZero();
     }
 
+    // -------------------------------------------------------------- FTS text search (V25)
+
+    @Test
+    void shouldRankRelevanceForTextSearch() {
+        save(productDetailed("p-ft-1", "SKU-FT1", "produto-ft-1", "Smartphone X",
+                "smartphone smartphone", null, "59.90", ProductStatus.ACTIVE));
+        save(productDetailed("p-ft-2", "SKU-FT2", "produto-ft-2", "Phone Case",
+                "case for smartphone", null, "19.90", ProductStatus.ACTIVE));
+        save(productDetailed("p-ft-3", "SKU-FT3", "produto-ft-3", "Running Shoes",
+                null, null, "89.90", ProductStatus.ACTIVE));
+
+        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(
+                "smartphone", null, null, null, null, 0, 20, false, null, null)));
+
+        assertThat(page.items()).extracting(Product::getName)
+                .containsExactly("Smartphone X", "Phone Case");
+        assertThat(page.totalElements()).isEqualTo(2);
+    }
+
+    @Test
+    void shouldMatchWordsIndependentlyOfPosition() {
+        save(productDetailed("p-tk-1", "SKU-TK1", "produto-tk-1", "Audio Gear",
+                "high quality audio headphones", null, "99.90", ProductStatus.ACTIVE));
+        save(productDetailed("p-tk-2", "SKU-TK2", "produto-tk-2", "Headphones Deluxe",
+                null, null, "129.90", ProductStatus.ACTIVE));
+
+        // "audio headp" is not a contiguous LIKE substring, but both tokens match
+        // the first product's full-text vector independently.
+        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(
+                "audio headp", null, null, null, null, 0, 20, false, null, null)));
+
+        assertThat(page.items()).extracting(Product::getName)
+                .containsExactly("Audio Gear");
+    }
+
+    @Test
+    void shouldMatchByWordPrefix() {
+        save(product("p-pf-1", "SKU-PF1", "produto-pf-1", "Smartphone", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
+        save(product("p-pf-2", "SKU-PF2", "produto-pf-2", "Smart Watch", "20.00", ProductStatus.ACTIVE, Set.of(5L)));
+
+        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(
+                "smartp", null, null, null, null, 0, 20, false, null, null)));
+
+        assertThat(page.items()).extracting(Product::getName).containsExactly("Smartphone");
+    }
+
+    @Test
+    void shouldCombineTextSearchWithCategoryAndPriceFilters() {
+        save(product("p-fc-1", "SKU-FC1", "produto-fc-1", "Tenis Pro", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
+        save(product("p-fc-2", "SKU-FC2", "produto-fc-2", "Tenis Luxo", "30.00", ProductStatus.ACTIVE, Set.of(5L)));
+        save(product("p-fc-3", "SKU-FC3", "produto-fc-3", "Tenis Barato", "5.00", ProductStatus.ACTIVE, Set.of(6L)));
+
+        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(
+                "tenis", 5L, new BigDecimal("8.00"), null, null, 0, 20, false, null, null)));
+
+        assertThat(page.items()).extracting(Product::getName)
+                .containsExactlyInAnyOrder("Tenis Pro", "Tenis Luxo");
+        assertThat(page.totalElements()).isEqualTo(2);
+    }
+
+    @Test
+    void shouldExcludeArchivedInTextSearchByDefault() {
+        save(product("p-fta-1", "SKU-FTA1", "produto-fta-1", "Tenis Ativo", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
+        save(product("p-fta-2", "SKU-FTA2", "produto-fta-2", "Tenis Arquivado", "20.00", ProductStatus.ARCHIVED, Set.of(5L)));
+
+        PageResult<Product> defaultFilter = inTx(() -> adapter.search(new ProductSearchCriteria(
+                "tenis", null, null, null, null, 0, 20, false, null, null)));
+        assertThat(defaultFilter.items()).extracting(Product::getName).containsExactly("Tenis Ativo");
+
+        PageResult<Product> explicitArchived = inTx(() -> adapter.search(new ProductSearchCriteria(
+                "tenis", null, null, null, ProductStatus.ARCHIVED, 0, 20, false, null, null)));
+        assertThat(explicitArchived.items()).extracting(Product::getName).containsExactly("Tenis Arquivado");
+    }
+
+    @Test
+    void shouldPaginateTextSearch() {
+        save(product("p-pg-1", "SKU-PG1", "produto-pg-1", "Smartphone X1", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
+        save(product("p-pg-2", "SKU-PG2", "produto-pg-2", "Smartphone X2", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
+        save(product("p-pg-3", "SKU-PG3", "produto-pg-3", "Smartphone X3", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
+
+        PageResult<Product> first = inTx(() -> adapter.search(new ProductSearchCriteria(
+                "smartphone", null, null, null, null, 0, 2, false, null, null)));
+        assertThat(first.items()).hasSize(2);
+        assertThat(first.totalElements()).isEqualTo(3);
+
+        PageResult<Product> second = inTx(() -> adapter.search(new ProductSearchCriteria(
+                "smartphone", null, null, null, null, 1, 2, false, null, null)));
+        assertThat(second.items()).hasSize(1);
+        assertThat(second.totalElements()).isEqualTo(3);
+    }
+
+    @Test
+    void shouldFallBackToLikePathWhenTermHasNoFtsTokens() {
+        save(product("p-fb-1", "SKU-FB1", "produto-fb-1", "Telefone", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
+
+        PageResult<Product> punctuation = inTx(() -> adapter.search(new ProductSearchCriteria(
+                "!!!", null, null, null, null, 0, 20, false, null, null)));
+        assertThat(punctuation.items()).isEmpty();
+        assertThat(punctuation.totalElements()).isZero();
+
+        PageResult<Product> stopwords = inTx(() -> adapter.search(new ProductSearchCriteria(
+                "the and of", null, null, null, null, 0, 20, false, null, null)));
+        assertThat(stopwords.items()).isEmpty();
+        assertThat(stopwords.totalElements()).isZero();
+    }
+
+    @Test
+    void shouldFallBackToLikePathForDigitOnlyTerms() {
+        // "123" has no FTS lexeme, so the search falls back to the LIKE path and
+        // still finds the SKU substring match.
+        save(product("p-hy-1", "SKU-XYZ-123", "produto-hy-1", "Generic", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
+
+        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(
+                "123", null, null, null, null, 0, 20, false, null, null)));
+
+        assertThat(page.items()).extracting(Product::getName).containsExactly("Generic");
+    }
+
     @Test
     void shouldClampPageSizeAndNormalizePage() {
         save(product("p-cl-1", "SKU-CL1", "produto-cl-1", "Clamp", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
@@ -459,6 +577,16 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
                 id, new Sku(sku), new Slug(slug), name, null, null,
                 new Money(new BigDecimal(price)), null, 15, status,
                 null, null, null, categories,
+                List.of(new ProductImage(null, "products/" + sku + "/foto.webp", "Foto do produto", 0, true)));
+    }
+
+    private Product productDetailed(String id, String sku, String slug, String name,
+                                    String shortDescription, String description,
+                                    String price, ProductStatus status) {
+        return new Product(
+                id, new Sku(sku), new Slug(slug), name, shortDescription, description,
+                new Money(new BigDecimal(price)), null, 15, status,
+                null, null, null, Set.of(5L),
                 List.of(new ProductImage(null, "products/" + sku + "/foto.webp", "Foto do produto", 0, true)));
     }
 }

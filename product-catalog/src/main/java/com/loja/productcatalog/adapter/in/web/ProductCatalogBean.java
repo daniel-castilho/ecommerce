@@ -46,7 +46,7 @@ public class ProductCatalogBean implements Serializable {
     private Long categoryId;
     private BigDecimal minPrice;
     private BigDecimal maxPrice;
-    private ProductSortField sortField = ProductSortField.NAME;
+    private ProductSortField sortField = ProductSortField.RELEVANCE;
     private SortDirection sortDirection = SortDirection.ASC;
     private int page;
 
