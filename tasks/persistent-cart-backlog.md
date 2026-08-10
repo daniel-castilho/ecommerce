@@ -68,8 +68,10 @@ S12 Guest cart + merge on login
 
 ## Status (v0.16.0)
 
-- S1–S10 shipped (2026-08-09). S11 (catalog-card "Add to cart") and S12 (guest cart +
-  merge on login) remain explicit debt.
+- S1–S10 shipped (2026-08-09). S12 (guest cart + merge on login) remains explicit debt.
+- S11 (catalog-card "Add to cart") shipped (2026-08-09, patch after v0.16.0): per-card
+  **Add to cart** button (logged-in, in-stock) / **Log in to buy** link (guests), reusing
+  `CartBean.addProduct`, with the global "Product added to your cart." message on the catalog page.
 
 *Planning backlog. Update status as stories ship; full history in git after implementation.*
 ```

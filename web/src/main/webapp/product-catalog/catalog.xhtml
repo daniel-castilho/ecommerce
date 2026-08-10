@@ -80,6 +80,16 @@
                             <span class="product-card-sku">#{product.skuValue}</span>
                             <span class="product-card-price">$#{product.price.amount}</span>
                             <span class="product-card-desc">#{product.shortDescription}</span>
+                            <h:form>
+                                <h:commandButton value="Add to cart"
+                                                 styleClass="button button-secondary"
+                                                 rendered="#{cartBean.loggedIn and product.status eq 'ACTIVE' and product.stock gt 0}"
+                                                 action="#{cartBean.addProduct(product.id)}" />
+                                <h:link outcome="/user-account/login.xhtml"
+                                        value="Log in to buy"
+                                        styleClass="button button-secondary"
+                                        rendered="#{not cartBean.loggedIn and product.status eq 'ACTIVE' and product.stock gt 0}" />
+                            </h:form>
                             <h:link outcome="/product-catalog/product-detail.xhtml"
                                     value="View details" styleClass="button">
                                 <f:param name="slug" value="#{product.slugValue}" />
