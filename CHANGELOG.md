@@ -6,6 +6,17 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.16.0](docs/releases/v0.16.0.md) — 2026-08-09
+
+**Persistent cart (S1–S10)**
+Replaces view-scoped checkout lines with a durable, per-user cart in Postgres. Customers add
+products on the product detail, edit quantities on a new `/web/order-checkout/cart.xhtml`, and
+check out — the order is built from the persisted cart and the cart is cleared only after a
+confirmed order (a server restart keeps items). Optimistic locking on the cart, live catalog
+prices (no frozen unit price), migration V24. Also rolls in previously untagged work: **coupons**
+(create/list + checkout discount, V22/V23) and **richer refund list filters** (status, customer,
+date range, sort).
+
 ## [v0.15.0](docs/releases/v0.15.0.md) — 2026-08-08
 
 **Audit log: resolved admin name & entity columns**

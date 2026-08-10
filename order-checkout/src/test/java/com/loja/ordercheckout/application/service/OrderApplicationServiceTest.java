@@ -3,6 +3,8 @@ package com.loja.ordercheckout.application.service;
 import com.loja.ordercheckout.domain.exception.AccountSuspendedException;
 import com.loja.ordercheckout.domain.exception.PaymentFailedException;
 import com.loja.ordercheckout.domain.exception.ShippingException;
+import com.loja.ordercheckout.domain.model.Cart;
+import com.loja.ordercheckout.domain.model.CartLine;
 import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.OrderStatus;
 import com.loja.ordercheckout.domain.model.PaymentAuthorization;
@@ -11,7 +13,7 @@ import com.loja.ordercheckout.domain.model.PaymentMethod;
 import com.loja.ordercheckout.domain.model.ShippingAddress;
 import com.loja.ordercheckout.domain.model.ShippingOption;
 import com.loja.ordercheckout.application.dto.CheckoutCommand;
-import com.loja.ordercheckout.application.dto.ItemCheckoutRequest;
+import com.loja.ordercheckout.domain.port.out.CartRepositoryPort;
 import com.loja.ordercheckout.domain.port.out.NotificationPort;
 import com.loja.ordercheckout.domain.port.out.OrderRepositoryPort;
 import com.loja.ordercheckout.domain.port.out.PaymentGatewayPort;
@@ -62,6 +64,7 @@ import static org.mockito.Mockito.when;
 class OrderApplicationServiceTest {
 
     private final OrderRepositoryPort orderRepository = mock(OrderRepositoryPort.class);
+    private final CartRepositoryPort cartRepository = mock(CartRepositoryPort.class);
     private final ProductRepositoryPort productRepository = mock(ProductRepositoryPort.class);
     private final PaymentGatewayPort paymentGateway = mock(PaymentGatewayPort.class);
     private final ShippingRatePort shippingRate = mock(ShippingRatePort.class);
@@ -76,9 +79,9 @@ class OrderApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new OrderApplicationService(orderRepository, productRepository,
-                paymentGateway, shippingRate, notification, inventoryReservation, userRepository,
-                couponQuote, couponRedemption);
+        service = new OrderApplicationService(orderRepository, cartRepository,
+                productRepository, paymentGateway, shippingRate, notification,
+                inventoryReservation, userRepository, couponQuote, couponRedemption);
         when(userRepository.findById("user-1"))
                 .thenReturn(Optional.of(user("ana@example.com", true)));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
@@ -126,11 +129,32 @@ class OrderApplicationServiceTest {
 
     private CheckoutCommand command(String requestId) {
         return new CheckoutCommand(requestId, "user-1", "ana@example.com",
-                List.of(new ItemCheckoutRequest("p1", 2), new ItemCheckoutRequest("p2", 3)),
                 address(), "pac", new PaymentMethod("card", "tok_test"), null);
     }
 
+    private CheckoutCommand commandWithShipping(String requestId, String shippingMethod) {
+        return new CheckoutCommand(requestId, "user-1", "ana@example.com",
+                address(), shippingMethod, new PaymentMethod("card", "tok_test"), null);
+    }
+
+    private CheckoutCommand commandWithCoupon(String requestId, String couponCode) {
+        return new CheckoutCommand(requestId, "user-1", "ana@example.com",
+                address(), "pac", new PaymentMethod("card", "tok_test"), couponCode);
+    }
+
+    /** Seed the persisted cart (p1 x2, p2 x3) as the single source of truth. */
+    private void stubCart() {
+        stubCart(List.of(new CartLine("p1", 2), new CartLine("p2", 3)));
+    }
+
+    private void stubCart(List<CartLine> lines) {
+        Cart cart = Cart.create("user-1");
+        lines.forEach(line -> cart.add(line.productId(), line.quantity()));
+        when(cartRepository.findByUserId("user-1")).thenReturn(Optional.of(cart));
+    }
+
     private void stubProductsAndStock() {
+        stubCart();
         when(productRepository.findById("p1")).thenReturn(Optional.of(
                 product("p1", new Money(new BigDecimal("10.00")), 5)));
         when(productRepository.findById("p2")).thenReturn(Optional.of(
@@ -161,6 +185,7 @@ class OrderApplicationServiceTest {
                 new ReservationRequest("p2", 3)));
         verify(inventoryReservation).confirm("req-1");
         verify(orderRepository).save(order);
+        verify(cartRepository).deleteByUserId("user-1");
         verify(notification).notifyOrderConfirmed(order);
     }
 
@@ -179,20 +204,19 @@ class OrderApplicationServiceTest {
         verify(inventoryReservation).release("req-2");
         verify(inventoryReservation, never()).confirm(anyString());
         verify(orderRepository).save(order);
+        verify(cartRepository, never()).deleteByUserId(anyString());
         verify(notification, never()).notifyOrderConfirmed(any());
     }
 
     @Test
     void checkout_whenStockInsufficient_throwsBeforePaymentIsAttempted() {
+        stubCart(List.of(new CartLine("p1", 2)));
         when(productRepository.findById("p1")).thenReturn(Optional.of(
                 product("p1", new Money(new BigDecimal("10.00")), 0)));
         doThrow(new InsufficientStockException("Insufficient stock for product: p1"))
                 .when(inventoryReservation).reserve(anyString(), anyList());
-        CheckoutCommand command = new CheckoutCommand("req-3", "user-1", "ana@example.com",
-                List.of(new ItemCheckoutRequest("p1", 2)), address(), "pac",
-                new PaymentMethod("card", "tok_test"), null);
 
-        assertThatThrownBy(() -> service.checkout(command))
+        assertThatThrownBy(() -> service.checkout(command("req-3")))
                 .isInstanceOf(InsufficientStockException.class)
                 .hasMessageContaining("p1");
         verify(paymentGateway, never()).authorize(any(), any());
@@ -200,6 +224,7 @@ class OrderApplicationServiceTest {
         verify(inventoryReservation, never()).confirm(anyString());
         verify(inventoryReservation, never()).release(anyString());
         verify(orderRepository, never()).save(any());
+        verify(cartRepository, never()).deleteByUserId(anyString());
         verify(notification, never()).notifyOrderConfirmed(any());
     }
 
@@ -218,46 +243,55 @@ class OrderApplicationServiceTest {
         assertThat(second).isEqualTo(first);
         verify(inventoryReservation, times(1)).reserve(anyString(), anyList());
         verify(inventoryReservation, times(1)).confirm(anyString());
+        verify(cartRepository, times(1)).deleteByUserId("user-1");
         verify(notification, times(1)).notifyOrderConfirmed(any());
     }
 
     @Test
     void checkout_unknownShippingMethod_throwsShippingException() {
         stubProductsAndStock();
-        CheckoutCommand command = new CheckoutCommand("req-4", "user-1", "ana@example.com",
-                List.of(new ItemCheckoutRequest("p1", 1)), address(), "overnight",
-                new PaymentMethod("card", "tok_test"), null);
 
-        assertThatThrownBy(() -> service.checkout(command))
+        assertThatThrownBy(() -> service.checkout(commandWithShipping("req-4", "overnight")))
                 .isInstanceOf(ShippingException.class)
                 .hasMessageContaining("overnight");
     }
 
     @Test
-    void checkout_withZeroQuantity_throwsIllegalArgumentException() {
-        CheckoutCommand command = new CheckoutCommand("req-5", "user-1", "ana@example.com",
-                List.of(new ItemCheckoutRequest("p1", 0)), address(), "pac",
-                new PaymentMethod("card", "tok_test"), null);
+    void checkout_withNoCart_throwsBeforePaymentIsAttempted() {
+        when(cartRepository.findByUserId("user-1")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.checkout(command))
+        assertThatThrownBy(() -> service.checkout(command("req-5")))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("positive");
+                .hasMessageContaining("empty");
+        verify(paymentGateway, never()).authorize(any(), any());
+        verify(paymentGateway, never()).capture(anyString());
         verify(inventoryReservation, never()).reserve(anyString(), anyList());
+        verify(orderRepository, never()).save(any());
+        verify(cartRepository, never()).deleteByUserId(anyString());
+    }
+
+    @Test
+    void checkout_withEmptyPresentCart_throwsBeforePaymentIsAttempted() {
+        Cart empty = Cart.create("user-1");
+        when(cartRepository.findByUserId("user-1")).thenReturn(Optional.of(empty));
+
+        assertThatThrownBy(() -> service.checkout(command("req-5b")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("empty");
+        verify(paymentGateway, never()).authorize(any(), any());
         verify(orderRepository, never()).save(any());
     }
 
     @Test
     void checkout_withUnknownProduct_throwsIllegalArgumentException() {
+        stubCart(List.of(new CartLine("missing", 1)));
         when(productRepository.findById("missing")).thenReturn(Optional.empty());
 
-        CheckoutCommand command = new CheckoutCommand("req-6", "user-1", "ana@example.com",
-                List.of(new ItemCheckoutRequest("missing", 1)), address(), "pac",
-                new PaymentMethod("card", "tok_test"), null);
-
-        assertThatThrownBy(() -> service.checkout(command))
+        assertThatThrownBy(() -> service.checkout(command("req-6")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Product not found");
         verify(orderRepository, never()).save(any());
+        verify(cartRepository, never()).deleteByUserId(anyString());
     }
 
     @Test
@@ -299,9 +333,7 @@ class OrderApplicationServiceTest {
         when(paymentGateway.capture("auth-1")).thenReturn(new PaymentCapture(
                 "auth-1", "capture-1", new Money(new BigDecimal("47.85")), "tx-1", Instant.now()));
 
-        Order order = service.checkout(new CheckoutCommand("req-9", "user-1", "ana@example.com",
-                List.of(new ItemCheckoutRequest("p1", 2), new ItemCheckoutRequest("p2", 3)),
-                address(), "pac", new PaymentMethod("card", "tok_test"), "save10"));
+        Order order = service.checkout(commandWithCoupon("req-9", "save10"));
 
         assertThat(order.getCouponCode()).isEqualTo("SAVE10");
         assertThat(order.getDiscountAmount().getAmount()).isEqualByComparingTo("3.65");
@@ -309,6 +341,7 @@ class OrderApplicationServiceTest {
         assertThat(order.getTotal().getAmount()).isEqualByComparingTo("47.85");
         verify(couponQuote).quote("save10", new Money(new BigDecimal("36.50")));
         verify(couponRedemption).redeem("SAVE10");
+        verify(cartRepository).deleteByUserId("user-1");
     }
 
     @Test
@@ -317,17 +350,14 @@ class OrderApplicationServiceTest {
         when(couponQuote.quote(anyString(), any()))
                 .thenThrow(new CouponNotFoundException("Coupon not found: SAVE10"));
 
-        CheckoutCommand command = new CheckoutCommand("req-10", "user-1", "ana@example.com",
-                List.of(new ItemCheckoutRequest("p1", 2)), address(), "pac",
-                new PaymentMethod("card", "tok_test"), "SAVE10");
-
-        assertThatThrownBy(() -> service.checkout(command))
+        assertThatThrownBy(() -> service.checkout(commandWithCoupon("req-10", "SAVE10")))
                 .isInstanceOf(CouponNotFoundException.class)
                 .hasMessageContaining("not found");
         verify(paymentGateway, never()).authorize(any(), any());
         verify(paymentGateway, never()).capture(anyString());
         verify(inventoryReservation, never()).reserve(anyString(), anyList());
         verify(orderRepository, never()).save(any());
+        verify(cartRepository, never()).deleteByUserId(anyString());
         verify(couponRedemption, never()).redeem(anyString());
     }
 
@@ -337,14 +367,11 @@ class OrderApplicationServiceTest {
         when(couponQuote.quote(anyString(), any()))
                 .thenThrow(new CouponNotApplicableException("Coupon exhausted"));
 
-        CheckoutCommand command = new CheckoutCommand("req-11", "user-1", "ana@example.com",
-                List.of(new ItemCheckoutRequest("p1", 2)), address(), "pac",
-                new PaymentMethod("card", "tok_test"), "FULLY");
-
-        assertThatThrownBy(() -> service.checkout(command))
+        assertThatThrownBy(() -> service.checkout(commandWithCoupon("req-11", "FULLY")))
                 .isInstanceOf(CouponNotApplicableException.class)
                 .hasMessageContaining("exhausted");
         verify(orderRepository, never()).save(any());
+        verify(cartRepository, never()).deleteByUserId(anyString());
         verify(couponRedemption, never()).redeem(anyString());
     }
 
@@ -358,12 +385,11 @@ class OrderApplicationServiceTest {
         when(paymentGateway.capture("auth-1"))
                 .thenThrow(new PaymentFailedException("Payment capture failed."));
 
-        Order order = service.checkout(new CheckoutCommand("req-12", "user-1", "ana@example.com",
-                List.of(new ItemCheckoutRequest("p1", 2), new ItemCheckoutRequest("p2", 3)),
-                address(), "pac", new PaymentMethod("card", "tok_test"), "SAVE10"));
+        Order order = service.checkout(commandWithCoupon("req-12", "SAVE10"));
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
         assertThat(order.getCouponCode()).isEqualTo("SAVE10");
+        verify(cartRepository, never()).deleteByUserId(anyString());
         verify(couponRedemption, never()).redeem(anyString());
         verify(notification, never()).notifyOrderConfirmed(any());
     }

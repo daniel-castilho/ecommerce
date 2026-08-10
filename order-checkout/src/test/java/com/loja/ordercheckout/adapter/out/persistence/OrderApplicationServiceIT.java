@@ -4,9 +4,9 @@ import com.loja.ordercheckout.adapter.out.notification.NotificationMockAdapter;
 import com.loja.ordercheckout.adapter.out.payment.PaymentGatewayMockAdapter;
 import com.loja.ordercheckout.adapter.out.shipping.ShippingRateMockAdapter;
 import com.loja.ordercheckout.application.dto.CheckoutCommand;
-import com.loja.ordercheckout.application.dto.ItemCheckoutRequest;
 import com.loja.ordercheckout.application.service.OrderApplicationService;
 import com.loja.ordercheckout.domain.exception.AccountSuspendedException;
+import com.loja.ordercheckout.domain.model.Cart;
 import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.OrderStatus;
 import com.loja.ordercheckout.domain.model.PaymentMethod;
@@ -66,6 +66,7 @@ import static org.mockito.Mockito.when;
 class OrderApplicationServiceIT extends AbstractIntegrationTest {
 
     private OrderRepositoryAdapter orderRepository;
+    private CartRepositoryJpaAdapter cartRepository;
     private ProductRepositoryPort productRepository;
     private InventoryReservationPort inventoryReservation;
     private PaymentGatewayMockAdapter paymentGateway;
@@ -81,6 +82,8 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
         setUpEntityManager();
         orderRepository = new OrderRepositoryAdapter();
         orderRepository.em = em;
+        cartRepository = new CartRepositoryJpaAdapter();
+        cartRepository.em = em;
         productRepository = mock(ProductRepositoryPort.class);
         inventoryReservation = mock(InventoryReservationPort.class);
         paymentGateway = new PaymentGatewayMockAdapter();
@@ -90,12 +93,12 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
         couponQuote = mock(QuoteDiscountUseCase.class);
         couponRedemption = mock(RecordCouponRedemptionUseCase.class);
         when(userRepository.findById("user-1")).thenReturn(Optional.of(activeUser()));
-        service = new OrderApplicationService(orderRepository, productRepository,
-                paymentGateway, shippingRate, notification, inventoryReservation, userRepository,
-                couponQuote, couponRedemption);
+        service = new OrderApplicationService(orderRepository, cartRepository,
+                productRepository, paymentGateway, shippingRate, notification,
+                inventoryReservation, userRepository, couponQuote, couponRedemption);
 
         em.getTransaction().begin();
-        em.createNativeQuery("TRUNCATE TABLE tb_order_item, tb_order RESTART IDENTITY CASCADE")
+        em.createNativeQuery("TRUNCATE TABLE tb_order_item, tb_order, tb_cart RESTART IDENTITY CASCADE")
                 .executeUpdate();
         em.getTransaction().commit();
         em.clear();
@@ -104,6 +107,10 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
                 new Product("p1", new Sku("SKU-p1"), new Slug("slug-p1"), "Product A",
                         null, null, new Money(new BigDecimal("10.00")), null, 5,
                         ProductStatus.ACTIVE, null, null, null, Set.of(1L), List.of())));
+
+        Cart cart = Cart.create("user-1");
+        cart.add("p1", 2);
+        inTx(() -> cartRepository.save(cart));
     }
 
     @AfterEach
@@ -134,8 +141,7 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
         ShippingAddress address = new ShippingAddress("Ana Souza", "Rua das Flores", "123", null,
                 "Centro", "Sao Paulo", "SP", "01310-100", null);
         return new CheckoutCommand(requestId, "user-1", "ana@example.com",
-                List.of(new ItemCheckoutRequest("p1", 2)), address, "pac",
-                new PaymentMethod("card", "tok_test"), null);
+                address, "pac", new PaymentMethod("card", "tok_test"), null);
     }
 
     private static User activeUser() {
@@ -174,6 +180,7 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
         assertThat(notification.getNotifications()).hasSize(1);
         assertThat(notification.getNotifications().get(0))
                 .contains("ORDER_CONFIRMED", "order=e2e-1", "email=ana@example.com");
+        assertThat(inTx(() -> cartRepository.findByUserId("user-1"))).isEmpty();
     }
 
     @Test
@@ -205,9 +212,12 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
         for (int i = 0; i < poolSize; i++) {
             futures.add(executor.submit(() -> {
                 EntityManager workerEm = emf.createEntityManager();
-                OrderRepositoryAdapter workerRepository = new OrderRepositoryAdapter();
-                workerRepository.em = workerEm;
-                OrderApplicationService workerService = new OrderApplicationService(workerRepository,
+                OrderRepositoryAdapter workerOrderRepository = new OrderRepositoryAdapter();
+                workerOrderRepository.em = workerEm;
+                CartRepositoryJpaAdapter workerCartRepository = new CartRepositoryJpaAdapter();
+                workerCartRepository.em = workerEm;
+                OrderApplicationService workerService = new OrderApplicationService(
+                        workerOrderRepository, workerCartRepository,
                         productRepository, new PaymentGatewayMockAdapter(),
                         new ShippingRateMockAdapter(), notification, inventoryReservation, userRepository,
                         couponQuote, couponRedemption);

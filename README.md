@@ -60,8 +60,13 @@ https://localhost:9443/web/
 
 ## Current State
 
-**Latest release: [v0.15.0](docs/releases/v0.15.0.md)** (2026-08-08)
+**Latest release: [v0.16.0](docs/releases/v0.16.0.md)** (2026-08-09)
 
+- **Persistent cart** (S1–S10): add products from the product detail, manage quantities on a
+  `/web/order-checkout/cart.xhtml` page, and check out from a persisted per-user cart that is
+  cleared only after a confirmed order (items survive a server restart)
+- **Coupons** module: coupon create/list admin UI, checkout discount quote and snapshot on the order
+- Richer refund list filters: status, customer, date range and sort
 - Audit log viewer complete: filters, full-text tooltip, **resolved admin-name actor column**,
   and **entity type/ID columns** (USER / PRODUCT / REFUND / ADDRESS)
 - Wishlist module complete (S1–S10): add/remove toggle on the product detail, a

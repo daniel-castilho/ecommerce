@@ -1,0 +1,82 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                template="/WEB-INF/templates/main.xhtml">
+
+    <ui:define name="title">My Cart</ui:define>
+
+    <ui:define name="content">
+        <h1 class="page-title">My Cart</h1>
+        <h:messages globalOnly="true" styleClass="messages" />
+
+        <ui:fragment rendered="#{not cartBean.loggedIn}">
+            <div class="card">
+                <p>You need to log in to view your cart.</p>
+                <p><h:link outcome="/user-account/login.xhtml" value="Log in" styleClass="button" /></p>
+            </div>
+        </ui:fragment>
+
+        <ui:fragment rendered="#{cartBean.loggedIn}">
+            <div class="card">
+                <ui:fragment rendered="#{cartBean.hasLines}">
+                    <h:form id="cartForm">
+                        <h:dataTable value="#{cartBean.lines}" var="line" styleClass="data-table">
+                            <h:column>
+                                <f:facet name="header">Product</f:facet>
+                                <ui:fragment rendered="#{line.available}">
+                                    <h:link outcome="/product-catalog/product-detail.xhtml"
+                                            value="#{line.name}">
+                                        <f:param name="slug" value="#{line.slug}" />
+                                    </h:link>
+                                </ui:fragment>
+                                <ui:fragment rendered="#{not line.available}">
+                                    <span class="product-card-sku">#{line.name}</span>
+                                </ui:fragment>
+                            </h:column>
+                            <h:column>
+                                <f:facet name="header">Unit price</f:facet>
+                                <ui:fragment rendered="#{line.available}">
+                                    $#{line.unitPrice.amount}
+                                </ui:fragment>
+                            </h:column>
+                            <h:column>
+                                <f:facet name="header">Quantity</f:facet>
+                                <h:inputText value="#{cartBean.quantityByProduct[line.productId]}"
+                                             size="3"
+                                             converterId="jakarta.faces.Integer" />
+                            </h:column>
+                            <h:column>
+                                <f:facet name="header">Subtotal</f:facet>
+                                <ui:fragment rendered="#{line.available}">
+                                    $#{line.lineTotal.amount}
+                                </ui:fragment>
+                            </h:column>
+                            <h:column>
+                                <f:facet name="header"></f:facet>
+                                <h:commandButton value="Update"
+                                                 action="#{cartBean.updateQuantity(line.productId)}"
+                                                 styleClass="button button-secondary" />
+                                <h:commandButton value="Remove"
+                                                 action="#{cartBean.removeLine(line.productId)}"
+                                                 styleClass="button button-secondary" />
+                            </h:column>
+                        </h:dataTable>
+                        <p>Subtotal: <strong>$#{cartBean.subtotal.amount}</strong></p>
+                        <h:commandButton value="Clear cart" action="#{cartBean.clearCart}"
+                                         styleClass="button button-secondary" />
+                        <h:commandButton value="Proceed to checkout" action="#{cartBean.proceedToCheckout}"
+                                         styleClass="button" />
+                    </h:form>
+                </ui:fragment>
+                <ui:fragment rendered="#{not cartBean.hasLines}">
+                    <p>Your cart is empty.</p>
+                    <p><h:link outcome="/product-catalog/catalog.xhtml" value="Browse the catalog"
+                               styleClass="button" /></p>
+                </ui:fragment>
+            </div>
+        </ui:fragment>
+
+        <p><h:link outcome="/product-catalog/catalog.xhtml" value="Back to catalog" /></p>
+    </ui:define>
+</ui:composition>

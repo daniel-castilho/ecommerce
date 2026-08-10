@@ -14,6 +14,7 @@
         <class>com.loja.productcatalog.adapter.out.persistence.InventoryReservationJpaEntity</class>
         <class>com.loja.ordercheckout.adapter.out.persistence.OrderJpaEntity</class>
         <class>com.loja.ordercheckout.adapter.out.persistence.RefundRequestJpaEntity</class>
+        <class>com.loja.ordercheckout.adapter.out.persistence.CartJpaEntity</class>
         <class>com.loja.promotions.adapter.out.persistence.CouponJpaEntity</class>
         <class>com.loja.productreviews.adapter.out.persistence.ReviewJpaEntity</class>
         <class>com.loja.wishlist.adapter.out.persistence.WishlistItemJpaEntity</class>

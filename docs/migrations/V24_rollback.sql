@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS tb_cart_line;
+DROP TABLE IF EXISTS tb_cart;

@@ -8,6 +8,34 @@ Full historical write-ups of every lesson remain in git history of this file.
 
 ---
 
+## 29. JSF form bindings: typed `Map` values arrive as raw Strings; never name a table `var` `view` (2026-08-09)
+
+Two EL/JSF pitfalls that only surface in a browser, never in unit tests.
+
+**Pitfall 1 — typed map coercion.** Binding an editable input to
+`#{bean.quantityByProduct[productId]}` where `quantityByProduct` is a
+`Map<String, Integer>` does **not** coerce the submitted value on this MyFaces stack.
+Jakarta EL erases the map's generic value type, so the raw `String` ("3") is stored in the map;
+reading it back as `Integer` (`Integer qty = map.get(id);`) throws
+`ClassCastException: class java.lang.String cannot be cast to class java.lang.Integer`.
+Adding `converterId="jakarta.faces.Integer"` to the input did **not** stop it in practice.
+
+**Golden rule:** never read a JSF-submitted value straight out of a typed `Map` into a primitive
+wrapper. Read it as `Object` and coerce defensively (`instanceof Integer` → `instanceof Number` →
+`Integer.parseInt(String.valueOf(...))`, rejecting garbage), and keep the Integer converter on the
+input as belt-and-braces. Browser-smoke every new editable binding.
+
+**Pitfall 2 — reserved EL object names.** `var="view"` in an `h:dataTable` collides with the
+reserved EL implicit object `view` (the `UIViewRoot`), so `#{view.name}` fails at render with
+`jakarta.el.PropertyNotFoundException: Property [name] not found on type
+[jakarta.faces.component.UIViewRoot]` — the implicit object wins over the row variable.
+
+**Golden rule:** never name a table/`ui:repeat` var after an EL implicit object (`view`,
+`request`, `session`, `application`, `facesContext`, `component`, `cc`, `param`, etc.). Use
+plain names like `line`/`item`/`row`.
+
+---
+
 ## 28. Audit-log actors resolve via a use-case port; entities belong in columns, not details (2026-08-08)
 
 Rendering the audit log with the raw actor id is unhelpful — resolve it through a use case

@@ -93,16 +93,25 @@
                     </ui:fragment>
 
                     <div class="product-detail-actions">
-                        <h:link outcome="/order-checkout/checkout.xhtml" value="Buy"
-                                styleClass="button"
-                                rendered="#{productDetailBean.inStock}">
-                            <f:param name="productId" value="#{productDetailBean.product.id}" />
-                        </h:link>
+                        <h:form id="cartForm"
+                                rendered="#{cartBean.loggedIn and productDetailBean.inStock}">
+                            <h:commandButton id="addToCart"
+                                             value="Add to cart"
+                                             action="#{cartBean.addProduct(productDetailBean.product.id)}"
+                                             styleClass="button" />
+                        </h:form>
+                        <ui:fragment rendered="#{not cartBean.loggedIn and productDetailBean.inStock}">
+                            <h:link outcome="/user-account/login.xhtml" value="Log in to buy"
+                                    styleClass="button" />
+                        </ui:fragment>
                         <ui:fragment rendered="#{not productDetailBean.inStock}">
                             <span class="button button-secondary">
                                 Out of stock
                             </span>
                         </ui:fragment>
+                        <h:link outcome="/order-checkout/cart.xhtml" value="My Cart"
+                                styleClass="button button-secondary"
+                                rendered="#{cartBean.loggedIn}" />
                         <h:form id="wishlistForm"
                                 rendered="#{wishlistBean.loggedIn and wishlistBean.productResolved}">
                             <h:commandButton id="wishlistToggle"

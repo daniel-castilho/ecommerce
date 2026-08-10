@@ -25,46 +25,26 @@
             <h:form rendered="#{checkoutBean.step == 1}">
                 <div class="card">
                     <h3>Your cart</h3>
-                    <h:dataTable value="#{checkoutBean.cartLines}" var="line" styleClass="data-table">
-                        <h:column>
-                            <f:facet name="header">Product ID</f:facet>
-                            <h:inputText value="#{line.productId}" />
-                        </h:column>
-                        <h:column>
-                            <f:facet name="header">Quantity</f:facet>
-                            <h:inputText value="#{line.quantity}" />
-                        </h:column>
-                        <h:column>
-                            <f:facet name="header">Remove</f:facet>
-                            <h:commandButton value="Remove" action="#{checkoutBean.removeLine(line)}"
-                                             styleClass="button button-secondary" />
-                        </h:column>
-                    </h:dataTable>
-                    <h:commandButton value="Add product" action="#{checkoutBean.addLine}"
-                                     styleClass="button button-secondary" />
-                </div>
-
-                <div class="card">
-                    <h3>Review</h3>
-                    <h:dataTable value="#{checkoutBean.reviewLines}" var="view" styleClass="data-table">
+                    <h:dataTable value="#{checkoutBean.reviewLines}" var="line" styleClass="data-table">
                         <h:column>
                             <f:facet name="header">Product</f:facet>
-                            #{view.name}
+                            #{line.name}
                         </h:column>
                         <h:column>
                             <f:facet name="header">Quantity</f:facet>
-                            #{view.quantity}
+                            #{line.quantity}
                         </h:column>
                         <h:column>
                             <f:facet name="header">Unit price</f:facet>
-                            #{view.unitPrice.amount}
+                            #{line.unitPrice.amount}
                         </h:column>
                         <h:column>
                             <f:facet name="header">Subtotal</f:facet>
-                            #{view.lineTotal.amount}
+                            #{line.lineTotal.amount}
                         </h:column>
                     </h:dataTable>
                     <p>Subtotal: <strong>#{checkoutBean.subtotal.amount}</strong></p>
+                    <p><h:link outcome="/order-checkout/cart.xhtml" value="Edit cart" /></p>
                     <h:commandButton value="Continue to shipping" action="#{checkoutBean.goToShipping}"
                                      styleClass="button" />
                 </div>
@@ -151,18 +131,18 @@
             <h:form rendered="#{checkoutBean.step == 4}">
                 <div class="card">
                     <h3>Confirm your order</h3>
-                    <h:dataTable value="#{checkoutBean.reviewLines}" var="view" styleClass="data-table">
+                    <h:dataTable value="#{checkoutBean.reviewLines}" var="line" styleClass="data-table">
                         <h:column>
                             <f:facet name="header">Product</f:facet>
-                            #{view.name}
+                            #{line.name}
                         </h:column>
                         <h:column>
                             <f:facet name="header">Quantity</f:facet>
-                            #{view.quantity}
+                            #{line.quantity}
                         </h:column>
                         <h:column>
                             <f:facet name="header">Subtotal</f:facet>
-                            #{view.lineTotal.amount}
+                            #{line.lineTotal.amount}
                         </h:column>
                     </h:dataTable>
                     <p>Shipping (#{checkoutBean.shippingMethod}): #{checkoutBean.shippingCost.amount}</p>

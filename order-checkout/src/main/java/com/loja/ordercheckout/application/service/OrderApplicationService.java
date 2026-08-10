@@ -1,16 +1,18 @@
 package com.loja.ordercheckout.application.service;
 
 import com.loja.ordercheckout.application.dto.CheckoutCommand;
-import com.loja.ordercheckout.application.dto.ItemCheckoutRequest;
 import com.loja.ordercheckout.domain.exception.AccountSuspendedException;
 import com.loja.ordercheckout.domain.exception.PaymentFailedException;
 import com.loja.ordercheckout.domain.exception.ShippingException;
+import com.loja.ordercheckout.domain.model.Cart;
+import com.loja.ordercheckout.domain.model.CartLine;
 import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.OrderLine;
 import com.loja.ordercheckout.domain.model.PaymentAuthorization;
 import com.loja.ordercheckout.domain.model.PaymentCapture;
 import com.loja.ordercheckout.domain.model.ShippingOption;
 import com.loja.ordercheckout.domain.port.in.CreateOrderFromCartUseCase;
+import com.loja.ordercheckout.domain.port.out.CartRepositoryPort;
 import com.loja.ordercheckout.domain.port.out.NotificationPort;
 import com.loja.ordercheckout.domain.port.out.OrderRepositoryPort;
 import com.loja.ordercheckout.domain.port.out.PaymentGatewayPort;
@@ -40,6 +42,7 @@ import java.util.UUID;
 public class OrderApplicationService implements CreateOrderFromCartUseCase {
 
     private final OrderRepositoryPort orderRepository;
+    private final CartRepositoryPort cartRepository;
     private final ProductRepositoryPort productRepository;
     private final PaymentGatewayPort paymentGateway;
     private final ShippingRatePort shippingRate;
@@ -51,6 +54,7 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
 
     @Inject
     public OrderApplicationService(OrderRepositoryPort orderRepository,
+                                   CartRepositoryPort cartRepository,
                                    ProductRepositoryPort productRepository,
                                    PaymentGatewayPort paymentGateway,
                                    ShippingRatePort shippingRate,
@@ -60,6 +64,7 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
                                    QuoteDiscountUseCase couponQuote,
                                    RecordCouponRedemptionUseCase couponRedemption) {
         this.orderRepository = orderRepository;
+        this.cartRepository = cartRepository;
         this.productRepository = productRepository;
         this.paymentGateway = paymentGateway;
         this.shippingRate = shippingRate;
@@ -88,15 +93,14 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
 
         Order order = new Order(orderId, command.userId(), command.customerEmail());
         order.setShippingAddress(command.shippingAddress());
+        Cart cart = loadCart(command.userId());
         int position = 0;
-        for (ItemCheckoutRequest req : command.items()) {
-            if (req.quantity() <= 0) {
-                throw new IllegalArgumentException("Quantity must be positive");
-            }
-            Product product = productRepository.findById(req.productId())
-                    .orElseThrow(() -> new IllegalArgumentException("Product not found: " + req.productId()));
+        for (CartLine line : cart.getLines()) {
+            Product product = productRepository.findById(line.productId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Product not found: " + line.productId()));
             order.addItem(new OrderLine(product.getId(), product.getName(), product.getPrice(),
-                    req.quantity(), position++));
+                    line.quantity(), position++));
         }
         order.validateForCheckout();
 
@@ -131,11 +135,25 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
         }
 
         Order saved = orderRepository.save(order);
+        cartRepository.deleteByUserId(command.userId());
         if (saved.getCouponCode() != null) {
             couponRedemption.redeem(saved.getCouponCode());
         }
         notification.notifyOrderConfirmed(saved);
         return saved;
+    }
+
+    /**
+     * The user's persisted cart is the single source of truth for order items.
+     * An absent or empty cart fails cleanly before any payment is attempted.
+     */
+    private Cart loadCart(String userId) {
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Your cart is empty."));
+        if (cart.isEmpty()) {
+            throw new IllegalArgumentException("Your cart is empty.");
+        }
+        return cart;
     }
 
     private String resolveOrderId(String requestId) {

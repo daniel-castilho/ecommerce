@@ -1,7 +1,8 @@
 package com.loja.ordercheckout.adapter.in.web;
 
+import com.loja.ordercheckout.application.dto.CartLineView;
+import com.loja.ordercheckout.application.dto.CartView;
 import com.loja.ordercheckout.application.dto.CheckoutCommand;
-import com.loja.ordercheckout.application.dto.ItemCheckoutRequest;
 import com.loja.ordercheckout.domain.exception.AccountSuspendedException;
 import com.loja.ordercheckout.domain.exception.PaymentFailedException;
 import com.loja.ordercheckout.domain.exception.ShippingException;
@@ -10,11 +11,10 @@ import com.loja.ordercheckout.domain.model.PaymentMethod;
 import com.loja.ordercheckout.domain.model.ShippingAddress;
 import com.loja.ordercheckout.domain.model.ShippingOption;
 import com.loja.ordercheckout.domain.port.in.CreateOrderFromCartUseCase;
+import com.loja.ordercheckout.domain.port.in.GetCartUseCase;
 import com.loja.ordercheckout.domain.port.out.OrderRepositoryPort;
 import com.loja.ordercheckout.domain.port.out.ShippingRatePort;
 import com.loja.productcatalog.domain.exception.InsufficientStockException;
-import com.loja.productcatalog.domain.model.Product;
-import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
 import com.loja.promotions.domain.exception.CouponNotApplicableException;
 import com.loja.promotions.domain.exception.CouponNotFoundException;
 import com.loja.promotions.domain.port.in.QuoteDiscountUseCase;
@@ -27,10 +27,7 @@ import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -40,6 +37,11 @@ import java.util.UUID;
  * payment → confirm). Holds the wizard state in the view scope; business rules
  * live in the domain and the {@link CreateOrderFromCartUseCase}. The confirmation
  * page reloads the persisted order by id (PRG), so it survives a browser refresh.
+ *
+ * <p>The review lines come from the customer's <b>persisted</b> cart
+ * ({@link GetCartUseCase}) — the cart page is the single place to edit lines.
+ * {@link CreateOrderFromCartUseCase} re-reads that same cart and clears it on a
+ * confirmed order, so the review and the placed order can never diverge.
  *
  * <p>A {@code requestId} is generated once per view and reused for every
  * "Place Order" submit, making double-clicks idempotent at the service level.
@@ -60,7 +62,7 @@ public class CheckoutBean implements Serializable {
     private OrderRepositoryPort orderRepository;
 
     @Inject
-    private ProductRepositoryPort productRepository;
+    private GetCartUseCase getCart;
 
     @Inject
     private ShippingRatePort shippingRate;
@@ -74,7 +76,7 @@ public class CheckoutBean implements Serializable {
     private int step = STEP_REVIEW;
     private final String requestId = UUID.randomUUID().toString();
 
-    private final List<CartLine> cartLines = new ArrayList<>();
+    private CartView cartView;
     private Order confirmedOrder;
 
     private String recipientName;
@@ -106,11 +108,8 @@ public class CheckoutBean implements Serializable {
             confirmedOrder = orderRepository.findById(orderId).orElse(null);
             return;
         }
-        String productId = ctx.getExternalContext().getRequestParameterMap().get("productId");
-        if (productId != null && !productId.isBlank()) {
-            cartLines.add(new CartLine(productId, 1));
-        } else {
-            cartLines.add(new CartLine());
+        if (session.getCurrentUser().isPresent()) {
+            cartView = getCart.getCart(session.getCurrentUser().get().getId());
         }
     }
 
@@ -128,7 +127,7 @@ public class CheckoutBean implements Serializable {
 
     public String goToShipping() {
         if (getReviewLines().isEmpty()) {
-            addGlobal(FacesMessage.SEVERITY_ERROR, "Empty cart", "Add at least one product with a quantity");
+            addGlobal(FacesMessage.SEVERITY_ERROR, "Empty cart", "Add products to your cart before checking out");
             return null;
         }
         step = STEP_SHIPPING;
@@ -191,13 +190,9 @@ public class CheckoutBean implements Serializable {
         String email = customerEmail == null || customerEmail.isBlank()
                 ? (user.get().getEmail() == null ? null : user.get().getEmail().getValue())
                 : customerEmail.trim();
-        List<ItemCheckoutRequest> items = cartLines.stream()
-                .filter(line -> line.getProductId() != null && !line.getProductId().isBlank())
-                .map(line -> new ItemCheckoutRequest(line.getProductId().trim(), line.getQuantity()))
-                .toList();
         try {
             confirmedOrder = createOrder.checkout(new CheckoutCommand(
-                    requestId, user.get().getId(), email, items, buildAddress(),
+                    requestId, user.get().getId(), email, buildAddress(),
                     shippingMethod, new PaymentMethod("card", paymentToken.trim()),
                     couponCode == null ? null : couponCode.trim()));
             FacesContext ctx = FacesContext.getCurrentInstance();
@@ -212,42 +207,15 @@ public class CheckoutBean implements Serializable {
         }
     }
 
-    // ---- cart helpers ----
+    // ---- cart review helpers ----
 
-    public String addLine() {
-        cartLines.add(new CartLine());
-        return null;
-    }
-
-    public String removeLine(CartLine line) {
-        cartLines.remove(line);
-        return null;
-    }
-
-    /** Cart lines resolved against the catalog, for review steps and totals. */
+    /** Review lines from the persisted cart, enriched with live catalog data. */
     public List<CartLineView> getReviewLines() {
-        List<CartLineView> views = new ArrayList<>();
-        for (CartLine line : cartLines) {
-            String productId = line.getProductId();
-            if (productId == null || productId.isBlank()) {
-                continue;
-            }
-            productId = productId.trim();
-            Product product = productRepository.findById(productId).orElse(null);
-            String name = product == null ? "Unknown product" : product.getName();
-            Money unitPrice = product == null ? Money.zero() : product.getPrice();
-            views.add(new CartLineView(productId, name, line.getQuantity(),
-                    unitPrice, unitPrice.multiply(line.getQuantity())));
-        }
-        return views;
+        return cartView == null ? List.of() : cartView.lines();
     }
 
     public Money getSubtotal() {
-        Money total = Money.zero();
-        for (CartLineView view : getReviewLines()) {
-            total = total.add(view.getLineTotal());
-        }
-        return total;
+        return cartView == null ? Money.zero() : cartView.subtotal();
     }
 
     public Money getShippingCost() {
@@ -291,7 +259,6 @@ public class CheckoutBean implements Serializable {
 
     public int getStep() { return step; }
     public Order getConfirmedOrder() { return confirmedOrder; }
-    public List<CartLine> getCartLines() { return cartLines; }
     public List<ShippingOption> getShippingOptions() { return shippingOptions; }
 
     public String getRecipientName() { return recipientName; }
@@ -320,48 +287,4 @@ public class CheckoutBean implements Serializable {
     public void setPaymentToken(String paymentToken) { this.paymentToken = paymentToken; }
     public String getCouponCode() { return couponCode; }
     public void setCouponCode(String couponCode) { this.couponCode = couponCode; }
-
-    /** Read-only row model for the review tables (resolved against the catalog). */
-    public static class CartLineView {
-        private final String productId;
-        private final String name;
-        private final int quantity;
-        private final Money unitPrice;
-        private final Money lineTotal;
-
-        CartLineView(String productId, String name, int quantity, Money unitPrice, Money lineTotal) {
-            this.productId = productId;
-            this.name = name;
-            this.quantity = quantity;
-            this.unitPrice = unitPrice;
-            this.lineTotal = lineTotal;
-        }
-
-        public String getProductId() { return productId; }
-        public String getName() { return name; }
-        public int getQuantity() { return quantity; }
-        public Money getUnitPrice() { return unitPrice; }
-        public Money getLineTotal() { return lineTotal; }
-    }
-
-    /** Mutable row model for the cart form (JSF needs settable properties). */
-    public static class CartLine {
-        @NotBlank(message = "Product is required")
-        private String productId;
-
-        @Min(value = 1, message = "Quantity must be at least 1")
-        private int quantity;
-
-        public CartLine() { }
-
-        public CartLine(String productId, int quantity) {
-            this.productId = productId;
-            this.quantity = quantity;
-        }
-
-        public String getProductId() { return productId; }
-        public void setProductId(String productId) { this.productId = productId; }
-        public int getQuantity() { return quantity; }
-        public void setQuantity(int quantity) { this.quantity = quantity; }
-    }
 }
