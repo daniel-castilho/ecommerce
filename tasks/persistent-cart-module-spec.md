@@ -25,8 +25,10 @@ Durable shopping cart for authenticated customers.
 
 **Out of scope:**
 
-- Guest / anonymous cart (session or cookie token)
-- Merge guest → login
+- Guest / anonymous cart is **in scope since S12**: the guest cart is keyed by a
+  session-scoped UUID in the same `user_id` column (no FK), and it is merged into
+  the user cart on login (`MergeGuestCartUseCase` + `Cart.merge`). Checkout still
+  requires an account.
 - Stock reservation at add-to-cart
 - “Save for later” / move between cart and wishlist
 - Multi-cart / named carts
@@ -151,10 +153,11 @@ CheckoutBean:
 
 | Surface         | Behaviour                                                                     |
 | --------------- | ----------------------------------------------------------------------------- |
-| Product detail  | “Add to cart” (auth); guest → login link                                      |
-| `cart.xhtml`    | List lines, change qty, remove, subtotal (live prices), “Proceed to checkout” |
-| Checkout review | Lines from cart; coupon field unchanged                                       |
-| Nav             | Link to cart for logged-in users                                              |
+| Product detail  | “Add to cart” for everyone (guests get a session cart); out of stock → label   |
+| Catalog card    | “Add to cart” for everyone when ACTIVE and in stock                            |
+| `cart.xhtml`    | List lines, change qty, remove, subtotal (live prices), “Proceed to checkout” (auth) / “Log in to check out” (guests); guest banner |
+| Checkout review | Lines from cart; coupon field unchanged                                        |
+| Nav             | Link to cart for logged-in users                                               |
 
 Design-system tokens only. Thin beans.
 
@@ -172,7 +175,7 @@ Design-system tokens only. Thin beans.
 
 - Domain: merge qty, remove, invariants
 - Application: mocked ports; clear after “order success” path unit-tested
-- Adapter ITs: unique user cart, line upsert, version conflict if feasible
+- Adapter ITs: unique user cart, line upsert, version conflict if feasible, guest-id round trip
 - Checkout integration: place order reads cart and clears it
 - Regression: coupon quote still applied when code present
 

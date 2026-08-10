@@ -182,6 +182,79 @@ class CartTest {
         assertThat(cart.isEmpty()).isTrue();
     }
 
+    // ------------------------------------------------------------- merge
+
+    @Test
+    void merge_disjointLines_addsThemAll() {
+        Cart target = Cart.create("user-1");
+        target.add("p1", 1);
+        Cart guest = Cart.create("guest-1");
+        guest.add("p2", 2);
+        guest.add("p3", 3);
+
+        target.merge(guest);
+
+        assertThat(target.getLines()).extracting(CartLine::productId)
+                .containsExactlyInAnyOrder("p1", "p2", "p3");
+        assertThat(target.getLines().stream()
+                .mapToInt(CartLine::quantity).sum()).isEqualTo(6);
+        assertThat(guest.getLines()).hasSize(2);
+    }
+
+    @Test
+    void merge_overlappingLines_sumsQuantities() {
+        Cart target = Cart.create("user-1");
+        target.add("p1", 1);
+        target.add("p2", 2);
+        Cart guest = Cart.create("guest-1");
+        guest.add("p1", 3);
+        guest.add("p2", 1);
+        guest.add("p3", 4);
+
+        target.merge(guest);
+
+        assertThat(target.getLines()).hasSize(3);
+        assertThat(target.getLines())
+                .filteredOn(line -> line.productId().equals("p1"))
+                .singleElement()
+                .extracting(CartLine::quantity)
+                .isEqualTo(4);
+        assertThat(target.getLines())
+                .filteredOn(line -> line.productId().equals("p2"))
+                .singleElement()
+                .extracting(CartLine::quantity)
+                .isEqualTo(3);
+    }
+
+    @Test
+    void merge_emptyGuest_isNoOp() {
+        Cart target = Cart.create("user-1");
+        target.add("p1", 1);
+        Cart guest = Cart.create("guest-1");
+
+        target.merge(guest);
+
+        assertThat(target.getLines()).hasSize(1);
+    }
+
+    @Test
+    void merge_nullGuest_throws() {
+        Cart target = Cart.create("user-1");
+
+        assertThatThrownBy(() -> target.merge(null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void merge_itself_throws() {
+        Cart cart = Cart.create("user-1");
+        cart.add("p1", 1);
+
+        assertThatThrownBy(() -> cart.merge(cart))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("itself");
+    }
+
     // ------------------------------------------------------------- reconstitute
 
     @Test

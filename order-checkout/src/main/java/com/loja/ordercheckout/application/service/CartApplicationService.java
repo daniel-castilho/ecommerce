@@ -10,6 +10,7 @@ import com.loja.ordercheckout.domain.model.CartLine;
 import com.loja.ordercheckout.domain.port.in.AddToCartUseCase;
 import com.loja.ordercheckout.domain.port.in.ClearCartUseCase;
 import com.loja.ordercheckout.domain.port.in.GetCartUseCase;
+import com.loja.ordercheckout.domain.port.in.MergeGuestCartUseCase;
 import com.loja.ordercheckout.domain.port.in.RemoveFromCartUseCase;
 import com.loja.ordercheckout.domain.port.in.UpdateCartLineUseCase;
 import com.loja.ordercheckout.domain.port.out.CartRepositoryPort;
@@ -32,7 +33,7 @@ import java.util.Optional;
 @ApplicationScoped
 @Transactional
 public class CartApplicationService implements AddToCartUseCase, UpdateCartLineUseCase,
-        RemoveFromCartUseCase, GetCartUseCase, ClearCartUseCase {
+        RemoveFromCartUseCase, GetCartUseCase, ClearCartUseCase, MergeGuestCartUseCase {
 
     private final CartRepositoryPort cartRepository;
     private final ProductLookupPort productLookup;
@@ -93,6 +94,23 @@ public class CartApplicationService implements AddToCartUseCase, UpdateCartLineU
     public void clear(String userId) {
         requireNonBlank(userId, "userId");
         cartRepository.deleteByUserId(userId);
+    }
+
+    @Override
+    public void merge(String guestId, String userId) {
+        requireNonBlank(guestId, "guestId");
+        requireNonBlank(userId, "userId");
+        if (guestId.trim().equals(userId.trim())) {
+            return;
+        }
+        Optional<Cart> guestCart = cartRepository.findByUserId(guestId);
+        if (guestCart.isEmpty()) {
+            return;
+        }
+        Cart userCart = cartRepository.findByUserId(userId).orElseGet(() -> Cart.create(userId));
+        userCart.merge(guestCart.get());
+        cartRepository.save(userCart);
+        cartRepository.deleteByUserId(guestId);
     }
 
     @Override

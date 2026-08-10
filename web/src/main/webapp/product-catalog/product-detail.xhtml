@@ -94,16 +94,12 @@
 
                     <div class="product-detail-actions">
                         <h:form id="cartForm"
-                                rendered="#{cartBean.loggedIn and productDetailBean.inStock}">
+                                rendered="#{productDetailBean.inStock}">
                             <h:commandButton id="addToCart"
                                              value="Add to cart"
                                              action="#{cartBean.addProduct(productDetailBean.product.id)}"
                                              styleClass="button" />
                         </h:form>
-                        <ui:fragment rendered="#{not cartBean.loggedIn and productDetailBean.inStock}">
-                            <h:link outcome="/user-account/login.xhtml" value="Log in to buy"
-                                    styleClass="button" />
-                        </ui:fragment>
                         <ui:fragment rendered="#{not productDetailBean.inStock}">
                             <span class="button button-secondary">
                                 Out of stock

@@ -30,6 +30,7 @@ import org.mockito.ArgumentCaptor;
 class CartApplicationServiceTest {
 
     private static final String USER_ID = "u-1";
+    private static final String GUEST_ID = "guest-1";
     private static final String PRODUCT_ID = "p-1";
     private static final String SECOND_PRODUCT_ID = "p-2";
 
@@ -213,6 +214,80 @@ class CartApplicationServiceTest {
     @Test
     void clear_blankUserId_throws() {
         assertThatThrownBy(() -> service.clear("  "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("userId");
+        verifyNoInteractions(cartRepository);
+    }
+
+    // -------------------------------------------------------------- merge
+
+    @Test
+    void merge_guestCartWithUserCart_foldsLinesAndDeletesGuestCart() {
+        Cart guest = Cart.reconstitute("guest-cart", GUEST_ID,
+                List.of(new CartLine(PRODUCT_ID, 2)), 1L, Instant.parse("2026-08-08T10:00:00Z"));
+        Cart user = Cart.reconstitute("user-cart", USER_ID,
+                List.of(new CartLine(PRODUCT_ID, 1), new CartLine(SECOND_PRODUCT_ID, 3)),
+                1L, Instant.parse("2026-08-08T10:00:00Z"));
+        when(cartRepository.findByUserId(GUEST_ID)).thenReturn(Optional.of(guest));
+        when(cartRepository.findByUserId(USER_ID)).thenReturn(Optional.of(user));
+
+        service.merge(GUEST_ID, USER_ID);
+
+        ArgumentCaptor<Cart> captor = ArgumentCaptor.forClass(Cart.class);
+        verify(cartRepository).save(captor.capture());
+        assertThat(captor.getValue().getUserId()).isEqualTo(USER_ID);
+        assertThat(captor.getValue().getLines()).hasSize(2);
+        assertThat(captor.getValue().getLines())
+                .filteredOn(line -> line.productId().equals(PRODUCT_ID))
+                .singleElement().extracting(CartLine::quantity).isEqualTo(3);
+        verify(cartRepository).deleteByUserId(GUEST_ID);
+    }
+
+    @Test
+    void merge_noUserCart_createsOneAndFoldsGuestLines() {
+        Cart guest = Cart.reconstitute("guest-cart", GUEST_ID,
+                List.of(new CartLine(PRODUCT_ID, 2), new CartLine(SECOND_PRODUCT_ID, 1)),
+                1L, Instant.parse("2026-08-08T10:00:00Z"));
+        when(cartRepository.findByUserId(GUEST_ID)).thenReturn(Optional.of(guest));
+        when(cartRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
+
+        service.merge(GUEST_ID, USER_ID);
+
+        ArgumentCaptor<Cart> captor = ArgumentCaptor.forClass(Cart.class);
+        verify(cartRepository).save(captor.capture());
+        assertThat(captor.getValue().getUserId()).isEqualTo(USER_ID);
+        assertThat(captor.getValue().getLines()).hasSize(2);
+        verify(cartRepository).deleteByUserId(GUEST_ID);
+    }
+
+    @Test
+    void merge_noGuestCart_isNoOp() {
+        when(cartRepository.findByUserId(GUEST_ID)).thenReturn(Optional.empty());
+
+        service.merge(GUEST_ID, USER_ID);
+
+        verify(cartRepository, never()).save(any());
+        verify(cartRepository, never()).deleteByUserId(any());
+    }
+
+    @Test
+    void merge_guestIdEqualsUserId_isNoOp() {
+        service.merge(USER_ID, USER_ID);
+
+        verifyNoInteractions(cartRepository);
+    }
+
+    @Test
+    void merge_blankGuestId_throws() {
+        assertThatThrownBy(() -> service.merge("  ", USER_ID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("guestId");
+        verifyNoInteractions(cartRepository);
+    }
+
+    @Test
+    void merge_blankUserId_throws() {
+        assertThatThrownBy(() -> service.merge(GUEST_ID, "  "))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("userId");
         verifyNoInteractions(cartRepository);

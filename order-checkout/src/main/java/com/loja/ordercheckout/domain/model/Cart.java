@@ -10,8 +10,10 @@ import java.util.UUID;
 
 /**
  * Aggregate root of the durable shopping cart. MVP keeps a single active cart
- * per {@code userId} holding a list of {@link CartLine} entries — at most one
- * line per product.
+ * per owner holding a list of {@link CartLine} entries — at most one line per
+ * product. The owner is either an authenticated {@code userId} or the random
+ * id of an anonymous browser session (guest cart, see S12); both are plain
+ * 36-character ids stored in the {@code user_id} column.
  *
  * <p>Prices and names are never frozen on the cart: the application resolves
  * them live from the catalog through ports at read time.
@@ -37,7 +39,8 @@ public final class Cart {
     /**
      * New empty cart for the given owner.
      *
-     * @param userId authenticated owner (never from the form alone)
+     * @param userId authenticated owner id, or the guest session id for an
+     *               anonymous shopper (never from the form alone)
      */
     public static Cart create(String userId) {
         if (userId == null || userId.isBlank()) {
@@ -141,6 +144,26 @@ public final class Cart {
         if (!lines.isEmpty()) {
             lines.clear();
             touch();
+        }
+    }
+
+    /**
+     * Absorb every line of {@code other} into this cart, summing quantities for
+     * products that are already present. Used when an anonymous guest logs in and
+     * their session cart is folded into the persistent user cart. Ownership is
+     * unchanged — the caller persists this cart and deletes {@code other}.
+     *
+     * @param other cart whose lines should be absorbed (must not be this cart)
+     */
+    public void merge(Cart other) {
+        if (other == null) {
+            throw new IllegalArgumentException("other cart is required");
+        }
+        if (other == this) {
+            throw new IllegalArgumentException("Cannot merge a cart into itself");
+        }
+        for (CartLine line : other.getLines()) {
+            add(line.productId(), line.quantity());
         }
     }
 

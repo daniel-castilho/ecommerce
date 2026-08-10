@@ -35,6 +35,7 @@ import jakarta.faces.context.FacesContext;
 class CartBeanTest {
 
     private static final String USER_ID = "u-1";
+    private static final String GUEST_ID = "guest-1";
     private static final String PRODUCT_ID = "p-1";
     private static final String SECOND_PRODUCT_ID = "p-2";
 
@@ -44,6 +45,7 @@ class CartBeanTest {
     private GetCartUseCase getCart;
     private ClearCartUseCase clearCart;
     private SessionPort session;
+    private GuestCartSession guestCartSession;
     private User currentUser;
     private CartBean bean;
 
@@ -55,6 +57,8 @@ class CartBeanTest {
         getCart = mock(GetCartUseCase.class);
         clearCart = mock(ClearCartUseCase.class);
         session = mock(SessionPort.class);
+        guestCartSession = mock(GuestCartSession.class);
+        when(guestCartSession.getGuestId()).thenReturn(GUEST_ID);
         currentUser = mock(User.class);
         when(currentUser.getId()).thenReturn(USER_ID);
 
@@ -65,6 +69,7 @@ class CartBeanTest {
         bean.setGetCart(getCart);
         bean.setClearCart(clearCart);
         bean.setSession(session);
+        bean.setGuestCartSession(guestCartSession);
     }
 
     // -------------------------------------------------------------- load
@@ -86,8 +91,9 @@ class CartBeanTest {
     }
 
     @Test
-    void load_guest_hasNoLines() {
+    void load_guest_loadsCartKeyedByGuestId() {
         when(session.getCurrentUser()).thenReturn(Optional.empty());
+        when(getCart.getCart(GUEST_ID)).thenReturn(emptyView());
 
         bean.load();
 
@@ -95,7 +101,7 @@ class CartBeanTest {
         assertThat(bean.isHasLines()).isFalse();
         assertThat(bean.getLines()).isEmpty();
         assertThat(bean.getSubtotal()).isEqualTo(Money.zero());
-        verify(getCart, never()).getCart(anyString());
+        verify(getCart).getCart(GUEST_ID);
     }
 
     // -------------------------------------------------------------- add
@@ -116,8 +122,9 @@ class CartBeanTest {
     }
 
     @Test
-    void addProduct_guest_showsErrorAndDoesNotDelegate() {
+    void addProduct_guest_delegatesWithGuestId() {
         when(session.getCurrentUser()).thenReturn(Optional.empty());
+        when(getCart.getCart(GUEST_ID)).thenReturn(emptyView());
 
         try (MockedStatic<FacesContext> faces = mockStatic(FacesContext.class)) {
             faces.when(FacesContext::getCurrentInstance).thenReturn(mock(FacesContext.class));
@@ -125,7 +132,8 @@ class CartBeanTest {
             bean.addProduct(PRODUCT_ID);
         }
 
-        verify(addToCart, never()).add(anyString(), anyString(), anyInt());
+        verify(addToCart).add(GUEST_ID, PRODUCT_ID, 1);
+        verify(getCart).getCart(GUEST_ID);
     }
 
     @Test
@@ -250,17 +258,19 @@ class CartBeanTest {
     }
 
     @Test
-    void updateQuantity_guest_showsErrorAndDoesNotDelegate() {
+    void updateQuantity_guest_delegatesWithGuestId() {
         when(session.getCurrentUser()).thenReturn(Optional.empty());
+        when(getCart.getCart(GUEST_ID)).thenReturn(emptyView());
 
         try (MockedStatic<FacesContext> faces = mockStatic(FacesContext.class)) {
             faces.when(FacesContext::getCurrentInstance).thenReturn(mock(FacesContext.class));
 
+            bean.load();
             bean.getQuantityByProduct().put(PRODUCT_ID, 2);
             bean.updateQuantity(PRODUCT_ID);
         }
 
-        verify(updateCartLine, never()).updateQuantity(anyString(), anyString(), anyInt());
+        verify(updateCartLine).updateQuantity(GUEST_ID, PRODUCT_ID, 2);
     }
 
     // -------------------------------------------------------------- remove / clear
@@ -281,16 +291,18 @@ class CartBeanTest {
     }
 
     @Test
-    void removeLine_guest_doesNotDelegate() {
+    void removeLine_guest_delegatesWithGuestId() {
         when(session.getCurrentUser()).thenReturn(Optional.empty());
+        when(getCart.getCart(GUEST_ID)).thenReturn(emptyView());
 
         try (MockedStatic<FacesContext> faces = mockStatic(FacesContext.class)) {
             faces.when(FacesContext::getCurrentInstance).thenReturn(mock(FacesContext.class));
 
+            bean.load();
             bean.removeLine(PRODUCT_ID);
         }
 
-        verify(removeFromCart, never()).remove(anyString(), anyString());
+        verify(removeFromCart).remove(GUEST_ID, PRODUCT_ID);
     }
 
     @Test
@@ -306,6 +318,21 @@ class CartBeanTest {
         }
 
         verify(clearCart).clear(USER_ID);
+    }
+
+    @Test
+    void clearCart_guest_delegatesWithGuestId() {
+        when(session.getCurrentUser()).thenReturn(Optional.empty());
+        when(getCart.getCart(GUEST_ID)).thenReturn(emptyView());
+
+        try (MockedStatic<FacesContext> faces = mockStatic(FacesContext.class)) {
+            faces.when(FacesContext::getCurrentInstance).thenReturn(mock(FacesContext.class));
+
+            bean.load();
+            bean.clearCart();
+        }
+
+        verify(clearCart).clear(GUEST_ID);
     }
 
     // -------------------------------------------------------------- proceedToCheckout
@@ -334,12 +361,24 @@ class CartBeanTest {
     }
 
     @Test
-    void proceedToCheckout_guest_staysOnPage() {
+    void proceedToCheckout_guestWithLines_redirectsToLogin() {
         when(session.getCurrentUser()).thenReturn(Optional.empty());
+        when(getCart.getCart(GUEST_ID)).thenReturn(view(List.of(line(PRODUCT_ID, "Smartphone", 1))));
+
+        bean.load();
+
+        assertThat(bean.proceedToCheckout()).isEqualTo("/user-account/login.xhtml?faces-redirect=true");
+    }
+
+    @Test
+    void proceedToCheckout_guestWithEmptyCart_staysOnPage() {
+        when(session.getCurrentUser()).thenReturn(Optional.empty());
+        when(getCart.getCart(GUEST_ID)).thenReturn(emptyView());
 
         try (MockedStatic<FacesContext> faces = mockStatic(FacesContext.class)) {
             faces.when(FacesContext::getCurrentInstance).thenReturn(mock(FacesContext.class));
 
+            bean.load();
             assertThat(bean.proceedToCheckout()).isNull();
         }
     }

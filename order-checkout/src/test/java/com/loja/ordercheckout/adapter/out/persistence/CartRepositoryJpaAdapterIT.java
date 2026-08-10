@@ -131,6 +131,41 @@ class CartRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         assertThat(inTx(() -> adapter.findByUserId("u-missing"))).isEmpty();
     }
 
+    // ------------------------------------------------------------------ guest cart (S12)
+
+    @Test
+    void shouldRoundTripCartKeyedByGuestId() {
+        String guestId = "11111111-2222-3333-4444-555555555555";
+        Cart cart = Cart.create(guestId);
+        cart.add("p1", 2);
+
+        Cart saved = inTx(() -> adapter.save(cart));
+
+        assertThat(saved.getUserId()).isEqualTo(guestId);
+        Optional<Cart> found = inTx(() -> adapter.findByUserId(guestId));
+        assertThat(found).isPresent();
+        assertThat(found.get().getLines()).hasSize(1);
+        assertThat(found.get().getLines().get(0).productId()).isEqualTo("p1");
+        assertThat(found.get().getLines().get(0).quantity()).isEqualTo(2);
+
+        inTx(() -> adapter.deleteByUserId(guestId));
+        assertThat(inTx(() -> adapter.findByUserId(guestId))).isEmpty();
+    }
+
+    @Test
+    void shouldKeepGuestAndUserCartsSeparate() {
+        String guestId = "11111111-2222-3333-4444-555555555555";
+        Cart guest = Cart.create(guestId);
+        guest.add("p1", 2);
+        Cart user = Cart.create("u-1");
+        user.add("p2", 1);
+        inTx(() -> adapter.save(guest));
+        inTx(() -> adapter.save(user));
+
+        assertThat(inTx(() -> adapter.findByUserId(guestId))).isPresent();
+        assertThat(inTx(() -> adapter.findByUserId("u-1"))).isPresent();
+    }
+
     // ------------------------------------------------------------------ one cart per user
 
     @Test

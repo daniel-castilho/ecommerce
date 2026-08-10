@@ -10,6 +10,7 @@ import com.loja.ordercheckout.domain.port.in.GetCartUseCase;
 import com.loja.ordercheckout.domain.port.in.RemoveFromCartUseCase;
 import com.loja.ordercheckout.domain.port.in.UpdateCartLineUseCase;
 import com.loja.shared.domain.Money;
+import com.loja.useraccount.domain.model.User;
 import com.loja.useraccount.domain.port.out.SessionPort;
 import jakarta.annotation.PostConstruct;
 import jakarta.faces.application.FacesMessage;
@@ -24,12 +25,15 @@ import java.util.Map;
 
 /**
  * Customer cart UI: the {@code cart.xhtml} list page plus the product-detail
- * "Add to cart" action.
+ * and catalog-card "Add to cart" actions.
  *
- * <p>Mutations always take the user id from {@link SessionPort}, never from
- * the form. Guests see a login prompt instead of cart controls. Prices come
- * from the persisted cart enriched live from the catalog (no frozen unit
- * price), so a catalog price change is always reflected.
+ * <p>Mutations always take the owner id from the session, never from the form:
+ * the logged-in user's id when authenticated, otherwise the {@link GuestCartSession}
+ * id (S12 guest cart). A guest cart survives until login, when
+ * {@code GuestCartMergeObserver} folds it into the user's cart. Checkout itself
+ * still requires an account — guests are routed to the login page. Prices come
+ * from the persisted cart enriched live from the catalog (no frozen unit price),
+ * so a catalog price change is always reflected.
  */
 @Named("cartBean")
 @ViewScoped
@@ -55,6 +59,9 @@ public class CartBean implements Serializable {
     @Inject
     private transient SessionPort session;
 
+    @Inject
+    private transient GuestCartSession guestCartSession;
+
     void setAddToCart(AddToCartUseCase addToCart) {
         this.addToCart = addToCart;
     }
@@ -77,6 +84,10 @@ public class CartBean implements Serializable {
 
     void setSession(SessionPort session) {
         this.session = session;
+    }
+
+    void setGuestCartSession(GuestCartSession guestCartSession) {
+        this.guestCartSession = guestCartSession;
     }
 
     /** Product id of the "Add to cart" target (resolved on product-detail). */
@@ -127,11 +138,8 @@ public class CartBean implements Serializable {
     }
 
     private String addProductInternal(String targetProductId) {
-        if (!requireLogin("You must be logged in to add products to your cart.")) {
-            return null;
-        }
         try {
-            addToCart.add(session.getCurrentUser().orElseThrow().getId(), targetProductId, quantity);
+            addToCart.add(currentOwnerId(), targetProductId, quantity);
             addMessage(FacesMessage.SEVERITY_INFO, "Product added to your cart.", "");
             reload();
         } catch (CartProductNotAvailableException e) {
@@ -150,7 +158,7 @@ public class CartBean implements Serializable {
      * @param targetProductId product id from the row action
      */
     public void updateQuantity(String targetProductId) {
-        if (!requireLogin("You must be logged in to update your cart.")) {
+        if (targetProductId == null || targetProductId.isBlank()) {
             return;
         }
         int newQuantity;
@@ -172,8 +180,7 @@ public class CartBean implements Serializable {
             return;
         }
         try {
-            updateCartLine.updateQuantity(session.getCurrentUser().orElseThrow().getId(),
-                    targetProductId, newQuantity);
+            updateCartLine.updateQuantity(currentOwnerId(), targetProductId, newQuantity);
             addMessage(FacesMessage.SEVERITY_INFO, "Cart updated.", "");
             reload();
         } catch (CartConcurrentModificationException e) {
@@ -188,32 +195,32 @@ public class CartBean implements Serializable {
      * @param targetProductId product id from the row action
      */
     public void removeLine(String targetProductId) {
-        if (!requireLogin("You must be logged in to update your cart.")) {
-            return;
-        }
         if (targetProductId == null || targetProductId.isBlank()) {
             return;
         }
-        removeFromCart.remove(session.getCurrentUser().orElseThrow().getId(), targetProductId);
+        removeFromCart.remove(currentOwnerId(), targetProductId);
         addMessage(FacesMessage.SEVERITY_INFO, "Product removed from your cart.", "");
         reload();
     }
 
     /** Empty the whole cart. */
     public void clearCart() {
-        if (!requireLogin("You must be logged in to update your cart.")) {
-            return;
-        }
-        clearCart.clear(session.getCurrentUser().orElseThrow().getId());
+        clearCart.clear(currentOwnerId());
         addMessage(FacesMessage.SEVERITY_INFO, "Your cart has been cleared.", "");
         reload();
     }
 
-    /** Navigate to the checkout conversation. */
+    /**
+     * Navigate to the checkout conversation. Checkout requires an account, so
+     * guests are routed to the login page first (their cart survives the login).
+     */
     public String proceedToCheckout() {
         if (cart == null || cart.lines().isEmpty()) {
             addMessage(FacesMessage.SEVERITY_ERROR, "Your cart is empty.", "Add products before checking out.");
             return null;
+        }
+        if (session.getCurrentUser().isEmpty()) {
+            return "/user-account/login.xhtml?faces-redirect=true";
         }
         return "/order-checkout/checkout.xhtml?faces-redirect=true";
     }
@@ -257,24 +264,22 @@ public class CartBean implements Serializable {
     }
 
     private void reload() {
-        if (session.getCurrentUser().isEmpty()) {
-            cart = null;
-            quantityByProduct.clear();
-            return;
-        }
-        cart = getCart.getCart(session.getCurrentUser().get().getId());
+        String ownerId = currentOwnerId();
+        cart = getCart.getCart(ownerId);
         quantityByProduct.clear();
         for (CartLineView line : cart.lines()) {
             quantityByProduct.put(line.productId(), line.quantity());
         }
     }
 
-    private boolean requireLogin(String detail) {
-        if (session.getCurrentUser().isEmpty()) {
-            addMessage(FacesMessage.SEVERITY_ERROR, detail, "");
-            return false;
-        }
-        return true;
+    /**
+     * The id that keys the active cart: the authenticated user's id when logged
+     * in, otherwise the anonymous session's guest id (S12).
+     */
+    private String currentOwnerId() {
+        return session.getCurrentUser()
+                .map(User::getId)
+                .orElseGet(guestCartSession::getGuestId);
     }
 
     private static void addMessage(FacesMessage.Severity severity, String summary, String detail) {

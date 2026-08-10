@@ -54,7 +54,7 @@ S12 Guest cart + merge on login
 | S9 | Coupon regression | Must | Existing promotions path still works |
 | S10 | Tests + ArchUnit + WAR | Must | |
 | S11 | Add to cart on catalog card | Should | |
-| S12 | Guest cart + merge | Won’t for MVP | Explicit debt |
+| S12 | Guest cart + merge | Should | Guest session cart; fold into user cart on login |
 
 ---
 
@@ -66,12 +66,16 @@ S12 Guest cart + merge on login
 
 ---
 
-## Status (v0.16.0)
+## Status
 
-- S1–S10 shipped (2026-08-09). S12 (guest cart + merge on login) remains explicit debt.
-- S11 (catalog-card "Add to cart") shipped (2026-08-09, patch after v0.16.0): per-card
-  **Add to cart** button (logged-in, in-stock) / **Log in to buy** link (guests), reusing
-  `CartBean.addProduct`, with the global "Product added to your cart." message on the catalog page.
+- S1–S10 shipped (2026-08-09). S11 (catalog-card "Add to cart") shipped (2026-08-09, patch
+  after v0.16.0). **S12 (guest cart + merge on login) shipped (2026-08-09).**
+- S12 recap: anonymous shoppers get a `GuestCartSession` (`@SessionScoped`) id; `CartBean`
+  keys the cart by the user id when logged in or the guest id otherwise, so guests can add /
+  view / edit their cart. On login, `GuestCartMergeObserver` folds the guest cart into the
+  user's cart (`Cart.merge` sums quantities) and deletes the guest cart. Checkout still
+  requires an account — guests are routed to the login page from the cart. No schema change:
+  the guest id is a 36-char UUID in the existing `user_id` column (no FK).
 
 *Planning backlog. Update status as stories ship; full history in git after implementation.*
 ```
