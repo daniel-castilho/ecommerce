@@ -82,7 +82,7 @@ mvn -pl <module> test
 - Skip or delete tests to green the build
 - Broaden ArchUnit allow-lists
 - Call another module’s `adapter` package from tests or production code
-- Add guest cart, multi-coupon stack, or new libs without a story + human OK
+- Add multi-coupon stack or new libs without a story + human OK
 
 ---
 

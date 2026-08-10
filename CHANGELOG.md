@@ -6,6 +6,16 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.17.0](docs/releases/v0.17.0.md) — 2026-08-10
+
+**Guest cart + merge on login (S12); catalog Postgres FTS ranking**
+Closes the persistent-cart epic's last story and delivers the catalog full-text search ranking
+epic. Guests can add to a durable, session-scoped cart and the flow ends with a checkout that
+still requires an account; on login `GuestCartMergeObserver` folds the guest cart into the user
+cart (`Cart.merge` sums quantities). Catalog text search now ranks by `ts_rank` over
+name/SKU/short description with a GIN expression index (V25), a prefix `tsquery` + ILIKE fallback,
+and `RELEVANCE` as the default catalog sort.
+
 ## [v0.16.1](docs/releases/v0.16.1.md) — 2026-08-09
 
 **Catalog-card "Add to cart" (S11)**
