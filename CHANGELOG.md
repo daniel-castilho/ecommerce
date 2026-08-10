@@ -6,6 +6,14 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.16.1](docs/releases/v0.16.1.md) — 2026-08-09
+
+**Catalog-card "Add to cart" (S11)**
+Closes the persistent-cart epic's last optional story. Every catalog card gains an **Add to
+cart** button (logged-in users, active/in-stock products); guests see a **Log in to buy** link.
+Reuses `CartBean.addProduct` and the global "Product added to your cart." message — UI only, no
+domain or application changes.
+
 ## [v0.16.0](docs/releases/v0.16.0.md) — 2026-08-09
 
 **Persistent cart (S1–S10)**

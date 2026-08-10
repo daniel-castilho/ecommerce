@@ -60,11 +60,11 @@ https://localhost:9443/web/
 
 ## Current State
 
-**Latest release: [v0.16.0](docs/releases/v0.16.0.md)** (2026-08-09)
+**Latest release: [v0.16.1](docs/releases/v0.16.1.md)** (2026-08-09)
 
-- **Persistent cart** (S1–S10): add products from the product detail, manage quantities on a
-  `/web/order-checkout/cart.xhtml` page, and check out from a persisted per-user cart that is
-  cleared only after a confirmed order (items survive a server restart)
+- **Persistent cart** (S1–S11): add products from the product detail **or a catalog card**, manage
+  quantities on a `/web/order-checkout/cart.xhtml` page, and check out from a persisted per-user
+  cart that is cleared only after a confirmed order (items survive a server restart)
 - **Coupons** module: coupon create/list admin UI, checkout discount quote and snapshot on the order
 - Richer refund list filters: status, customer, date range and sort
 - Audit log viewer complete: filters, full-text tooltip, **resolved admin-name actor column**,
