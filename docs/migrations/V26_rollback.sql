@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS tb_notification_delivery_log;

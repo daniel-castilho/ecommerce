@@ -8,6 +8,17 @@ Full historical write-ups of every lesson remain in git history of this file.
 
 ---
 
+## 32. EclipseLink's L2 shared cache serves stale rows after direct SQL changes (2026-08-10)
+
+The WAR runs EclipseLink, whose shared (second-level) cache is **on by default** for entities
+with no `@Cacheable(false)`. A direct `UPDATE tb_product ...` from a SQL client (ops restock, dev
+nudge) is invisible to the running app — the catalog kept rendering "sold out" while the DB row
+said `stock = 10`, until a server restart cleared the cache. In-app inventory changes go through
+JPQL bulk updates, which EclipseLink does invalidate, so the bug only bites when the database is
+edited out-of-band. Symptom: UI state disagrees with `SELECT * FROM tb_product`. Workaround for
+dev smoke tests: restart Liberty after any raw-SQL stock mutation. (Only reached because the
+smoke had to restock QA Test Widget directly.)
+
 ## 31. Order notifications are best-effort: SMTP down must not block checkout (2026-08-10)
 
 Phase A of the notification system: `OrderNotificationEmailAdapter` (Jakarta Mail, mirrors

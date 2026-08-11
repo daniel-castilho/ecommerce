@@ -70,9 +70,11 @@ https://localhost:9443/web/
   Checkout still requires an account.
 - **Postgres FTS ranking**: catalog text search ranks by `ts_rank` over name/SKU/short description
   (GIN index, V25); prefix `tsquery` with ILIKE fallback; default sort `RELEVANCE`.
-- **Order notifications** (Phase A): best-effort email for confirmed/shipped + refund events via
+- **Order notifications** (Phase A+B): best-effort email for confirmed/shipped + refund events via
   `OrderNotificationEmailAdapter` (Jakarta Mail). Never blocks checkout: SMTP failures are logged,
-  not thrown; respects `UserProfile.notificationsEnabled`.
+  not thrown; respects `UserProfile.notificationsEnabled`. Phase B adds a **delivery log**
+  (`tb_notification_delivery_log`, V26): every event is claimed with a unique idempotency key
+  (`EVENT:{orderId}`) and recorded SENT/FAILED with attempt count and error.
 - **Coupons** (`promotions`): admin create/list, checkout discount quote, snapshot on the order (V22/V23).
 - **Wishlist** (S1–S10): detail toggle, list page, catalog ♥/♡.
 - **Reviews & Ratings** (`product-reviews`): submit, summary, verified purchase, admin moderation.
@@ -104,7 +106,7 @@ mvn test -Dtest='*Test' -DfailIfNoTests=false
 
 - Real payment, shipping and notification providers (currently mocked — order email is real,
   payment/shipping still mocked)
-- Notification delivery log + idempotency (Phase B) when audit is needed
+- Notification async decoupling (Phase C: outbox / JMS) only if latency or volume ever forces it
 - PDF reports embed charts as images (currently data tables)
 - Optional coupon depth: category/product scope, per-user redemption limits
 - Hardening: guest-cart edge cases, cart↔coupon regression smoke
