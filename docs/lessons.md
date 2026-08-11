@@ -8,6 +8,40 @@ Full historical write-ups of every lesson remain in git history of this file.
 
 ---
 
+## 35. Raw-SQL timestamp inserts must mimic the app's timezone or rows are "in the future" (2026-08-10)
+
+Smoke-testing the Phase D outbox poller, I inserted due rows from psql with bare `now()` into a
+`timestamp without time zone` column — the poller (traced every 5s, healthy) never picked them up.
+`findDue` compared `next_attempt_at <= :now`, but the app's JVM / DB session timezone is
+`America/New_York` and JPA binds `Instant.now()` as a **timestamptz**; Postgres then converts the
+stored `timestamp` column to timestamptz **in the session timezone**. So a psql-written UTC
+wall-clock value (`01:41`) was interpreted as EDT (`05:41 UTC`) — four hours in the future and
+never due. App-written rows are immune because the JDBC driver converts `Instant` to JVM-local
+wall-clock on write and read symmetrically.
+
+**Golden rule:** when simulating or backfilling app data in raw SQL, produce timestamps the app's
+timezone reads as past/now: `now() AT TIME ZONE 'America/New_York'` (match the JVM default), never
+bare `now()`. Symptom: a poller that "seems dead" while `SELECT ... WHERE next_attempt_at <= now()`
+clearly matches — check the stored wall-clock vs the app's session timezone before suspecting the
+scheduler. (Diagnosed by enabling package trace and seeing `processPending` run every 5 s with an
+empty batch.)
+
+## 34. Liberty mail: `@Resource(name="java:app/env/...")` fails; use plain `jndiName` + `@Resource(lookup=...)` (2026-08-10)
+
+Phase D outbox mail: the session was declared as `jndiName="java:app/env/mail/Session"` and injected
+with `@Resource(name = "java:app/env/mail/Session")`. At startup Liberty logged
+`CWNEN1004E: unable to find the mail/Session default binding with the jakarta.mail.Session type`,
+the field stayed null — and the failure was **silent at runtime**: `new MimeMessage(null)` +
+`Transport.send(...)` falls back to a default session targeting `localhost:25`, so smokes only ever
+showed "Couldn't connect to host, port: localhost, 25", indistinguishable from a real-but-unreachable
+server.
+
+**Golden rule:** on Open Liberty use the canonical mail-2.1 pattern —
+`<mailSession jndiName="mail/Session" .../>` + `@Resource(lookup = "mail/Session")`. A null Session
+that "sort of works" is a red flag: grep the startup log for `CWNEN`/`CWOWB` FFDCs, and make the
+from-address come from the session (`session.getProperty("mail.from")`, configured in server.xml) so
+a successfully injected session is actually exercised.
+
 ## 33. CDI is lazy — an unreferenced @ApplicationScoped bean never runs (2026-08-10)
 
 Phase C's `NotificationOutboxDispatcher` schedules the outbox poll in its constructor hook, but
