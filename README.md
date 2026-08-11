@@ -62,7 +62,7 @@ https://localhost:9443/web/
 
 ## Current State
 
-**Latest tag: [v0.17.0](docs/releases/v0.17.0.md)** (2026-08-10)
+**Latest tag: [v0.17.1](docs/releases/v0.17.1.md)** (2026-08-10)
 
 - **Persistent cart** (S1–S12): add from product detail or catalog card; manage quantities on
   `/web/order-checkout/cart.xhtml`; checkout from a durable cart cleared only after a confirmed

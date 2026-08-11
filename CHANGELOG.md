@@ -6,6 +6,15 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.17.1](docs/releases/v0.17.1.md) — 2026-08-10
+
+**Catalog FTS native-query parameter fix (EclipseLink)**
+Patch for a runtime-only defect the v0.17.0 smoke exposed: catalog text search returned 500 because
+the FTS native query used named parameters, which EclipseLink (the WAR's JPA provider) does not bind
+in native SQL — it sent the raw `:param` literals to PostgreSQL. The fix moves the FTS native
+queries to positional parameters (`?N`), which bind on both EclipseLink and Hibernate; the
+Testcontainers ITs (Hibernate) were green but never covered the runtime provider. Behavior unchanged.
+
 ## [v0.17.0](docs/releases/v0.17.0.md) — 2026-08-10
 
 **Guest cart + merge on login (S12); catalog Postgres FTS ranking**
