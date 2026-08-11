@@ -6,6 +6,18 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.18.1](docs/releases/v0.18.1.md) — 2026-08-10
+
+**Notification outbox hardening (backoff + EXHAUSTED, admin delivery log)**
+Follow-up to the order-notifications epic. FAILED deliveries are gated behind an exponential-ish
+backoff (`next_attempt_at`, V28) and the final of `MAX_ATTEMPTS = 3` failures escalates to a new
+EXHAUSTED terminal status the poller never touches again. A new admin "Notification Deliveries"
+page lists the outbox with status filter and a manual Re-queue action (`resend`) for stuck rows.
+Also fixes a latent mail-session defect: the configured session was never injected
+(`CWNEN1004E` — `java:app/env/...` jndiName), and a null-session fallback masked it; the canonical
+`jndiName="mail/Session"` + `@Resource(lookup=...)` pattern now delivers a real session and the
+FROM address (`mail.from` in server.xml).
+
 ## [v0.18.0](docs/releases/v0.18.0.md) — 2026-08-10
 
 **Order notifications epic (async transactional outbox)**

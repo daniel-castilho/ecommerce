@@ -62,7 +62,7 @@ https://localhost:9443/web/
 
 ## Current State
 
-**Latest tag: [v0.18.0](docs/releases/v0.18.0.md)** (2026-08-10)
+**Latest tag: [v0.18.1](docs/releases/v0.18.1.md)** (2026-08-10)
 
 - **Persistent cart** (S1–S12): add from product detail or catalog card; manage quantities on
   `/web/order-checkout/cart.xhtml`; checkout from a durable cart cleared only after a confirmed
@@ -75,9 +75,11 @@ https://localhost:9443/web/
   outbox** row on `tb_notification_delivery_log` (V26+V27) with an idempotency key
   (`EVENT:{orderId}`) and a rendered snapshot (`recipient_email`/`subject`/`body`); a fixed-delay
   poller (`NotificationOutboxDispatcher`, 5 s) dispatches due rows via
-  `NotificationOutboxProcessor`, recording SENT/FAILED with attempt count and error (retries stop
-  after 3). Best-effort: SMTP failures never block checkout; respects
-  `UserProfile.notificationsEnabled`.
+  `NotificationOutboxProcessor`, recording SENT/FAILED with attempt count and error. Since v0.18.1
+  (V28) retries are gated behind an exponential-ish backoff (`next_attempt_at`: 30 s → 2 min →
+  5 min) and the final of 3 failures escalates to **EXHAUSTED** (never polled again); admins see
+  every delivery on `/web/admin-dashboard/notifications/list.xhtml` and can Re-queue a stuck row.
+  Best-effort: SMTP failures never block checkout; respects `UserProfile.notificationsEnabled`.
 - **Coupons** (`promotions`): admin create/list, checkout discount quote, snapshot on the order (V22/V23).
 - **Wishlist** (S1–S10): detail toggle, list page, catalog ♥/♡.
 - **Reviews & Ratings** (`product-reviews`): submit, summary, verified purchase, admin moderation.
