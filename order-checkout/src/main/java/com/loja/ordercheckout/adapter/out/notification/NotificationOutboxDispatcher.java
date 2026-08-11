@@ -2,10 +2,12 @@ package com.loja.ordercheckout.adapter.out.notification;
 
 import jakarta.annotation.Resource;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.context.Destroyed;
 import jakarta.enterprise.context.Initialized;
 import jakarta.enterprise.concurrent.ManagedScheduledExecutorService;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -33,6 +35,8 @@ public class NotificationOutboxDispatcher {
     @Inject
     private NotificationOutboxProcessor processor;
 
+    private volatile ScheduledFuture<?> pollingTask;
+
     protected NotificationOutboxDispatcher() {
     }
 
@@ -43,7 +47,7 @@ public class NotificationOutboxDispatcher {
     }
 
     void schedulePolling(@Observes @Initialized(ApplicationScoped.class) Object event) {
-        scheduler.scheduleWithFixedDelay(() -> {
+        pollingTask = scheduler.scheduleWithFixedDelay(() -> {
             try {
                 processor.processPending();
             } catch (RuntimeException e) {
@@ -51,5 +55,16 @@ public class NotificationOutboxDispatcher {
             }
         }, POLL_INTERVAL_SECONDS, POLL_INTERVAL_SECONDS, TimeUnit.SECONDS);
         LOG.info("Scheduled notification outbox poll every " + POLL_INTERVAL_SECONDS + "s");
+    }
+
+    /**
+     * Cancels the fixed-delay task on app shutdown so a hot redeploy (or stop) does not
+     * leak a zombie poller that keeps failing against a destroyed Weld context.
+     */
+    void stopPolling(@Observes @Destroyed(ApplicationScoped.class) Object event) {
+        if (pollingTask != null) {
+            pollingTask.cancel(false);
+            LOG.info("Cancelled notification outbox poll");
+        }
     }
 }
