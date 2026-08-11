@@ -84,12 +84,12 @@
                         <h:column>
                             <f:facet name="header">Action</f:facet>
                             <h:commandButton
-                                id="resendBtn_#{delivery.id}"
+                                id="resendBtn"
                                 value="Resend"
                                 styleClass="button"
                                 rendered="#{delivery.status eq 'FAILED' or delivery.status eq 'EXHAUSTED'}"
                                 action="#{deliveryLogBean.resend(delivery)}"
-                                onclick="lojaConfirm.show('#{msg['notification.resend.confirm']}', 'deliveriesForm:resendBtn_#{delivery.id}', '#{msg['notification.resend.a11y_hint']}'); return false;"
+                                onclick="lojaConfirm.show('#{msg['notification.resend.confirm']}', this.id, '#{msg['notification.resend.a11y_hint']}'); return false;"
                             />
                         </h:column>
                     </h:dataTable>

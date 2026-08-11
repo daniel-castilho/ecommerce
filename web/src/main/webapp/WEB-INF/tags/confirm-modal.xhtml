@@ -3,16 +3,9 @@
   xmlns:ui="jakarta.faces.facelets"
   xmlns:h="jakarta.faces.html"
   xmlns:f="jakarta.faces.core"
-  xmlns:cc="http://java.sun.com/jsf/composite"
 >
-  <cc:interface>
-    <cc:attribute name="id" />
-    <cc:attribute name="a11yHint" required="false" />
-  </cc:interface>
-
-  <cc:implementation>
     <div
-      id="#{cc.clientId}_overlay"
+      id="#{id}_overlay"
       style="
         display: none;
         position: fixed;
@@ -23,10 +16,10 @@
     ></div>
 
     <div
-      id="#{cc.clientId}_modal"
+      id="#{id}_modal"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="#{cc.clientId}_message"
+      aria-labelledby="#{id}_message"
       tabindex="-1"
       style="
         display: none;
@@ -43,11 +36,11 @@
       "
     >
       <div
-        id="#{cc.clientId}_message"
+        id="#{id}_message"
         style="margin-bottom: 1rem; font-weight: 600"
       ></div>
       <span
-        id="#{cc.clientId}_a11y"
+        id="#{id}_a11y"
         class="visually-hidden"
         style="
           position: absolute;
@@ -57,21 +50,21 @@
           height: 1px;
           overflow: hidden;
         "
-        >#{not empty cc.attrs.a11yHint ? cc.attrs.a11yHint :
+        >#{not empty a11yHint ? a11yHint :
         msg['confirm.a11y_hint']}</span
       >
 
       <div style="text-align: right">
         <button
           type="button"
-          id="#{cc.clientId}_cancel"
+          id="#{id}_cancel"
           aria-label="#{msg['confirm.cancel']}"
         >
           #{msg['confirm.cancel']}
         </button>
         <button
           type="button"
-          id="#{cc.clientId}_confirm"
+          id="#{id}_confirm"
           aria-label="#{msg['confirm.confirm']}"
           style="
             background: #0366d6;
@@ -88,12 +81,12 @@
 
     <script>
       ;(function () {
-        var clientOverlayId = "#{cc.clientId}_overlay"
-        var clientModalId = "#{cc.clientId}_modal"
-        var clientMessageId = "#{cc.clientId}_message"
-        var clientA11yId = "#{cc.clientId}_a11y"
-        var clientConfirmId = "#{cc.clientId}_confirm"
-        var clientCancelId = "#{cc.clientId}_cancel"
+        var clientOverlayId = "#{id}_overlay"
+        var clientModalId = "#{id}_modal"
+        var clientMessageId = "#{id}_message"
+        var clientA11yId = "#{id}_a11y"
+        var clientConfirmId = "#{id}_confirm"
+        var clientCancelId = "#{id}_cancel"
 
         window.lojaConfirm = window.lojaConfirm || {}
         window.lojaConfirm._lastActive = null
@@ -171,9 +164,9 @@
           confirmBtn.onclick = function () {
             try {
               if (
-                typeof jsf !== "undefined" &&
-                jsf &&
-                jsf.ajax &&
+                typeof jsf !== "undefined" &amp;&amp;
+                jsf &amp;&amp;
+                jsf.ajax &amp;&amp;
                 jsf.ajax.request
               ) {
                 var btn = document.getElementById(targetId)
@@ -215,5 +208,4 @@
         }
       })()
     </script>
-  </cc:implementation>
 </ui:composition>
