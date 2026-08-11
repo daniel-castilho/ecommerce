@@ -8,6 +8,23 @@ Full historical write-ups of every lesson remain in git history of this file.
 
 ---
 
+## 33. CDI is lazy — an unreferenced @ApplicationScoped bean never runs (2026-08-10)
+
+Phase C's `NotificationOutboxDispatcher` schedules the outbox poll in its constructor hook, but
+nothing ever injected the bean, so CDI never instantiated it and the poller silently never ran.
+Normal-scoped CDI beans are created on first use, not at deployment (this is not an EJB
+`@Singleton @Startup`). Fix without EJB (AGENTS: zero `@EJB`): the dispatcher observes
+`@Initialized(ApplicationScoped.class)` —
+
+```java
+void schedulePolling(@Observes @Initialized(ApplicationScoped.class) Object event) { ... }
+```
+
+— which forces the container to create the bean (and inject `@Resource
+ManagedScheduledExecutorService`) during application startup. Verified live: the "Scheduled
+notification outbox poll every 5s" INFO line appears at app start; before the fix, nothing did.
+Symptom: your "background task" does nothing and there is no log line at all, not even an error.
+
 ## 32. EclipseLink's L2 shared cache serves stale rows after direct SQL changes (2026-08-10)
 
 The WAR runs EclipseLink, whose shared (second-level) cache is **on by default** for entities

@@ -13,17 +13,15 @@ import com.loja.useraccount.domain.model.User;
 import com.loja.useraccount.domain.model.UserPassword;
 import com.loja.useraccount.domain.model.UserProfile;
 import com.loja.useraccount.domain.port.in.FindUserUseCase;
-import jakarta.mail.Session;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
-import java.util.Properties;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -38,36 +36,33 @@ class OrderNotificationEmailAdapterTest {
             new ShippingAddress("Ana Souza", "Rua das Flores", "123", null, "Centro",
                     "São Paulo", "SP", POSTAL_CODE, "11999999999"));
 
-    /** SMTP pointing at a port that refuses connections so send fails fast. */
-    private Session deadSmtp() {
-        Properties props = new Properties();
-        props.put("mail.smtp.host", "localhost");
-        props.put("mail.smtp.port", "1");
-        props.put("mail.smtp.connectiontimeout", "1000");
-        props.put("mail.smtp.timeout", "1500");
-        return Session.getInstance(props);
-    }
-
     private User user(boolean notificationsEnabled) {
         return User.create(new Email("buyer@example.com"), UserPassword.fromHash("argon2id-placeholder"),
                 new UserProfile("Ana", "Souza", "11999999999", "pt", notificationsEnabled));
     }
 
     @Test
-    void notifyOrderConfirmed_smtpDown_doesNotThrowAndMarksFailed() {
+    void notifyOrderConfirmed_claimsPendingRowWithEmailSnapshot() {
         FindUserUseCase users = mock(FindUserUseCase.class);
         when(users.findById("user-1")).thenReturn(Optional.of(user(true)));
         NotificationDeliveryLogPort log = mock(NotificationDeliveryLogPort.class);
         when(log.claim(any(NotificationDelivery.class))).thenReturn(true);
-        OrderNotificationEmailAdapter adapter = new OrderNotificationEmailAdapter(deadSmtp(), users, log);
+        OrderNotificationEmailAdapter adapter = new OrderNotificationEmailAdapter(users, log);
 
         assertThatCode(() -> adapter.notifyOrderConfirmed(ORDER)).doesNotThrowAnyException();
 
-        verify(log).claim(any(NotificationDelivery.class));
-        verify(log).updateStatus(eq("ORDER_CONFIRMED:" + ORDER.getId()), eq(NotificationDeliveryStatus.FAILED),
-                org.mockito.ArgumentMatchers.anyString());
-        verify(log, never()).updateStatus(eq("ORDER_CONFIRMED:" + ORDER.getId()),
-                eq(NotificationDeliveryStatus.SENT), eq(null));
+        ArgumentCaptor<NotificationDelivery> captor = ArgumentCaptor.forClass(NotificationDelivery.class);
+        verify(log).claim(captor.capture());
+        NotificationDelivery claimed = captor.getValue();
+        assertThat(claimed.getIdempotencyKey()).isEqualTo("ORDER_CONFIRMED:" + ORDER.getId());
+        assertThat(claimed.getEventType()).isEqualTo("ORDER_CONFIRMED");
+        assertThat(claimed.getAggregateId()).isEqualTo(ORDER.getId());
+        assertThat(claimed.getStatus()).isEqualTo(NotificationDeliveryStatus.PENDING);
+        assertThat(claimed.getRecipientEmail()).isEqualTo("buyer@example.com");
+        assertThat(claimed.getSubject()).isEqualTo("Order " + ORDER.getId() + " confirmed");
+        assertThat(claimed.getBody())
+                .contains("- QA Test Widget x 1 ($29.90)")
+                .contains("Total: $29.90");
     }
 
     @Test
@@ -75,60 +70,57 @@ class OrderNotificationEmailAdapterTest {
         FindUserUseCase users = mock(FindUserUseCase.class);
         when(users.findById("user-1")).thenReturn(Optional.of(user(false)));
         NotificationDeliveryLogPort log = mock(NotificationDeliveryLogPort.class);
-        OrderNotificationEmailAdapter adapter = new OrderNotificationEmailAdapter(deadSmtp(), users, log);
+        OrderNotificationEmailAdapter adapter = new OrderNotificationEmailAdapter(users, log);
 
         assertThatCode(() -> adapter.notifyOrderConfirmed(ORDER)).doesNotThrowAnyException();
 
         verify(log, never()).claim(any(NotificationDelivery.class));
-        verify(log, never()).updateStatus(org.mockito.ArgumentMatchers.anyString(),
-                org.mockito.ArgumentMatchers.any(NotificationDeliveryStatus.class),
-                org.mockito.ArgumentMatchers.any());
+        verify(log, never()).updateStatus(any(), any(), any());
     }
 
     @Test
-    void notifyOrderConfirmed_duplicateEvent_skipsSend() {
+    void notifyOrderConfirmed_duplicateEvent_skipsEnqueue() {
         FindUserUseCase users = mock(FindUserUseCase.class);
         when(users.findById("user-1")).thenReturn(Optional.of(user(true)));
         NotificationDeliveryLogPort log = mock(NotificationDeliveryLogPort.class);
         when(log.claim(any(NotificationDelivery.class))).thenReturn(false);
-        OrderNotificationEmailAdapter adapter = new OrderNotificationEmailAdapter(deadSmtp(), users, log);
+        OrderNotificationEmailAdapter adapter = new OrderNotificationEmailAdapter(users, log);
 
         assertThatCode(() -> adapter.notifyOrderConfirmed(ORDER)).doesNotThrowAnyException();
 
         verify(log).claim(any(NotificationDelivery.class));
-        verify(log, never()).updateStatus(org.mockito.ArgumentMatchers.anyString(),
-                org.mockito.ArgumentMatchers.any(NotificationDeliveryStatus.class),
-                org.mockito.ArgumentMatchers.any());
+        verify(log, never()).updateStatus(any(), any(), any());
     }
 
     @Test
-    void notifyOrderConfirmed_userNotFound_defaultsToSendAndDoesNotThrow() {
+    void notifyOrderConfirmed_userNotFound_defaultsToEnqueue() {
         FindUserUseCase users = mock(FindUserUseCase.class);
         when(users.findById("user-1")).thenReturn(Optional.empty());
         NotificationDeliveryLogPort log = mock(NotificationDeliveryLogPort.class);
         when(log.claim(any(NotificationDelivery.class))).thenReturn(true);
-        OrderNotificationEmailAdapter adapter = new OrderNotificationEmailAdapter(deadSmtp(), users, log);
+        OrderNotificationEmailAdapter adapter = new OrderNotificationEmailAdapter(users, log);
 
         assertThatCode(() -> adapter.notifyOrderConfirmed(ORDER)).doesNotThrowAnyException();
 
-        verify(log).updateStatus(eq("ORDER_CONFIRMED:" + ORDER.getId()), eq(NotificationDeliveryStatus.FAILED),
-                org.mockito.ArgumentMatchers.anyString());
+        verify(log).claim(any(NotificationDelivery.class));
     }
 
     @Test
-    void notifyRefundRejected_smtpDown_doesNotThrow() {
+    void notifyRefundRejected_claimsPendingRowWithRejectionSnapshot() {
         FindUserUseCase users = mock(FindUserUseCase.class);
         when(users.findById("user-1")).thenReturn(Optional.of(user(true)));
         NotificationDeliveryLogPort log = mock(NotificationDeliveryLogPort.class);
         when(log.claim(any(NotificationDelivery.class))).thenReturn(true);
-        OrderNotificationEmailAdapter adapter = new OrderNotificationEmailAdapter(deadSmtp(), users, log);
+        OrderNotificationEmailAdapter adapter = new OrderNotificationEmailAdapter(users, log);
         RefundRequest request = RefundRequest.request(ORDER.getId(), new Money(new BigDecimal("29.90")), "damaged");
         request.reject("Camera not returned");
 
-        assertThatCode(() -> adapter.notifyRefundRejected(ORDER, request)).doesNotThrowAnyException();
+        adapter.notifyRefundRejected(ORDER, request);
 
-        verify(log).updateStatus(eq("REFUND_REJECTED:" + ORDER.getId()), eq(NotificationDeliveryStatus.FAILED),
-                org.mockito.ArgumentMatchers.anyString());
+        ArgumentCaptor<NotificationDelivery> captor = ArgumentCaptor.forClass(NotificationDelivery.class);
+        verify(log).claim(captor.capture());
+        assertThat(captor.getValue().getIdempotencyKey()).isEqualTo("REFUND_REJECTED:" + ORDER.getId());
+        assertThat(captor.getValue().getBody()).contains("Rejection detail: Camera not returned");
     }
 
     @Test

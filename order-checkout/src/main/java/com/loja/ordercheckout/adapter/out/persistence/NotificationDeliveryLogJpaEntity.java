@@ -45,6 +45,15 @@ public class NotificationDeliveryLogJpaEntity {
     @Column(name = "error_message", length = 2000)
     private String errorMessage;
 
+    @Column(name = "recipient_email", length = 255)
+    private String recipientEmail;
+
+    @Column(length = 255)
+    private String subject;
+
+    @Column(columnDefinition = "text")
+    private String body;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -63,13 +72,17 @@ public class NotificationDeliveryLogJpaEntity {
         this.attemptCount = delivery.getAttemptCount();
         this.idempotencyKey = delivery.getIdempotencyKey();
         this.errorMessage = delivery.getErrorMessage();
+        this.recipientEmail = delivery.getRecipientEmail();
+        this.subject = delivery.getSubject();
+        this.body = delivery.getBody();
         this.createdAt = delivery.getCreatedAt();
         this.updatedAt = delivery.getUpdatedAt();
     }
 
     public NotificationDelivery toDomain() {
         return NotificationDelivery.reconstitute(id, eventType, aggregateId, channel,
-                idempotencyKey, status, attemptCount, errorMessage, createdAt, updatedAt);
+                idempotencyKey, status, attemptCount, errorMessage, recipientEmail,
+                subject, body, createdAt, updatedAt);
     }
 
     public String getId() { return id; }
@@ -87,6 +100,12 @@ public class NotificationDeliveryLogJpaEntity {
     public String getIdempotencyKey() { return idempotencyKey; }
 
     public String getErrorMessage() { return errorMessage; }
+
+    public String getRecipientEmail() { return recipientEmail; }
+
+    public String getSubject() { return subject; }
+
+    public String getBody() { return body; }
 
     public Instant getCreatedAt() { return createdAt; }
 

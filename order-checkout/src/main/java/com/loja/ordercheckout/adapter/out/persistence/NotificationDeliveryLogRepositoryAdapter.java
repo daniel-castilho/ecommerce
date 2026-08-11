@@ -8,6 +8,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
+import java.util.List;
 
 /**
  * JPA implementation of {@link NotificationDeliveryLogPort}. Claiming uses a native
@@ -19,6 +20,8 @@ import java.time.Instant;
 @Transactional
 public class NotificationDeliveryLogRepositoryAdapter implements NotificationDeliveryLogPort {
 
+    private static final int MAX_ATTEMPTS = 3;
+
     @PersistenceContext(unitName = "ecommercePU")
     EntityManager em;
 
@@ -27,8 +30,8 @@ public class NotificationDeliveryLogRepositoryAdapter implements NotificationDel
         int inserted = em.createNativeQuery(
                         "INSERT INTO tb_notification_delivery_log "
                                 + "(id, event_type, aggregate_id, channel, status, attempt_count, "
-                                + "idempotency_key, created_at, updated_at) "
-                                + "VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9) "
+                                + "idempotency_key, recipient_email, subject, body, created_at, updated_at) "
+                                + "VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12) "
                                 + "ON CONFLICT (idempotency_key) DO NOTHING")
                 .setParameter(1, delivery.getId())
                 .setParameter(2, delivery.getEventType())
@@ -37,8 +40,11 @@ public class NotificationDeliveryLogRepositoryAdapter implements NotificationDel
                 .setParameter(5, delivery.getStatus().name())
                 .setParameter(6, delivery.getAttemptCount())
                 .setParameter(7, delivery.getIdempotencyKey())
-                .setParameter(8, delivery.getCreatedAt())
-                .setParameter(9, delivery.getUpdatedAt())
+                .setParameter(8, delivery.getRecipientEmail())
+                .setParameter(9, delivery.getSubject())
+                .setParameter(10, delivery.getBody())
+                .setParameter(11, delivery.getCreatedAt())
+                .setParameter(12, delivery.getUpdatedAt())
                 .executeUpdate();
         return inserted > 0;
     }
@@ -54,6 +60,25 @@ public class NotificationDeliveryLogRepositoryAdapter implements NotificationDel
         entity.setAttemptCount(entity.getAttemptCount() + (status == NotificationDeliveryStatus.FAILED ? 1 : 0));
         entity.setUpdatedAt(Instant.now());
         em.merge(entity);
+    }
+
+    @Override
+    public List<NotificationDelivery> findDue(int limit) {
+        return em.createQuery(
+                        "SELECT e FROM NotificationDeliveryLogJpaEntity e "
+                                + "WHERE (e.status = :pending "
+                                + "OR (e.status = :failed AND e.attemptCount < :maxAttempts)) "
+                                + "AND e.body IS NOT NULL "
+                                + "ORDER BY e.createdAt ASC",
+                        NotificationDeliveryLogJpaEntity.class)
+                .setParameter("pending", NotificationDeliveryStatus.PENDING)
+                .setParameter("failed", NotificationDeliveryStatus.FAILED)
+                .setParameter("maxAttempts", MAX_ATTEMPTS)
+                .setMaxResults(limit)
+                .getResultList()
+                .stream()
+                .map(NotificationDeliveryLogJpaEntity::toDomain)
+                .toList();
     }
 
     private NotificationDeliveryLogJpaEntity findByKey(String idempotencyKey) {

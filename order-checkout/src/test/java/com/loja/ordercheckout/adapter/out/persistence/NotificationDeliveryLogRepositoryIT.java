@@ -8,6 +8,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,10 +55,14 @@ class NotificationDeliveryLogRepositoryIT extends AbstractIntegrationTest {
         }
     }
 
+    private NotificationDelivery draft(String idempotencyKey, String event, String aggregateId) {
+        return NotificationDelivery.create(idempotencyKey, event, aggregateId, NotificationChannel.EMAIL,
+                "buyer@example.com", "Order " + aggregateId + " confirmed", "Hi,\n\nYour order is confirmed.");
+    }
+
     @Test
-    void claim_newKey_returnsTrueAndPersistsPendingRow() {
-        NotificationDelivery delivery = NotificationDelivery.create(
-                "ORDER_CONFIRMED:o-1", "ORDER_CONFIRMED", "o-1", NotificationChannel.EMAIL);
+    void claim_newKey_returnsTrueAndPersistsPendingRowWithSnapshot() {
+        NotificationDelivery delivery = draft("ORDER_CONFIRMED:o-1", "ORDER_CONFIRMED", "o-1");
 
         boolean claimed = inTx(() -> adapter.claim(delivery));
 
@@ -68,14 +74,15 @@ class NotificationDeliveryLogRepositoryIT extends AbstractIntegrationTest {
         assertThat(stored.getEventType()).isEqualTo("ORDER_CONFIRMED");
         assertThat(stored.getAggregateId()).isEqualTo("o-1");
         assertThat(stored.getChannel()).isEqualTo(NotificationChannel.EMAIL);
+        assertThat(stored.getRecipientEmail()).isEqualTo("buyer@example.com");
+        assertThat(stored.getSubject()).isEqualTo("Order o-1 confirmed");
+        assertThat(stored.getBody()).contains("Your order is confirmed.");
     }
 
     @Test
     void claim_sameKeyAgain_returnsFalseAndKeepsSingleRow() {
-        NotificationDelivery first = NotificationDelivery.create(
-                "ORDER_CONFIRMED:o-1", "ORDER_CONFIRMED", "o-1", NotificationChannel.EMAIL);
-        NotificationDelivery second = NotificationDelivery.create(
-                "ORDER_CONFIRMED:o-1", "ORDER_CONFIRMED", "o-1", NotificationChannel.EMAIL);
+        NotificationDelivery first = draft("ORDER_CONFIRMED:o-1", "ORDER_CONFIRMED", "o-1");
+        NotificationDelivery second = draft("ORDER_CONFIRMED:o-1", "ORDER_CONFIRMED", "o-1");
         inTx(() -> adapter.claim(first));
 
         boolean reClaimed = inTx(() -> adapter.claim(second));
@@ -89,8 +96,7 @@ class NotificationDeliveryLogRepositoryIT extends AbstractIntegrationTest {
 
     @Test
     void updateStatus_failed_recordsErrorAndBumpsAttemptCount() {
-        NotificationDelivery delivery = NotificationDelivery.create(
-                "ORDER_CONFIRMED:o-1", "ORDER_CONFIRMED", "o-1", NotificationChannel.EMAIL);
+        NotificationDelivery delivery = draft("ORDER_CONFIRMED:o-1", "ORDER_CONFIRMED", "o-1");
         inTx(() -> adapter.claim(delivery));
 
         inTx(() -> {
@@ -107,8 +113,7 @@ class NotificationDeliveryLogRepositoryIT extends AbstractIntegrationTest {
 
     @Test
     void updateStatus_sent_marksSentWithoutBumpingAttempt() {
-        NotificationDelivery delivery = NotificationDelivery.create(
-                "ORDER_CONFIRMED:o-1", "ORDER_CONFIRMED", "o-1", NotificationChannel.EMAIL);
+        NotificationDelivery delivery = draft("ORDER_CONFIRMED:o-1", "ORDER_CONFIRMED", "o-1");
         inTx(() -> adapter.claim(delivery));
 
         inTx(() -> {
@@ -128,6 +133,85 @@ class NotificationDeliveryLogRepositoryIT extends AbstractIntegrationTest {
             adapter.updateStatus("ORDER_CONFIRMED:ghost", NotificationDeliveryStatus.FAILED, "boom");
             return null;
         })).doesNotThrowAnyException();
+    }
+
+    @Test
+    void findDue_returnsPendingInCreatedOrder() {
+        inTx(() -> adapter.claim(draft("ORDER_CONFIRMED:a", "ORDER_CONFIRMED", "a")));
+        inTx(() -> adapter.claim(draft("REFUND_REQUESTED:b", "REFUND_REQUESTED", "b")));
+
+        List<NotificationDelivery> due = inTx(() -> adapter.findDue(10));
+
+        assertThat(due).extracting(NotificationDelivery::getIdempotencyKey)
+                .containsExactly("ORDER_CONFIRMED:a", "REFUND_REQUESTED:b");
+    }
+
+    @Test
+    void findDue_excludesSentRows() {
+        inTx(() -> adapter.claim(draft("ORDER_CONFIRMED:a", "ORDER_CONFIRMED", "a")));
+        inTx(() -> {
+            adapter.updateStatus("ORDER_CONFIRMED:a", NotificationDeliveryStatus.SENT, null);
+            return null;
+        });
+
+        List<NotificationDelivery> due = inTx(() -> adapter.findDue(10));
+
+        assertThat(due).isEmpty();
+    }
+
+    @Test
+    void findDue_returnsFailedRowsBelowMaxAttempts() {
+        inTx(() -> adapter.claim(draft("ORDER_CONFIRMED:a", "ORDER_CONFIRMED", "a")));
+        inTx(() -> {
+            adapter.updateStatus("ORDER_CONFIRMED:a", NotificationDeliveryStatus.FAILED, "boom");
+            return null;
+        });
+
+        List<NotificationDelivery> due = inTx(() -> adapter.findDue(10));
+
+        assertThat(due).extracting(NotificationDelivery::getIdempotencyKey)
+                .containsExactly("ORDER_CONFIRMED:a");
+        assertThat(due.get(0).getAttemptCount()).isEqualTo(2);
+    }
+
+    @Test
+    void findDue_excludesFailedRowsPastMaxAttempts() {
+        inTx(() -> adapter.claim(draft("ORDER_CONFIRMED:a", "ORDER_CONFIRMED", "a")));
+        inTx(() -> {
+            adapter.updateStatus("ORDER_CONFIRMED:a", NotificationDeliveryStatus.FAILED, "boom");
+            return null;
+        });
+        inTx(() -> {
+            adapter.updateStatus("ORDER_CONFIRMED:a", NotificationDeliveryStatus.FAILED, "boom");
+            return null;
+        });
+
+        List<NotificationDelivery> due = inTx(() -> adapter.findDue(10));
+
+        assertThat(due).isEmpty();
+    }
+
+    @Test
+    void findDue_excludesRowsWithoutBodySnapshot() {
+        NotificationDelivery noBody = NotificationDelivery.reconstitute("id-x", "ORDER_CONFIRMED", "a",
+                NotificationChannel.EMAIL, "ORDER_CONFIRMED:no-body", NotificationDeliveryStatus.PENDING,
+                1, null, null, null, null, Instant.now(), Instant.now());
+        inTx(() -> adapter.claim(noBody));
+
+        List<NotificationDelivery> due = inTx(() -> adapter.findDue(10));
+
+        assertThat(due).isEmpty();
+    }
+
+    @Test
+    void findDue_respectsLimit() {
+        inTx(() -> adapter.claim(draft("ORDER_CONFIRMED:a", "ORDER_CONFIRMED", "a")));
+        inTx(() -> adapter.claim(draft("ORDER_CONFIRMED:b", "ORDER_CONFIRMED", "b")));
+
+        List<NotificationDelivery> due = inTx(() -> adapter.findDue(1));
+
+        assertThat(due).extracting(NotificationDelivery::getIdempotencyKey)
+                .containsExactly("ORDER_CONFIRMED:a");
     }
 
     private NotificationDelivery find(String idempotencyKey) {
