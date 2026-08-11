@@ -26,10 +26,10 @@ import java.util.logging.Logger;
 public class NotificationOutboxProcessor {
 
     private static final Logger LOG = Logger.getLogger(NotificationOutboxProcessor.class.getName());
-    private static final String FROM = "noreply@loja.com";
+    private static final String DEFAULT_FROM = "noreply@loja.com";
     private static final int BATCH_SIZE = 50;
 
-    @Resource(name = "java:app/env/mail/Session")
+    @Resource(lookup = "mail/Session")
     private Session mailSession;
 
     @Inject
@@ -56,27 +56,36 @@ public class NotificationOutboxProcessor {
     /** Sends every due delivery, updating the log to SENT or FAILED per delivery. */
     @Transactional
     public void processPending() {
-        for (NotificationDelivery due : deliveryLog.findDue(BATCH_SIZE)) {
-            try {
-                if (mailSender != null) {
-                    mailSender.send(due);
-                } else {
-                    sendMime(due);
+        LOG.fine("processPending: begin");
+        try {
+            for (NotificationDelivery due : deliveryLog.findDue(BATCH_SIZE)) {
+                LOG.fine("processPending: dispatching " + due.getIdempotencyKey());
+                try {
+                    if (mailSender != null) {
+                        mailSender.send(due);
+                    } else {
+                        sendMime(due);
+                    }
+                    deliveryLog.updateStatus(due.getIdempotencyKey(), NotificationDeliveryStatus.SENT, null);
+                    LOG.info("Sent " + due.getEventType() + " email to " + due.getRecipientEmail()
+                            + " for " + due.getAggregateId());
+                } catch (MessagingException | RuntimeException e) {
+                    deliveryLog.updateStatus(due.getIdempotencyKey(), NotificationDeliveryStatus.FAILED, e.getMessage());
+                    LOG.log(Level.WARNING, "Failed to send " + due.getEventType() + " email to "
+                            + due.getRecipientEmail() + " for " + due.getAggregateId(), e);
                 }
-                deliveryLog.updateStatus(due.getIdempotencyKey(), NotificationDeliveryStatus.SENT, null);
-                LOG.info("Sent " + due.getEventType() + " email to " + due.getRecipientEmail()
-                        + " for " + due.getAggregateId());
-            } catch (MessagingException | RuntimeException e) {
-                deliveryLog.updateStatus(due.getIdempotencyKey(), NotificationDeliveryStatus.FAILED, e.getMessage());
-                LOG.log(Level.WARNING, "Failed to send " + due.getEventType() + " email to "
-                        + due.getRecipientEmail() + " for " + due.getAggregateId(), e);
             }
+        } catch (RuntimeException e) {
+            LOG.log(Level.SEVERE, "processPending: runtime failure", e);
+            throw e;
         }
+        LOG.fine("processPending: end");
     }
 
     private void sendMime(NotificationDelivery delivery) throws MessagingException {
+        String from = mailSession.getProperty("mail.from");
         MimeMessage msg = new MimeMessage(mailSession);
-        msg.setFrom(new InternetAddress(FROM));
+        msg.setFrom(new InternetAddress(from != null && !from.isBlank() ? from : DEFAULT_FROM));
         msg.setRecipient(Message.RecipientType.TO, new InternetAddress(delivery.getRecipientEmail()));
         msg.setSubject(delivery.getSubject());
         msg.setText(delivery.getBody());

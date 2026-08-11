@@ -7,5 +7,7 @@ public enum NotificationDeliveryStatus {
     /** The channel accepted the delivery. */
     SENT,
     /** The channel rejected the delivery; the error is recorded. */
-    FAILED
+    FAILED,
+    /** Attempts exhausted after {@code NotificationDelivery.MAX_ATTEMPTS} tries; never polled again. */
+    EXHAUSTED
 }

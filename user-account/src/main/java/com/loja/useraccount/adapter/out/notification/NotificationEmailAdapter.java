@@ -18,7 +18,7 @@ public class NotificationEmailAdapter implements NotificationPort {
     private static final Logger LOG = Logger.getLogger(NotificationEmailAdapter.class.getName());
     private static final String FROM = "noreply@loja.com";
 
-    @Resource(name = "java:app/env/mail/Session")
+    @Resource(lookup = "mail/Session")
     private Session mailSession;
 
     protected NotificationEmailAdapter() {}

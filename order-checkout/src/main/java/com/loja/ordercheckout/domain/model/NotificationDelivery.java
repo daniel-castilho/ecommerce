@@ -1,5 +1,6 @@
 package com.loja.ordercheckout.domain.model;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -12,8 +13,16 @@ import java.util.UUID;
  * email payload ({@code recipientEmail}, {@code subject}, {@code body}) is snapshotted
  * at claim time inside the business transaction, and a scheduled task dispatches it
  * asynchronously.
+ *
+ * <p>Since Phase D the dispatch policy lives here: a row is due while {@code attemptCount <
+ * MAX_ATTEMPTS}; a failure schedules the next try with {@link #backoffDelayFor(int)} and the
+ * last failure escalates the status to {@link NotificationDeliveryStatus#EXHAUSTED} (never
+ * polled again, visible in the admin delivery log for manual resend).
  */
 public final class NotificationDelivery {
+
+    /** Total dispatch tries before a delivery is marked EXHAUSTED. */
+    public static final int MAX_ATTEMPTS = 3;
 
     private final String id;
     private final String eventType;
@@ -26,6 +35,7 @@ public final class NotificationDelivery {
     private String recipientEmail;
     private String subject;
     private String body;
+    private Instant nextAttemptAt;
     private final Instant createdAt;
     private Instant updatedAt;
 
@@ -33,7 +43,8 @@ public final class NotificationDelivery {
                                  NotificationChannel channel, String idempotencyKey,
                                  NotificationDeliveryStatus status, int attemptCount,
                                  String errorMessage, String recipientEmail, String subject,
-                                 String body, Instant createdAt, Instant updatedAt) {
+                                 String body, Instant nextAttemptAt, Instant createdAt,
+                                 Instant updatedAt) {
         this.id = id;
         this.eventType = eventType;
         this.aggregateId = aggregateId;
@@ -45,18 +56,35 @@ public final class NotificationDelivery {
         this.recipientEmail = recipientEmail;
         this.subject = subject;
         this.body = body;
+        this.nextAttemptAt = nextAttemptAt;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
-    /** Creates a new delivery claim (status PENDING, one attempt) with the email snapshot. */
+    /**
+     * Delay before the next dispatch attempt after a failure: exponential-ish backoff
+     * (30 s after the 1st failure, 2 min after the 2nd, then a cap). The argument is the
+     * attempt count AFTER the failure was recorded.
+     */
+    public static Duration backoffDelayFor(int attemptAfterFailure) {
+        return switch (attemptAfterFailure) {
+            case 1 -> Duration.ofSeconds(30);
+            case 2 -> Duration.ofMinutes(2);
+            default -> Duration.ofMinutes(5);
+        };
+    }
+
+    /**
+     * Creates a new delivery claim (status PENDING, zero failed attempts, eligible for the
+     * first dispatch immediately) with the email snapshot.
+     */
     public static NotificationDelivery create(String idempotencyKey, String eventType,
                                               String aggregateId, NotificationChannel channel,
                                               String recipientEmail, String subject, String body) {
         Instant now = Instant.now();
         return new NotificationDelivery(UUID.randomUUID().toString(), eventType, aggregateId,
-                channel, idempotencyKey, NotificationDeliveryStatus.PENDING, 1, null,
-                recipientEmail, subject, body, now, now);
+                channel, idempotencyKey, NotificationDeliveryStatus.PENDING, 0, null,
+                recipientEmail, subject, body, now, now, now);
     }
 
     /** Restores an exact persisted snapshot. */
@@ -64,15 +92,17 @@ public final class NotificationDelivery {
                                                     NotificationChannel channel, String idempotencyKey,
                                                     NotificationDeliveryStatus status, int attemptCount,
                                                     String errorMessage, String recipientEmail,
-                                                    String subject, String body, Instant createdAt,
-                                                    Instant updatedAt) {
+                                                    String subject, String body, Instant nextAttemptAt,
+                                                    Instant createdAt, Instant updatedAt) {
         return new NotificationDelivery(id, eventType, aggregateId, channel, idempotencyKey,
-                status, attemptCount, errorMessage, recipientEmail, subject, body, createdAt, updatedAt);
+                status, attemptCount, errorMessage, recipientEmail, subject, body, nextAttemptAt,
+                createdAt, updatedAt);
     }
 
     public void markSent() {
         this.status = NotificationDeliveryStatus.SENT;
         this.errorMessage = null;
+        this.nextAttemptAt = null;
         this.updatedAt = Instant.now();
     }
 
@@ -80,6 +110,7 @@ public final class NotificationDelivery {
         this.status = NotificationDeliveryStatus.FAILED;
         this.attemptCount++;
         this.errorMessage = error;
+        this.nextAttemptAt = Instant.now().plus(backoffDelayFor(this.attemptCount));
         this.updatedAt = Instant.now();
     }
 
@@ -104,6 +135,8 @@ public final class NotificationDelivery {
     public String getSubject() { return subject; }
 
     public String getBody() { return body; }
+
+    public Instant getNextAttemptAt() { return nextAttemptAt; }
 
     public Instant getCreatedAt() { return createdAt; }
 

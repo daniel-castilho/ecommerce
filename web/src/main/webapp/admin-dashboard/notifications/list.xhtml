@@ -1,0 +1,104 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:my="https://loja.com/design-system"
+                template="/WEB-INF/templates/main.xhtml">
+
+    <ui:define name="title">Admin - Notification Deliveries</ui:define>
+
+    <ui:define name="content">
+        <h:messages globalOnly="true" styleClass="messages" />
+
+        <ui:fragment rendered="#{not userBean.hasRole('ADMIN')}">
+            <div class="card">
+                <p>Access denied. This page requires the ADMIN role.</p>
+                <h:link outcome="/product-catalog/catalog.xhtml" value="Back to catalog" styleClass="button" />
+            </div>
+        </ui:fragment>
+
+        <ui:fragment rendered="#{userBean.hasRole('ADMIN')}">
+            <h1 class="page-title">Notification Deliveries</h1>
+
+            <div class="card">
+                <h:form id="filtersForm">
+                    <div class="form-grid">
+                        <my:formFieldGroup label="Status" forId="statusFilterId">
+                            <h:selectOneMenu id="statusFilterId" value="#{deliveryLogBean.statusFilter}">
+                                <f:selectItem itemValue="#{null}" itemLabel="All statuses" />
+                                <f:selectItems value="#{deliveryLogBean.statuses}" />
+                            </h:selectOneMenu>
+                        </my:formFieldGroup>
+
+                        <div class="form-actions">
+                            <h:commandButton value="Filter" action="#{deliveryLogBean.refresh}"
+                                             styleClass="button button-primary" />
+                        </div>
+                    </div>
+                </h:form>
+            </div>
+
+            <div class="card">
+                <h:form id="deliveriesForm">
+                    <h:dataTable value="#{deliveryLogBean.deliveries}" var="delivery"
+                                 styleClass="data-table" rendered="#{not empty deliveryLogBean.deliveries}">
+                        <h:column>
+                            <f:facet name="header">Event</f:facet>
+                            <h:outputText value="#{delivery.eventType}" style="font-weight: bold;" />
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">ID</f:facet>
+                            <h:outputText value="#{delivery.idempotencyKey}" />
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Recipient</f:facet>
+                            #{delivery.recipientEmail}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Status</f:facet>
+                            #{delivery.status}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Attempts</f:facet>
+                            #{delivery.attemptCount}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Next attempt</f:facet>
+                            <h:outputText rendered="#{delivery.nextAttemptAt != null}"
+                                          value="#{deliveryLogBean.deliveryTime(delivery.nextAttemptAt)}">
+                                <f:convertDateTime type="localDateTime" pattern="yyyy-MM-dd HH:mm:ss" timeZone="UTC" />
+                            </h:outputText>
+                            <h:outputText rendered="#{delivery.nextAttemptAt == null}" value="—" />
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Created</f:facet>
+                            <h:outputText value="#{deliveryLogBean.deliveryTime(delivery.createdAt)}">
+                                <f:convertDateTime type="localDateTime" pattern="yyyy-MM-dd HH:mm:ss" timeZone="UTC" />
+                            </h:outputText>
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Error</f:facet>
+                            <h:outputText value="#{deliveryLogBean.errorPreview(delivery)}"
+                                          title="#{deliveryLogBean.isErrorTruncated(delivery) ? deliveryLogBean.fullError(delivery) : ''}" />
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Action</f:facet>
+                            <h:commandButton
+                                id="resendBtn_#{delivery.id}"
+                                value="Resend"
+                                styleClass="button"
+                                rendered="#{delivery.status eq 'FAILED' or delivery.status eq 'EXHAUSTED'}"
+                                action="#{deliveryLogBean.resend(delivery)}"
+                                onclick="lojaConfirm.show('#{msg['notification.resend.confirm']}', 'deliveriesForm:resendBtn_#{delivery.id}', '#{msg['notification.resend.a11y_hint']}'); return false;"
+                            />
+                        </h:column>
+                    </h:dataTable>
+                    <ui:fragment rendered="#{empty deliveryLogBean.deliveries}">
+                        <p>No notification deliveries found.</p>
+                    </ui:fragment>
+                </h:form>
+            </div>
+            <my:confirmModal id="resendConfirm" a11yHint="#{msg['notification.resend.a11y_hint']}" />
+        </ui:fragment>
+    </ui:define>
+</ui:composition>

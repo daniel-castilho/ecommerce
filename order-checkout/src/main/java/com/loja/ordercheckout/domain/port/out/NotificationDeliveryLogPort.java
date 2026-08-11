@@ -22,20 +22,37 @@ public interface NotificationDeliveryLogPort {
     boolean claim(NotificationDelivery delivery);
 
     /**
-     * Moves an existing delivery to the given terminal status (SENT or FAILED),
-     * recording an error message and bumping the attempt count on failure. No-op
-     * when the key is unknown.
+     * Moves an existing delivery to SENT or FAILED. On SENT the error is cleared and
+     * the next-attempt gate is dropped. On FAILED the attempt count is bumped: while it
+     * stays below {@link NotificationDelivery#MAX_ATTEMPTS} the status becomes FAILED and
+     * the next dispatch is gated behind the backoff deadline; on the final failure the
+     * status escalates to EXHAUSTED (never polled again). No-op when the key is unknown.
      */
     void updateStatus(String idempotencyKey, NotificationDeliveryStatus status, String errorMessage);
 
     /**
      * Returns the dispatch queue: deliveries still owed to the channel, oldest
-     * first — PENDING rows, plus FAILED rows whose attempt count is below the
-     * retry cap (so exhausted attempts are not retried). Only rows carrying a
-     * rendered body snapshot are eligible.
+     * first — PENDING rows plus FAILED rows below the retry cap, whose backoff
+     * deadline has passed. Rows carrying no rendered body snapshot are excluded,
+     * as are EXHAUSTED/SENT rows.
      *
      * @param limit the maximum number of rows to return
-     * @return due deliveries ordered by {@code created_at}
+     * @return due deliveries ordered by {@code next_attempt_at} then {@code created_at}
      */
     List<NotificationDelivery> findDue(int limit);
+
+    /**
+     * Lists deliveries (admin delivery log). Returns all rows when {@code status} is
+     * {@code null}, otherwise only rows in that state, newest first.
+     */
+    List<NotificationDelivery> findDeliveries(NotificationDeliveryStatus status);
+
+    /**
+     * Manually re-queues a delivery for dispatch: resets it to PENDING with zero
+     * attempts, the next-attempt gate opened and the last error cleared.
+     *
+     * @param idempotencyKey the delivery to resend
+     * @return {@code true} if the delivery existed and was re-queued, {@code false} otherwise
+     */
+    boolean resend(String idempotencyKey);
 }

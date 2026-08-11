@@ -27,7 +27,9 @@
                                password="${env.DB_PASSWORD}"/>
     </dataSource>
 
-    <mailSession id="EcommerceMail" mailSessionID="EcommerceMail" jndiName="java:app/env/mail/Session"
+    <!-- Canonical Liberty mail-2.1 pattern: plain jndiName + @Resource(lookup="mail/Session").
+         The java:app/env/... form is not resolvable by @Resource(name=...) here (CWNEN1004E). -->
+    <mailSession id="EcommerceMail" mailSessionID="EcommerceMail" jndiName="mail/Session"
                  description="Ecommerce mail session" host="localhost" user="mailuser" password="mailpass"
                  from="noreply@loja.com"/>
 
