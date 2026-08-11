@@ -8,6 +8,20 @@ Full historical write-ups of every lesson remain in git history of this file.
 
 ---
 
+## 30. Native SQL named parameters bind under Hibernate (ITs) but not EclipseLink (WAR runtime) (2026-08-10)
+
+The Testcontainers integration tests run **Hibernate**, while the deployed WAR runs **EclipseLink**
+(Eclipse Persistence Services 5.0.0). A native query using named placeholders
+(`to_tsquery('english', :tsquery)`, `p.name ILIKE :like`) passed all 31 adapter ITs — then the
+live catalog search 500'd: EclipseLink sent the raw `:name` literals to PostgreSQL, which raised
+`syntax error at or near ":"`. The query never even ran against the FTS GIN index.
+
+**Golden rule:** use **positional parameters** (`?N` with `setParameter(n, ...)`) in native SQL —
+they bind identically on EclipseLink and Hibernate. And never treat a green Hibernate/Testcontainers
+IT as proof of the runtime path: smoke the real provider (the running WAR) for any native query.
+
+---
+
 ## 29. JSF form bindings: typed `Map` values arrive as raw Strings; never name a table `var` `view` (2026-08-09)
 
 Two EL/JSF pitfalls that only surface in a browser, never in unit tests.

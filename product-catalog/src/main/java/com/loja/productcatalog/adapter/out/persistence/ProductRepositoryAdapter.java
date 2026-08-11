@@ -180,23 +180,71 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
      * {@code to_tsquery} is always fed a valid prefix AND.
      */
     private PageResult<Product> searchByText(ProductSearchCriteria criteria, String tsquery) {
-        String where = ftsWhere(criteria);
         String like = "%" + criteria.nameOrSkuContains().trim().toLowerCase(Locale.ROOT) + "%";
+        List<Object> whereValues = ftsParamValues(criteria, tsquery, like);
 
+        FtsBindSlots countSlots = new FtsBindSlots();
+        String where = ftsWhere(criteria, countSlots);
         Query countQuery = em.createNativeQuery("SELECT COUNT(*) FROM tb_product p " + where);
-        setFtsParams(countQuery, criteria, tsquery, like);
+        bindPositional(countQuery, whereValues);
         long totalElements = ((Number) countQuery.getSingleResult()).longValue();
 
-        Query pageQuery = em.createNativeQuery("SELECT p.id FROM tb_product p " + where
-                + " " + ftsOrderBy(criteria))
+        FtsBindSlots pageSlots = new FtsBindSlots();
+        String pageSql = "SELECT p.id FROM tb_product p " + ftsWhere(criteria, pageSlots)
+                + " " + ftsOrderBy(criteria, pageSlots);
+        List<Object> pageValues = new ArrayList<>(whereValues);
+        pageValues.add(tsquery); // last positional slot: the ORDER BY ts_rank tsquery
+        Query pageQuery = em.createNativeQuery(pageSql)
                 .setFirstResult(criteria.page() * criteria.pageSize())
                 .setMaxResults(criteria.pageSize());
-        setFtsParams(pageQuery, criteria, tsquery, like);
+        bindPositional(pageQuery, pageValues);
 
         @SuppressWarnings("unchecked")
         List<String> ids = (List<String>) pageQuery.getResultList();
         return new PageResult<>(fetchByIdsInOrder(ids), totalElements,
                 criteria.page(), criteria.pageSize());
+    }
+
+    /**
+     * One mutable counter so the WHERE and ORDER BY fragments of a native query
+     * share a single positional-parameter sequence. Positional (not named)
+     * placeholders are used because EclipseLink (the WAR runtime provider) does
+     * not reliably bind named parameters inside native SQL, unlike Hibernate
+     * (the Testcontainers IT provider); {@code ?N} binds identically on both.
+     */
+    private static final class FtsBindSlots {
+        private int next = 1;
+
+        int place() {
+            return next++;
+        }
+    }
+
+    /** Parameter values for the WHERE fragment, in the order the slots are placed. */
+    private List<Object> ftsParamValues(ProductSearchCriteria criteria, String tsquery, String like) {
+        List<Object> values = new ArrayList<>();
+        values.add(tsquery);
+        values.add(like);
+        values.add(like);
+        if (criteria.categoryId() != null) {
+            values.add(criteria.categoryId());
+        }
+        if (criteria.minPrice() != null) {
+            values.add(criteria.minPrice());
+        }
+        if (criteria.maxPrice() != null) {
+            values.add(criteria.maxPrice());
+        }
+        if (criteria.status() != null) {
+            values.add(criteria.status().name());
+        }
+        return values;
+    }
+
+    private void bindPositional(Query query, List<Object> values) {
+        for (int i = 0; i < values.size(); i++) {
+            query.setParameter(i + 1, values.get(i));
+        }
     }
 
     /**
@@ -216,31 +264,31 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
                 .collect(Collectors.joining(" & "));
     }
 
-    private String ftsWhere(ProductSearchCriteria criteria) {
+    private String ftsWhere(ProductSearchCriteria criteria, FtsBindSlots slots) {
         StringBuilder sql = new StringBuilder("WHERE (")
                 .append(FTS_EXPRESSION)
-                .append(" @@ to_tsquery('english', :tsquery)")
-                .append(" OR p.name ILIKE :like")
-                .append(" OR p.sku ILIKE :like)");
+                .append(" @@ to_tsquery('english', ?").append(slots.place()).append(')')
+                .append(" OR p.name ILIKE ?").append(slots.place())
+                .append(" OR p.sku ILIKE ?").append(slots.place()).append(')');
         if (criteria.categoryId() != null) {
             sql.append(" AND EXISTS (SELECT 1 FROM tb_product_category c")
-                    .append(" WHERE c.product_id = p.id AND c.category_id = :categoryId)");
+                    .append(" WHERE c.product_id = p.id AND c.category_id = ?").append(slots.place()).append(')');
         }
         if (criteria.minPrice() != null) {
-            sql.append(" AND p.price >= :minPrice");
+            sql.append(" AND p.price >= ?").append(slots.place());
         }
         if (criteria.maxPrice() != null) {
-            sql.append(" AND p.price <= :maxPrice");
+            sql.append(" AND p.price <= ?").append(slots.place());
         }
         if (criteria.status() != null) {
-            sql.append(" AND p.status = :status");
+            sql.append(" AND p.status = ?").append(slots.place());
         } else if (!criteria.includeArchived()) {
             sql.append(" AND p.status <> 'ARCHIVED'");
         }
         return sql.toString();
     }
 
-    private String ftsOrderBy(ProductSearchCriteria criteria) {
+    private String ftsOrderBy(ProductSearchCriteria criteria, FtsBindSlots slots) {
         String attribute = switch (criteria.sortField()) {
             case PRICE -> "price";
             case CREATED_AT -> "created_at";
@@ -248,25 +296,8 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
         };
         String direction = criteria.sortDirection() == SortDirection.DESC ? "DESC" : "ASC";
         return "ORDER BY ts_rank(" + FTS_EXPRESSION
-                + ", to_tsquery('english', :tsquery)) DESC, "
+                + ", to_tsquery('english', ?" + slots.place() + ")) DESC, "
                 + "p." + attribute + " " + direction + ", p.id ASC";
-    }
-
-    private void setFtsParams(Query query, ProductSearchCriteria criteria, String tsquery, String like) {
-        query.setParameter("tsquery", tsquery);
-        query.setParameter("like", like);
-        if (criteria.categoryId() != null) {
-            query.setParameter("categoryId", criteria.categoryId());
-        }
-        if (criteria.minPrice() != null) {
-            query.setParameter("minPrice", criteria.minPrice());
-        }
-        if (criteria.maxPrice() != null) {
-            query.setParameter("maxPrice", criteria.maxPrice());
-        }
-        if (criteria.status() != null) {
-            query.setParameter("status", criteria.status().name());
-        }
     }
 
     /**
