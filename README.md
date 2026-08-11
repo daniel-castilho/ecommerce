@@ -70,6 +70,9 @@ https://localhost:9443/web/
   Checkout still requires an account.
 - **Postgres FTS ranking**: catalog text search ranks by `ts_rank` over name/SKU/short description
   (GIN index, V25); prefix `tsquery` with ILIKE fallback; default sort `RELEVANCE`.
+- **Order notifications** (Phase A): best-effort email for confirmed/shipped + refund events via
+  `OrderNotificationEmailAdapter` (Jakarta Mail). Never blocks checkout: SMTP failures are logged,
+  not thrown; respects `UserProfile.notificationsEnabled`.
 - **Coupons** (`promotions`): admin create/list, checkout discount quote, snapshot on the order (V22/V23).
 - **Wishlist** (S1–S10): detail toggle, list page, catalog ♥/♡.
 - **Reviews & Ratings** (`product-reviews`): submit, summary, verified purchase, admin moderation.
@@ -99,7 +102,9 @@ mvn test -Dtest='*Test' -DfailIfNoTests=false
 
 ## Roadmap / Pending
 
-- Real payment, shipping and notification providers (currently mocked)
+- Real payment, shipping and notification providers (currently mocked — order email is real,
+  payment/shipping still mocked)
+- Notification delivery log + idempotency (Phase B) when audit is needed
 - PDF reports embed charts as images (currently data tables)
 - Optional coupon depth: category/product scope, per-user redemption limits
 - Hardening: guest-cart edge cases, cart↔coupon regression smoke

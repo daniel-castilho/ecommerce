@@ -3,21 +3,19 @@ package com.loja.ordercheckout.adapter.out.notification;
 import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.RefundRequest;
 import com.loja.ordercheckout.domain.port.out.NotificationPort;
-import jakarta.enterprise.context.ApplicationScoped;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
 
 /**
- * FOR LOCAL DEV ONLY.
- *
- * Mock notification channel that logs every notification to the application log and
- * records it in an in-memory list (for test verification) instead of sending real
- * emails or SMS. Every entry includes the customer email and the order id; shipped
+ * In-memory {@link NotificationPort} used only by tests and small dev scripts.
+ * Constructed directly with {@code new} (no CDI scope) so the production runtime
+ * resolves the port to {@link OrderNotificationEmailAdapter}. Records every
+ * notification in an in-memory list for test verification instead of sending real
+ * emails. Every entry includes the customer email and the order id; shipped
  * notifications also carry the carrier name and tracking number.
  */
-@ApplicationScoped
 public class NotificationMockAdapter implements NotificationPort {
 
     public static final String CARRIER = "Correios";

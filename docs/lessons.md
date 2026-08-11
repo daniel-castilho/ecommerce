@@ -8,6 +8,23 @@ Full historical write-ups of every lesson remain in git history of this file.
 
 ---
 
+## 31. Order notifications are best-effort: SMTP down must not block checkout (2026-08-10)
+
+Phase A of the notification system: `OrderNotificationEmailAdapter` (Jakarta Mail, mirrors
+`user-account`'s adapter) is the sole CDI implementation of `NotificationPort`; the former
+`NotificationMockAdapter` lost its CDI scope and is now a test-only helper constructed with
+`new`. The adapter catches `MessagingException`/`RuntimeException`, logs a WARNING and never
+rethrows, so the checkout transaction always commits even when the mail server is unreachable —
+verified live: order `8df075e8…` committed as CONFIRMED while SMTP `localhost:25` refused the
+connection. Respects `UserProfile.notificationsEnabled` via `FindUserUseCase.findById(userId)`
+(missing user or failed lookup defaults to sending). Trade-off: no delivery log and no retries
+in Phase A; lost emails are only visible in the WARNING log.
+
+Test note: the unit tests need a real Mail provider on the test classpath. Pin
+`jakarta.mail:jakarta.mail-api:2.0.1` (provided) together with `com.sun.mail:jakarta.mail:2.0.1`
+(test) — mirroring `user-account`. The bare `jakarta.jakartaee-api` aggregator pulls `jakarta.mail-api
+2.1.3`, whose `StreamProvider` SPI is absent from the 2.0.1 provider, so versions must match.
+
 ## 30. Native SQL named parameters bind under Hibernate (ITs) but not EclipseLink (WAR runtime) (2026-08-10)
 
 The Testcontainers integration tests run **Hibernate**, while the deployed WAR runs **EclipseLink**
