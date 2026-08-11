@@ -6,6 +6,16 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.18.0](docs/releases/v0.18.0.md) — 2026-08-10
+
+**Order notifications epic (async transactional outbox)**
+Closes the order-notifications epic. Checkout never touches SMTP: an event is claimed as a
+PENDING row on the delivery log (V26) in the business transaction, with a rendered email snapshot
+(recipient/subject/body, V27); a 5 s poller (`NotificationOutboxProcessor` +
+`NotificationOutboxDispatcher`, no EJB) dispatches due rows and records SENT/FAILED with retries
+up to 3 attempts. Best-effort + at-least-once: unique idempotency key, preference-aware, and SMTP
+outages never block the order transaction.
+
 ## [v0.17.1](docs/releases/v0.17.1.md) — 2026-08-10
 
 **Catalog FTS native-query parameter fix (EclipseLink)**
