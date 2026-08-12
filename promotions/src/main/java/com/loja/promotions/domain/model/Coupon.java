@@ -33,6 +33,7 @@ public final class Coupon {
 
     public static Coupon create(String code, CouponType type, BigDecimal value, boolean active,
                                 Instant validFrom, Instant validTo, Integer maxTotalUses) {
+        requireValidWindow(validFrom, validTo);
         return new Coupon(UUID.randomUUID().toString(), normalizeCode(code), requireType(type),
                 requireValue(type, value), active, validFrom, validTo, requireMaxUses(maxTotalUses),
                 0, Instant.now());
@@ -147,5 +148,11 @@ public final class Coupon {
             throw new IllegalArgumentException("Maximum uses must be at least 1");
         }
         return maxTotalUses;
+    }
+
+    private static void requireValidWindow(Instant validFrom, Instant validTo) {
+        if (validFrom != null && validTo != null && validFrom.isAfter(validTo)) {
+            throw new IllegalArgumentException("validFrom must not be after validTo");
+        }
     }
 }

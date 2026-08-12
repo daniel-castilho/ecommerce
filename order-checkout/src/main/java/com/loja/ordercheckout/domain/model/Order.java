@@ -274,7 +274,7 @@ public final class Order {
         return shippingCost == null ? payableMerchandise : payableMerchandise.add(shippingCost);
     }
 
-    /** Snapshot the coupon discount on the order (PENDING only). */
+    /** Snapshot the coupon discount on the order (PENDING only, once). */
     public void applyCoupon(String code, Money discount) {
         requireState(OrderStatus.PENDING);
         if (code == null || code.isBlank()) {
@@ -282,6 +282,9 @@ public final class Order {
         }
         if (discount == null) {
             throw new IllegalArgumentException("Discount amount is required");
+        }
+        if (this.couponCode != null) {
+            throw new IllegalArgumentException("A coupon is already applied to this order");
         }
         if (discount.getAmount().compareTo(getMerchandiseSubtotal().getAmount()) > 0) {
             throw new IllegalArgumentException("Discount cannot exceed the merchandise subtotal");

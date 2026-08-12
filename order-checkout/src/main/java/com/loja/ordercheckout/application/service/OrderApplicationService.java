@@ -2,6 +2,7 @@ package com.loja.ordercheckout.application.service;
 
 import com.loja.ordercheckout.application.dto.CheckoutCommand;
 import com.loja.ordercheckout.domain.exception.AccountSuspendedException;
+import com.loja.ordercheckout.domain.exception.CartProductNotAvailableException;
 import com.loja.ordercheckout.domain.exception.PaymentFailedException;
 import com.loja.ordercheckout.domain.exception.ShippingException;
 import com.loja.ordercheckout.domain.model.Cart;
@@ -19,6 +20,7 @@ import com.loja.ordercheckout.domain.port.out.PaymentGatewayPort;
 import com.loja.ordercheckout.domain.port.out.ShippingRatePort;
 import com.loja.productcatalog.application.dto.ReservationRequest;
 import com.loja.productcatalog.domain.model.Product;
+import com.loja.productcatalog.domain.model.ProductStatus;
 import com.loja.productcatalog.domain.port.out.InventoryReservationPort;
 import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
 import com.loja.promotions.application.dto.DiscountQuote;
@@ -97,8 +99,10 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
         int position = 0;
         for (CartLine line : cart.getLines()) {
             Product product = productRepository.findById(line.productId())
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "Product not found: " + line.productId()));
+                    .orElseThrow(() -> new CartProductNotAvailableException(line.productId()));
+            if (product.getStatus() != ProductStatus.ACTIVE) {
+                throw new CartProductNotAvailableException(line.productId());
+            }
             order.addItem(new OrderLine(product.getId(), product.getName(), product.getPrice(),
                     line.quantity(), position++));
         }

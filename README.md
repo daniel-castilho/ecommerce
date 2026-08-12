@@ -118,7 +118,11 @@ mvn test -Dtest='*Test' -DfailIfNoTests=false
   payment/shipping still mocked)
 - PDF reports embed charts as images (currently data tables)
 - Optional coupon depth: category/product scope, per-user redemption limits
-- Hardening: guest-cart edge cases, cart↔coupon regression smoke
+
+> Hardening item 4 (guest-cart edge cases, cart↔coupon regression smoke) is **done**:
+> checkout rejects non-ACTIVE products, guest merge never fails login, coupon window/double-apply
+> invariants, and atomic `used_count` redemption, all covered by unit tests and a guest→merge→coupon
+> →checkout IT.
 
 ## Documentation
 

@@ -1,6 +1,7 @@
 package com.loja.ordercheckout.application.service;
 
 import com.loja.ordercheckout.domain.exception.AccountSuspendedException;
+import com.loja.ordercheckout.domain.exception.CartProductNotAvailableException;
 import com.loja.ordercheckout.domain.exception.PaymentFailedException;
 import com.loja.ordercheckout.domain.exception.ShippingException;
 import com.loja.ordercheckout.domain.model.Cart;
@@ -97,8 +98,12 @@ class OrderApplicationServiceTest {
     }
 
     private Product product(String id, Money price, int stock) {
+        return product(id, ProductStatus.ACTIVE, price, stock);
+    }
+
+    private Product product(String id, ProductStatus status, Money price, int stock) {
         return new Product(id, new Sku("SKU-" + id), new Slug("slug-" + id), "Product " + id,
-                null, null, price, null, stock, ProductStatus.ACTIVE,
+                null, null, price, null, stock, status,
                 null, null, null, Set.of(1L), List.of());
     }
 
@@ -283,13 +288,27 @@ class OrderApplicationServiceTest {
     }
 
     @Test
-    void checkout_withUnknownProduct_throwsIllegalArgumentException() {
+    void checkout_withUnknownProduct_throwsProductNotAvailable() {
         stubCart(List.of(new CartLine("missing", 1)));
         when(productRepository.findById("missing")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.checkout(command("req-6")))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Product not found");
+                .isInstanceOf(CartProductNotAvailableException.class)
+                .hasMessageContaining("missing");
+        verify(orderRepository, never()).save(any());
+        verify(cartRepository, never()).deleteByUserId(anyString());
+    }
+
+    @Test
+    void checkout_withInactiveProduct_throwsProductNotAvailableBeforePayment() {
+        stubCart(List.of(new CartLine("p1", 1)));
+        when(productRepository.findById("p1")).thenReturn(Optional.of(product("p1", ProductStatus.INACTIVE,
+                new Money(new BigDecimal("10.00")), 5)));
+
+        assertThatThrownBy(() -> service.checkout(command("req-6")))
+                .isInstanceOf(CartProductNotAvailableException.class)
+                .hasMessageContaining("p1");
+        verify(paymentGateway, never()).authorize(any(), any());
         verify(orderRepository, never()).save(any());
         verify(cartRepository, never()).deleteByUserId(anyString());
     }

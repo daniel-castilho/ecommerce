@@ -4,6 +4,8 @@ import com.loja.ordercheckout.adapter.out.notification.NotificationMockAdapter;
 import com.loja.ordercheckout.adapter.out.payment.PaymentGatewayMockAdapter;
 import com.loja.ordercheckout.adapter.out.shipping.ShippingRateMockAdapter;
 import com.loja.ordercheckout.application.dto.CheckoutCommand;
+import com.loja.ordercheckout.application.dto.ProductSnapshot;
+import com.loja.ordercheckout.application.service.CartApplicationService;
 import com.loja.ordercheckout.application.service.OrderApplicationService;
 import com.loja.ordercheckout.domain.exception.AccountSuspendedException;
 import com.loja.ordercheckout.domain.model.Cart;
@@ -11,6 +13,7 @@ import com.loja.ordercheckout.domain.model.Order;
 import com.loja.ordercheckout.domain.model.OrderStatus;
 import com.loja.ordercheckout.domain.model.PaymentMethod;
 import com.loja.ordercheckout.domain.model.ShippingAddress;
+import com.loja.ordercheckout.domain.port.out.ProductLookupPort;
 import com.loja.productcatalog.application.dto.ReservationRequest;
 import com.loja.productcatalog.domain.model.Product;
 import com.loja.productcatalog.domain.model.ProductStatus;
@@ -18,6 +21,7 @@ import com.loja.productcatalog.domain.model.Sku;
 import com.loja.productcatalog.domain.model.Slug;
 import com.loja.productcatalog.domain.port.out.InventoryReservationPort;
 import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
+import com.loja.promotions.application.dto.DiscountQuote;
 import com.loja.promotions.domain.port.in.QuoteDiscountUseCase;
 import com.loja.promotions.domain.port.in.RecordCouponRedemptionUseCase;
 import com.loja.shared.domain.Money;
@@ -144,6 +148,13 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
                 address, "pac", new PaymentMethod("card", "tok_test"), null);
     }
 
+    private CheckoutCommand command(String requestId, String couponCode) {
+        ShippingAddress address = new ShippingAddress("Ana Souza", "Rua das Flores", "123", null,
+                "Centro", "Sao Paulo", "SP", "01310-100", null);
+        return new CheckoutCommand(requestId, "user-1", "ana@example.com",
+                address, "pac", new PaymentMethod("card", "tok_test"), couponCode);
+    }
+
     private static User activeUser() {
         return User.create(new Email("ana@example.com"),
                 UserPassword.hash("password1234", new PasswordHasherPort() {
@@ -265,6 +276,76 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
                 "SELECT COUNT(*) FROM tb_order WHERE id = 'e2e-blocked'").getSingleResult());
         assertThat(rowCount).isEqualTo(0L);
         verify(inventoryReservation, never()).reserve(anyString(), anyList());
+        assertThat(notification.getNotifications()).isEmpty();
+    }
+
+    @Test
+    void guestCart_throughLoginMergeThenCheckout_withCoupon_foldsLinesAndOrdersCart() {
+        ProductLookupPort productLookup = mock(ProductLookupPort.class);
+        when(productLookup.findActiveById("p1")).thenReturn(Optional.of(
+                new ProductSnapshot("p1", "Product A", "slug-p1",
+                        new Money(new BigDecimal("10.00")), null)));
+        CartApplicationService cartService = new CartApplicationService(cartRepository, productLookup);
+
+        inTx(() -> {
+            cartService.add("guest-1", "p1", 1);
+            return null;
+        });
+        inTx(() -> {
+            cartService.merge("guest-1", "user-1");
+            return null;
+        });
+
+        Cart merged = inTx(() -> cartRepository.findByUserId("user-1")).orElseThrow();
+        assertThat(merged.getLines()).hasSize(1);
+        assertThat(merged.getLines().get(0).productId()).isEqualTo("p1");
+        assertThat(merged.getLines().get(0).quantity()).isEqualTo(3);
+        assertThat(inTx(() -> cartRepository.findByUserId("guest-1"))).isEmpty();
+
+        when(couponQuote.quote(anyString(), any())).thenReturn(
+                new DiscountQuote("SAVE10", new Money(new BigDecimal("1.00"))));
+
+        Order order = inTx(() -> service.checkout(command("e2e-guest-coupon", "SAVE10")));
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        assertThat(order.getCouponCode()).isEqualTo("SAVE10");
+        assertThat(order.getDiscountAmount().getAmount()).isEqualByComparingTo("1.00");
+        assertThat(order.getItems()).hasSize(1);
+        assertThat(order.getItems().get(0).getQuantity()).isEqualTo(3);
+        verify(couponRedemption).redeem("SAVE10");
+        assertThat(inTx(() -> cartRepository.findByUserId("user-1"))).isEmpty();
+    }
+
+    @Test
+    void guestCart_productDeactivatedAfterAdd_checkoutFailsCleanlyAndCartSurvives() {
+        ProductLookupPort productLookup = mock(ProductLookupPort.class);
+        when(productLookup.findActiveById("p1")).thenReturn(Optional.of(
+                new ProductSnapshot("p1", "Product A", "slug-p1",
+                        new Money(new BigDecimal("10.00")), null)));
+        CartApplicationService cartService = new CartApplicationService(cartRepository, productLookup);
+
+        inTx(() -> {
+            cartService.add("guest-3", "p1", 2);
+            return null;
+        });
+        inTx(() -> {
+            cartService.merge("guest-3", "user-1");
+            return null;
+        });
+
+        Cart merged = inTx(() -> cartRepository.findByUserId("user-1")).orElseThrow();
+        assertThat(merged.getLines()).extracting(c -> c.productId()).contains("p1");
+        assertThat(inTx(() -> cartRepository.findByUserId("guest-3"))).isEmpty();
+
+        when(productRepository.findById("p1")).thenReturn(Optional.of(
+                new Product("p1", new Sku("SKU-p1"), new Slug("slug-p1"), "Product A",
+                        null, null, new Money(new BigDecimal("10.00")), null, 5,
+                        ProductStatus.INACTIVE, null, null, null, Set.of(1L), List.of())));
+
+        assertThatThrownBy(() -> inTx(() -> service.checkout(command("e2e-deactivated"))))
+                .isInstanceOf(com.loja.ordercheckout.domain.exception.CartProductNotAvailableException.class);
+        verify(inventoryReservation, never()).reserve(anyString(), anyList());
+        assertThat(inTx(() -> cartRepository.findByUserId("user-1"))).isPresent();
         assertThat(notification.getNotifications()).isEmpty();
     }
 }

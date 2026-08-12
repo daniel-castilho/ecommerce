@@ -57,6 +57,37 @@ class CouponTest {
     }
 
     @Test
+    void create_validFromAfterValidTo_throws() {
+        assertThatThrownBy(() -> Coupon.create("SAVE", CouponType.FIXED,
+                new BigDecimal("5"), true, Instant.parse("2026-09-01T00:00:00Z"),
+                Instant.parse("2026-08-01T00:00:00Z"), null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("validFrom");
+    }
+
+    @Test
+    void create_validWindowOnSameInstant_isAccepted() {
+        Instant at = Instant.parse("2026-08-01T00:00:00Z");
+        Coupon coupon = Coupon.create("SAVE", CouponType.FIXED,
+                new BigDecimal("5"), true, at, at, null);
+
+        assertThat(coupon.isApplicableAt(at)).isTrue();
+    }
+
+    @Test
+    void create_partialWindow_isAccepted() {
+        Coupon fromOnly = Coupon.create("SAVE", CouponType.FIXED,
+                new BigDecimal("5"), true, Instant.parse("2026-08-01T00:00:00Z"), null, null);
+        Coupon toOnly = Coupon.create("SAVE", CouponType.FIXED,
+                new BigDecimal("5"), true, null, Instant.parse("2026-08-31T00:00:00Z"), null);
+
+        assertThat(fromOnly.getValidFrom()).isNotNull();
+        assertThat(fromOnly.getValidTo()).isNull();
+        assertThat(toOnly.getValidFrom()).isNull();
+        assertThat(toOnly.getValidTo()).isNotNull();
+    }
+
+    @Test
     void discountFor_percent_appliesProportionOfSubtotal() {
         Coupon coupon = Coupon.create("SAVE10", CouponType.PERCENT,
                 new BigDecimal("10"), true, null, null, null);

@@ -77,7 +77,7 @@ public class CouponApplicationService implements CreateCouponUseCase, ListCoupon
 
     @Override
     public void redeem(String code) {
-        Coupon coupon = requireByCode(code);
+        Coupon coupon = requireByCodeForUpdate(code);
         if (!coupon.canBeUsed(Instant.now())) {
             throw new CouponNotApplicableException("Coupon " + coupon.getCode() + " is not currently valid");
         }
@@ -91,10 +91,28 @@ public class CouponApplicationService implements CreateCouponUseCase, ListCoupon
     }
 
     private Coupon requireByCode(String code) {
+        return findByNormalized(code).orElseThrow(() -> new CouponNotFoundException("Unknown coupon code: " + code.trim().toUpperCase()));
+    }
+
+    /**
+     * Same as {@link #requireByCode(String)} but acquires a pessimistic write
+     * lock on the row so two concurrent checkouts cannot over-book the usage
+     * cap (the increment is read-modify-write on {@code used_count}).
+     */
+    private Coupon requireByCodeForUpdate(String code) {
+        String normalized = requireNonNullCode(code);
+        return couponRepository.findByCodeForUpdate(normalized)
+                .orElseThrow(() -> new CouponNotFoundException("Unknown coupon code: " + code.trim().toUpperCase()));
+    }
+
+    private Optional<Coupon> findByNormalized(String code) {
+        return couponRepository.findByCode(requireNonNullCode(code));
+    }
+
+    private static String requireNonNullCode(String code) {
         if (code == null || code.isBlank()) {
             throw new CouponNotFoundException("A coupon code is required");
         }
-        return couponRepository.findByCode(code.trim().toUpperCase())
-                .orElseThrow(() -> new CouponNotFoundException("Unknown coupon code: " + code.trim().toUpperCase()));
+        return code.trim().toUpperCase();
     }
 }

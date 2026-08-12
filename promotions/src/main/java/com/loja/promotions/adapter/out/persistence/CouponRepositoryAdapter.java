@@ -5,6 +5,7 @@ import com.loja.promotions.domain.model.Coupon;
 import com.loja.promotions.domain.port.out.CouponRepositoryPort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
 import jakarta.transaction.Transactional;
@@ -33,9 +34,19 @@ public class CouponRepositoryAdapter implements CouponRepositoryPort {
 
     @Override
     public Optional<Coupon> findByCode(String code) {
+        return findByCode(code, LockModeType.NONE);
+    }
+
+    @Override
+    public Optional<Coupon> findByCodeForUpdate(String code) {
+        return findByCode(code, LockModeType.PESSIMISTIC_WRITE);
+    }
+
+    private Optional<Coupon> findByCode(String code, LockModeType lockMode) {
         TypedQuery<CouponJpaEntity> query = em.createQuery(
                 "SELECT c FROM CouponJpaEntity c WHERE c.code = :code", CouponJpaEntity.class);
         query.setParameter("code", code);
+        query.setLockMode(lockMode);
         List<CouponJpaEntity> result = query.setMaxResults(1).getResultList();
         return result.stream().findFirst().map(CouponJpaMapper::toDomain);
     }

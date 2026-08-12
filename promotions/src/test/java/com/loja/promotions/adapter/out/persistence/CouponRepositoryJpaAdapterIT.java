@@ -158,4 +158,82 @@ class CouponRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         Coupon restored = inTx(() -> adapter.findByCode("LIMITED")).orElseThrow();
         assertThat(restored.getUsedCount()).isEqualTo(1);
     }
+
+    @Test
+    void findByCodeForUpdate_returnsCouponWithWriteLock() {
+        Coupon coupon = Coupon.create("LOCKED", CouponType.FIXED,
+                new BigDecimal("5"), true, null, null, 5);
+        inTx(() -> adapter.save(coupon));
+
+        Coupon locked = inTx(() -> adapter.findByCodeForUpdate("LOCKED")).orElseThrow();
+
+        assertThat(locked.getCode()).isEqualTo("LOCKED");
+        assertThat(locked.getUsedCount()).isZero();
+    }
+
+    @Test
+    void concurrentRedemptions_neverExceedUsageCap() throws Exception {
+        Coupon coupon = Coupon.create("RACE", CouponType.FIXED,
+                new BigDecimal("5"), true, null, null, 3);
+        inTx(() -> adapter.save(coupon));
+
+        int threads = 8;
+        int expectedSuccesses = 3;
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(threads);
+        java.util.List<java.util.concurrent.Future<Boolean>> futures = new java.util.ArrayList<>();
+        for (int i = 0; i < threads; i++) {
+            futures.add(pool.submit(() -> {
+                EntityManager threadEm = emf.createEntityManager();
+                try {
+                    return inTxOn(threadEm, () -> {
+                        Optional<Coupon> locked = newAdapter(threadEm).findByCodeForUpdate("RACE");
+                        if (locked.isEmpty() || !locked.get().canBeUsed(Instant.now())) {
+                            return Boolean.FALSE;
+                        }
+                        locked.get().recordUsage();
+                        newAdapter(threadEm).save(locked.get());
+                        return Boolean.TRUE;
+                    });
+                } finally {
+                    if (threadEm.isOpen()) {
+                        threadEm.close();
+                    }
+                }
+            }));
+        }
+        int successes = 0;
+        for (java.util.concurrent.Future<Boolean> future : futures) {
+            if (future.get()) {
+                successes++;
+            }
+        }
+        pool.shutdown();
+
+        Coupon restored = inTx(() -> adapter.findByCode("RACE")).orElseThrow();
+        assertThat(successes).isEqualTo(expectedSuccesses);
+        assertThat(restored.getUsedCount()).isEqualTo(expectedSuccesses);
+    }
+
+    private CouponRepositoryAdapter newAdapter(EntityManager entityManager) {
+        CouponRepositoryAdapter threadAdapter = new CouponRepositoryAdapter();
+        threadAdapter.em = entityManager;
+        return threadAdapter;
+    }
+
+    private <T> T inTxOn(EntityManager entityManager, Supplier<T> operation) {
+        EntityTransaction tx = entityManager.getTransaction();
+        tx.begin();
+        try {
+            T result = operation.get();
+            tx.commit();
+            return result;
+        } catch (RuntimeException | Error e) {
+            if (tx.isActive()) {
+                tx.rollback();
+            }
+            throw e;
+        } finally {
+            entityManager.clear();
+        }
+    }
 }

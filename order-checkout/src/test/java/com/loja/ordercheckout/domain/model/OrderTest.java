@@ -455,6 +455,20 @@ class OrderTest {
     }
 
     @Test
+    void applyCoupon_twice_throwsIllegalArgumentExceptionAndKeepsFirstCoupon() {
+        Order order = newPendingOrder();
+        order.addItem(line("p1", 1, TEN, 0));
+        order.applyCoupon("SAVE10", new Money(new BigDecimal("2.00")));
+
+        assertThatThrownBy(() -> order.applyCoupon("SAVE20", new Money(new BigDecimal("4.00"))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("already applied");
+
+        assertThat(order.getCouponCode()).isEqualTo("SAVE10");
+        assertThat(order.getDiscountAmount().getAmount()).isEqualByComparingTo("2.00");
+    }
+
+    @Test
     void restore_withCouponSnapshot_restoresCouponAndDiscount() {
         Order order = newPendingOrder();
         order.addItem(line("p1", 2, TEN, 0));

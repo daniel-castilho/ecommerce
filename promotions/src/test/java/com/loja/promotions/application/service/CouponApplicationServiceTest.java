@@ -127,7 +127,7 @@ class CouponApplicationServiceTest {
     void redeem_incrementsUsageAndSaves() {
         Coupon coupon = Coupon.create("SAVE10", CouponType.PERCENT,
                 new BigDecimal("10"), true, null, null, 5);
-        when(repository.findByCode("SAVE10")).thenReturn(Optional.of(coupon));
+        when(repository.findByCodeForUpdate("SAVE10")).thenReturn(Optional.of(coupon));
 
         service.redeem("save10");
 
@@ -140,7 +140,7 @@ class CouponApplicationServiceTest {
         Coupon coupon = Coupon.create("SAVE10", CouponType.PERCENT,
                 new BigDecimal("10"), true, null, null, 1);
         coupon.recordUsage();
-        when(repository.findByCode("SAVE10")).thenReturn(Optional.of(coupon));
+        when(repository.findByCodeForUpdate("SAVE10")).thenReturn(Optional.of(coupon));
 
         assertThatThrownBy(() -> service.redeem("SAVE10"))
                 .isInstanceOf(CouponNotApplicableException.class);

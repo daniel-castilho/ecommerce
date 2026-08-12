@@ -35,11 +35,14 @@ This is not a public JSON API project. Exercise **ports / use cases**; Faces bea
 |------|-------------|
 | **Auth** | Server-side userId; customer blocked from admin |
 | **Catalog** | Only ACTIVE in customer flows; safe fallback if unavailable |
-| **Cart** | Persist across restart; one line/product; empty cart cannot order; clear only after successful order |
-| **Coupons** | Blank = no discount; invalid fails place-order; discount on merchandise only; snapshot on Order; `usedCount` after success only |
+| **Cart** | Persist across restart; one line/product; empty cart cannot order; clear only after successful order; checkout rejects lines whose product is no longer ACTIVE (cart survives) |
+| **Guest → login** | Merge folds lines (quantities summed); guest cart deleted; merge never fails login (retry on optimistic-lock conflict, swallow+reset otherwise) |
+| **Coupons** | Blank = no discount; invalid fails place-order; discount on merchandise only; snapshot on Order; `usedCount` after success only; **window `validFrom ≤ validTo` enforced at create**; **one coupon per order (double-apply rejected)**; **concurrent redemptions never exceed `maxTotalUses`** |
 | **Checkout** | Totals = lines − discount + shipping ≥ 0; idempotency preserved |
 | **Wishlist / reviews** | Ownership by userId; idempotent add where specified |
 | **Admin** | Composition only; ADMIN RBAC |
+
+**Guest → coupon end-to-end regression** (`OrderApplicationServiceIT`): guest adds item → login merge folds it into the user cart → checkout with coupon → confirmed order carries the coupon snapshot, `redeem` is invoked, and the cart is cleared. The "product deactivated after add" variant must fail cleanly at checkout without touching payment or clearing the cart.
 
 ---
 
