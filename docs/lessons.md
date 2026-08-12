@@ -8,6 +8,35 @@ Full historical write-ups of every lesson remain in git history of this file.
 
 ---
 
+## 42. A per-user cap is a count against an append-only ledger, not a counter column (2026-08-11)
+
+The global coupon cap is a lock-serialized read-modify-write on `used_count` (lesson 40).
+Extending that idea to a per-user cap would mean a counter *per user* — but the cap needs a
+user dimension and an audit trail anyway. **Golden rules:**
+
+1. Model per-user usage as an append-only ledger table (`tb_coupon_redemption`), one row per
+   (coupon, user, redeemed_at), indexed on `(coupon_id, user_id, redeemed_at)`.
+2. Enforce the cap by `COUNT`ing rows for (coupon, user) under the same pessimistic write
+   lock already held for the global counter — serializing both under one lock keeps the
+   invariant without a second lock.
+3. Never pre-aggregate per-user counts into a mutable column; the ledger is simpler, is
+   race-free by construction, and doubles as audit data.
+
+## 41. Thread raw per-line data through the port; don't pre-aggregate to a scalar (2026-08-11)
+
+`QuoteDiscountUseCase.quote(code, merchandiseSubtotal)` could not express PRODUCT/CATEGORY
+coupon scope: eligibility is a per-line decision, and the caller had already collapsed the
+cart to a single subtotal. Adding scope forced a port contract change to
+`quote(code, List<DiscountLine>)`. **Golden rules:**
+
+1. If a downstream rule needs per-line inputs, pass the lines — a scalar aggregation in the
+   caller throws away the information before the rule can see it.
+2. Keep the eligibility rule in the domain (`Coupon.isLineEligible`); the caller supplies
+   data, the domain decides. Pre-aggregating eligibility in the caller would leak promotion
+   logic into the wrong module.
+3. Accept that a port signature change ripples to mocks and adapters — that is the cost of
+   keeping the rule in the right layer, and unit tests make it cheap.
+
 ## 40. A read-modify-write on a shared counter is a race no matter how careful the domain is (2026-08-11)
 
 Coupon `used_count` was incremented by loading the coupon, checking the cap, calling

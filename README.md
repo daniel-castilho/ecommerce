@@ -62,8 +62,11 @@ https://localhost:9443/web/
 
 ## Current State
 
-**Latest tag: [v0.18.4](docs/releases/v0.18.4.md)** (2026-08-11)
+**Latest tag: [v0.19.0](docs/releases/v0.19.0.md)** (2026-08-11)
 
+- **v0.19.0 coupon scope**: coupons target specific products/categories (`CouponScope`:
+  ALL/PRODUCT/CATEGORY) and can cap redemptions per user; the checkout discounts only the
+  eligible cart lines (V29 adds scope columns + the `tb_coupon_redemption` per-user ledger).
 - **Persistent cart** (S1–S12): add from product detail or catalog card; manage quantities on
   `/web/order-checkout/cart.xhtml`; checkout from a durable cart cleared only after a confirmed
   order. **Guest cart** uses a session UUID in `user_id`; on login, lines merge into the user cart.
@@ -121,7 +124,10 @@ mvn test -Dtest='*Test' -DfailIfNoTests=false
 - Real payment, shipping and notification providers (currently mocked — order email is real,
   payment/shipping still mocked)
 - PDF reports embed charts as images (currently data tables)
-- Optional coupon depth: category/product scope, per-user redemption limits
+
+> Coupon depth (category/product scope, per-user redemption limits) is **done (v0.19.0)**:
+> coupons restrict discounts to specific products/categories, cap redemptions per user via
+> the `tb_coupon_redemption` ledger, and the checkout quotes against eligible lines only.
 
 > Hardening item 4 (guest-cart edge cases, cart↔coupon regression smoke) is **done
 > (v0.18.4)**: checkout rejects non-ACTIVE products, guest merge never fails login, coupon

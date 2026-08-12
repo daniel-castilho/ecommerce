@@ -6,6 +6,16 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.19.0](docs/releases/v0.19.0.md) — 2026-08-11
+
+**Coupon eligibility scope + per-user redemption cap**
+Coupons can now target specific products or product categories (`CouponScope`: ALL /
+PRODUCT / CATEGORY) and cap how many times a single user may redeem them. The checkout
+quotes against the eligible cart lines only — including the live JSF preview — and
+redemption records a per-user ledger row (`tb_coupon_redemption`, V29) so the cap holds
+across orders. Admin create form exposes scope, CSV product/category ids and the per-user
+cap; the coupon list shows the scope. Existing whole-order coupons keep `ALL` scope.
+
 ## [v0.18.4](docs/releases/v0.18.4.md) — 2026-08-11
 
 **Hardening: guest-cart edge cases + atomic coupon redemption**
