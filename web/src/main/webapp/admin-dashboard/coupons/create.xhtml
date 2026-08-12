@@ -66,6 +66,36 @@
           <h:inputText id="maxTotalUses" value="#{couponCreateBean.maxTotalUses}" />
         </my:formFieldGroup>
 
+        <my:formFieldGroup label="Discount scope" forId="scope">
+          <h:selectOneMenu id="scope" value="#{couponCreateBean.scope}">
+            <f:selectItems
+              value="#{couponCreateBean.scopes}"
+              var="scope"
+              itemValue="#{scope}"
+              itemLabel="#{scope}"
+            />
+          </h:selectOneMenu>
+          <p class="form-hint">
+            ALL: whole order. PRODUCT: only the products listed below. CATEGORY:
+            only products in the categories listed below.
+          </p>
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Product ids (PRODUCT scope, CSV)" forId="productIds">
+          <h:inputText id="productIds" value="#{couponCreateBean.productIds}" />
+          <p class="form-hint">Comma separated, e.g. prod-123,prod-456.</p>
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Category ids (CATEGORY scope, CSV)" forId="categoryIds">
+          <h:inputText id="categoryIds" value="#{couponCreateBean.categoryIds}" />
+          <p class="form-hint">Comma separated, e.g. 3,7.</p>
+        </my:formFieldGroup>
+
+        <my:formFieldGroup label="Maximum uses per user" forId="maxUsesPerUser">
+          <h:inputText id="maxUsesPerUser" value="#{couponCreateBean.maxUsesPerUser}" />
+          <p class="form-hint">Leave empty for unlimited per user.</p>
+        </my:formFieldGroup>
+
         <div class="form-actions">
           <h:commandButton
             value="Create coupon"

@@ -26,6 +26,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -386,7 +387,7 @@ class CartBeanTest {
     private static CartLineView line(String productId, String name, int quantity) {
         Money unitPrice = new Money(new BigDecimal("19.99"));
         return new CartLineView(productId, name, "slug", quantity, unitPrice,
-                unitPrice.multiply(quantity), "https://cdn.example/img.webp", true);
+                unitPrice.multiply(quantity), "https://cdn.example/img.webp", true, Set.of(1L));
     }
 
     private static CartView view(List<CartLineView> lines) {

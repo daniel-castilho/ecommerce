@@ -2,6 +2,7 @@ package com.loja.promotions.adapter.out.persistence;
 
 import com.loja.promotions.application.dto.PageResult;
 import com.loja.promotions.domain.model.Coupon;
+import com.loja.promotions.domain.model.CouponScope;
 import com.loja.promotions.domain.model.CouponType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityTransaction;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Set;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -91,6 +93,46 @@ class CouponRepositoryJpaAdapterIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void saveAndFind_roundTripsScopeTargetsAndPerUserCap() {
+        Coupon coupon = Coupon.create("CAT", CouponType.PERCENT,
+                new BigDecimal("10"), true, null, null, null,
+                CouponScope.CATEGORY, Set.of(), Set.of(3L, 7L), 2);
+        inTx(() -> adapter.save(coupon));
+
+        Coupon restored = inTx(() -> adapter.findById(coupon.getId())).orElseThrow();
+
+        assertThat(restored.getScope()).isEqualTo(CouponScope.CATEGORY);
+        assertThat(restored.getCategoryIds()).containsExactlyInAnyOrder(3L, 7L);
+        assertThat(restored.getProductIds()).isEmpty();
+        assertThat(restored.getMaxUsesPerUser()).isEqualTo(2);
+    }
+
+    @Test
+    void countRedemptionsByUser_andRecord_roundTrip() {
+        Coupon coupon = Coupon.create("PERUSER", CouponType.FIXED,
+                new BigDecimal("5"), true, null, null, null);
+        inTx(() -> adapter.save(coupon));
+
+        assertThat(inTx(() -> adapter.countRedemptionsByUser(coupon.getId(), "u-1"))).isZero();
+
+        inTx(() -> {
+            adapter.recordRedemption(coupon.getId(), "u-1", Instant.parse("2026-08-01T10:00:00Z"));
+            return null;
+        });
+        inTx(() -> {
+            adapter.recordRedemption(coupon.getId(), "u-1", Instant.parse("2026-08-02T10:00:00Z"));
+            return null;
+        });
+        inTx(() -> {
+            adapter.recordRedemption(coupon.getId(), "u-2", Instant.parse("2026-08-03T10:00:00Z"));
+            return null;
+        });
+
+        assertThat(inTx(() -> adapter.countRedemptionsByUser(coupon.getId(), "u-1"))).isEqualTo(2);
+        assertThat(inTx(() -> adapter.countRedemptionsByUser(coupon.getId(), "u-2"))).isEqualTo(1);
+    }
+
+    @Test
     void findByCode_unknownCode_returnsEmpty() {
         Optional<Coupon> result = inTx(() -> adapter.findByCode("NOPE"));
 
@@ -102,7 +144,8 @@ class CouponRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         Coupon first = Coupon.create("SAVE10", CouponType.PERCENT,
                 new BigDecimal("10"), true, null, null, null);
         Coupon duplicate = Coupon.reconstitute(first.getId() + "-x", "SAVE10", CouponType.FIXED,
-                new BigDecimal("5"), true, null, null, null, 0, Instant.now());
+                new BigDecimal("5"), true, null, null, null, CouponScope.ALL,
+                Set.of(), Set.of(), null, 0, Instant.now());
         inTx(() -> adapter.save(first));
 
         assertThatThrownBy(() -> inTx(() -> adapter.save(duplicate)))
@@ -133,9 +176,11 @@ class CouponRepositoryJpaAdapterIT extends AbstractIntegrationTest {
     @Test
     void search_noFilters_returnsAllNewestFirst() {
         Coupon older = Coupon.reconstitute("c-1", "OLD", CouponType.FIXED,
-                new BigDecimal("5"), true, null, null, null, 0, Instant.parse("2026-01-01T00:00:00Z"));
+                new BigDecimal("5"), true, null, null, null, CouponScope.ALL,
+                Set.of(), Set.of(), null, 0, Instant.parse("2026-01-01T00:00:00Z"));
         Coupon newer = Coupon.reconstitute("c-2", "NEW", CouponType.FIXED,
-                new BigDecimal("5"), true, null, null, null, 0, Instant.parse("2026-01-02T00:00:00Z"));
+                new BigDecimal("5"), true, null, null, null, CouponScope.ALL,
+                Set.of(), Set.of(), null, 0, Instant.parse("2026-01-02T00:00:00Z"));
         inTx(() -> {
             adapter.save(older);
             adapter.save(newer);

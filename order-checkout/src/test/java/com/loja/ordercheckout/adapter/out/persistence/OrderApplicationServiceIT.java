@@ -284,7 +284,7 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
         ProductLookupPort productLookup = mock(ProductLookupPort.class);
         when(productLookup.findActiveById("p1")).thenReturn(Optional.of(
                 new ProductSnapshot("p1", "Product A", "slug-p1",
-                        new Money(new BigDecimal("10.00")), null)));
+                        new Money(new BigDecimal("10.00")), null, Set.of(1L))));
         CartApplicationService cartService = new CartApplicationService(cartRepository, productLookup);
 
         inTx(() -> {
@@ -312,7 +312,7 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
         assertThat(order.getDiscountAmount().getAmount()).isEqualByComparingTo("1.00");
         assertThat(order.getItems()).hasSize(1);
         assertThat(order.getItems().get(0).getQuantity()).isEqualTo(3);
-        verify(couponRedemption).redeem("SAVE10");
+        verify(couponRedemption).redeem("SAVE10", "user-1");
         assertThat(inTx(() -> cartRepository.findByUserId("user-1"))).isEmpty();
     }
 
@@ -321,7 +321,7 @@ class OrderApplicationServiceIT extends AbstractIntegrationTest {
         ProductLookupPort productLookup = mock(ProductLookupPort.class);
         when(productLookup.findActiveById("p1")).thenReturn(Optional.of(
                 new ProductSnapshot("p1", "Product A", "slug-p1",
-                        new Money(new BigDecimal("10.00")), null)));
+                        new Money(new BigDecimal("10.00")), null, Set.of(1L))));
         CartApplicationService cartService = new CartApplicationService(cartRepository, productLookup);
 
         inTx(() -> {

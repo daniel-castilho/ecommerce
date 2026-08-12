@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -396,6 +397,6 @@ class CartApplicationServiceTest {
     private static ProductSnapshot snapshot(String productId, String name, String price) {
         return new ProductSnapshot(
                 productId, name, "smartphone", new Money(new BigDecimal(price)),
-                "https://cdn.example/img.webp");
+                "https://cdn.example/img.webp", Set.of(1L));
     }
 }

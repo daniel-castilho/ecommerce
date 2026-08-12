@@ -9,9 +9,11 @@ import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
 import jakarta.transaction.Transactional;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @ApplicationScoped
 @Transactional
@@ -85,5 +87,26 @@ public class CouponRepositoryAdapter implements CouponRepositoryPort {
 
         List<Coupon> items = entities.stream().map(CouponJpaMapper::toDomain).toList();
         return new PageResult<>(items, total, page, pageSize);
+    }
+
+    @Override
+    public long countRedemptionsByUser(String couponId, String userId) {
+        TypedQuery<Long> query = em.createQuery(
+                "SELECT COUNT(r) FROM CouponRedemptionJpaEntity r"
+                        + " WHERE r.couponId = :couponId AND r.userId = :userId",
+                Long.class);
+        query.setParameter("couponId", couponId);
+        query.setParameter("userId", userId);
+        return query.getSingleResult();
+    }
+
+    @Override
+    public void recordRedemption(String couponId, String userId, Instant redeemedAt) {
+        CouponRedemptionJpaEntity entity = new CouponRedemptionJpaEntity();
+        entity.setId(UUID.randomUUID().toString());
+        entity.setCouponId(couponId);
+        entity.setUserId(userId);
+        entity.setRedeemedAt(redeemedAt);
+        em.persist(entity);
     }
 }

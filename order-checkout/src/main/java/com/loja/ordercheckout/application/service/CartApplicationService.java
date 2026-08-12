@@ -22,6 +22,7 @@ import jakarta.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Application service implementing every cart use case.
@@ -142,12 +143,12 @@ public class CartApplicationService implements AddToCartUseCase, UpdateCartLineU
             Money unitPrice = product.price();
             return new CartLineView(line.productId(), product.name(), product.slug(),
                     line.quantity(), unitPrice, unitPrice.multiply(line.quantity()),
-                    product.imageUrl(), true);
+                    product.imageUrl(), true, product.categoryIds());
         }
         // Product no longer ACTIVE / removed: still show the row so it can be
         // removed, with a fallback label and no price.
         return new CartLineView(line.productId(), "Unavailable product", null,
-                line.quantity(), Money.zero(), Money.zero(), null, false);
+                line.quantity(), Money.zero(), Money.zero(), null, false, Set.of());
     }
 
     private static void requireNonBlank(String value, String name) {

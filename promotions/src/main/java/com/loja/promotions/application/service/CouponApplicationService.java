@@ -1,6 +1,7 @@
 package com.loja.promotions.application.service;
 
 import com.loja.promotions.application.dto.CouponCommand;
+import com.loja.promotions.application.dto.DiscountLine;
 import com.loja.promotions.application.dto.DiscountQuote;
 import com.loja.promotions.application.dto.PageResult;
 import com.loja.promotions.domain.exception.CouponNotApplicableException;
@@ -19,6 +20,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 @ApplicationScoped
@@ -41,7 +43,8 @@ public class CouponApplicationService implements CreateCouponUseCase, ListCoupon
             throw new DuplicateCouponCodeException("A coupon with code " + code + " already exists");
         }
         Coupon coupon = Coupon.create(command.code(), command.type(), command.value(),
-                command.active(), command.validFrom(), command.validTo(), command.maxTotalUses());
+                command.active(), command.validFrom(), command.validTo(), command.maxTotalUses(),
+                command.scope(), command.productIds(), command.categoryIds(), command.maxUsesPerUser());
         return couponRepository.save(coupon);
     }
 
@@ -67,22 +70,31 @@ public class CouponApplicationService implements CreateCouponUseCase, ListCoupon
     }
 
     @Override
-    public DiscountQuote quote(String code, Money merchandiseSubtotal) {
+    public DiscountQuote quote(String code, List<DiscountLine> lines) {
         Coupon coupon = requireByCode(code);
         if (!coupon.canBeUsed(Instant.now())) {
             throw new CouponNotApplicableException("Coupon " + coupon.getCode() + " is not currently valid");
         }
-        return new DiscountQuote(coupon.getCode(), coupon.discountFor(merchandiseSubtotal));
+        Money eligibleSubtotal = lines.stream()
+                .filter(line -> coupon.isLineEligible(line.productId(), line.categoryIds()))
+                .map(DiscountLine::lineTotal)
+                .reduce(Money.zero(), Money::add);
+        return new DiscountQuote(coupon.getCode(), coupon.discountFor(eligibleSubtotal));
     }
 
     @Override
-    public void redeem(String code) {
+    public void redeem(String code, String userId) {
         Coupon coupon = requireByCodeForUpdate(code);
         if (!coupon.canBeUsed(Instant.now())) {
             throw new CouponNotApplicableException("Coupon " + coupon.getCode() + " is not currently valid");
         }
+        if (!coupon.canBeUsedByUser((int) couponRepository.countRedemptionsByUser(coupon.getId(), userId))) {
+            throw new CouponNotApplicableException(
+                    "Coupon " + coupon.getCode() + " has already been used by this user");
+        }
         coupon.recordUsage();
         couponRepository.save(coupon);
+        couponRepository.recordRedemption(coupon.getId(), userId, Instant.now());
     }
 
     private Coupon requireById(String couponId) {

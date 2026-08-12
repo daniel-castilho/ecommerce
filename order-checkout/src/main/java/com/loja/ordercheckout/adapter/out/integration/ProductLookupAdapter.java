@@ -42,7 +42,8 @@ public class ProductLookupAdapter implements ProductLookupPort {
                 product.getName(),
                 product.getSlugValue(),
                 product.getPrice(),
-                primaryImageUrl(product));
+                primaryImageUrl(product),
+                product.getCategoryIds());
     }
 
     private String primaryImageUrl(Product product) {

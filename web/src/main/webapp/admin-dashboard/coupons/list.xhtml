@@ -79,6 +79,10 @@
             <h:outputText value="#{coupon.active ? 'Active' : 'Inactive'}" />
           </h:column>
           <h:column>
+            <f:facet name="header">Scope</f:facet>
+            <h:outputText value="#{coupon.scope}" />
+          </h:column>
+          <h:column>
             <f:facet name="header">Used / Max</f:facet>
             <h:outputText
               value="#{coupon.usedCount} / #{coupon.maxTotalUses == null ? '∞' : coupon.maxTotalUses}"

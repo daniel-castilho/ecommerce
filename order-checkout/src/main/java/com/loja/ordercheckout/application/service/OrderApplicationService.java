@@ -23,6 +23,7 @@ import com.loja.productcatalog.domain.model.Product;
 import com.loja.productcatalog.domain.model.ProductStatus;
 import com.loja.productcatalog.domain.port.out.InventoryReservationPort;
 import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
+import com.loja.promotions.application.dto.DiscountLine;
 import com.loja.promotions.application.dto.DiscountQuote;
 import com.loja.promotions.domain.port.in.QuoteDiscountUseCase;
 import com.loja.promotions.domain.port.in.RecordCouponRedemptionUseCase;
@@ -31,6 +32,7 @@ import com.loja.useraccount.domain.port.out.UserRepositoryPort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -96,6 +98,7 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
         Order order = new Order(orderId, command.userId(), command.customerEmail());
         order.setShippingAddress(command.shippingAddress());
         Cart cart = loadCart(command.userId());
+        List<DiscountLine> discountLines = new ArrayList<>();
         int position = 0;
         for (CartLine line : cart.getLines()) {
             Product product = productRepository.findById(line.productId())
@@ -105,12 +108,14 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
             }
             order.addItem(new OrderLine(product.getId(), product.getName(), product.getPrice(),
                     line.quantity(), position++));
+            discountLines.add(new DiscountLine(product.getId(), product.getCategoryIds(),
+                    product.getPrice().multiply(line.quantity())));
         }
         order.validateForCheckout();
 
         String couponCode = command.couponCode();
         if (couponCode != null && !couponCode.isBlank()) {
-            DiscountQuote quote = couponQuote.quote(couponCode, order.getMerchandiseSubtotal());
+            DiscountQuote quote = couponQuote.quote(couponCode, discountLines);
             order.applyCoupon(quote.code(), quote.discountAmount());
         }
 
@@ -141,7 +146,7 @@ public class OrderApplicationService implements CreateOrderFromCartUseCase {
         Order saved = orderRepository.save(order);
         cartRepository.deleteByUserId(command.userId());
         if (saved.getCouponCode() != null) {
-            couponRedemption.redeem(saved.getCouponCode());
+            couponRedemption.redeem(saved.getCouponCode(), command.userId());
         }
         notification.notifyOrderConfirmed(saved);
         return saved;

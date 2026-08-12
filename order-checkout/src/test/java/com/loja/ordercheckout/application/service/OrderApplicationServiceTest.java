@@ -27,6 +27,7 @@ import com.loja.productcatalog.domain.model.Sku;
 import com.loja.productcatalog.domain.model.Slug;
 import com.loja.productcatalog.domain.port.out.InventoryReservationPort;
 import com.loja.productcatalog.domain.port.out.ProductRepositoryPort;
+import com.loja.promotions.application.dto.DiscountLine;
 import com.loja.promotions.application.dto.DiscountQuote;
 import com.loja.promotions.domain.exception.CouponNotApplicableException;
 import com.loja.promotions.domain.exception.CouponNotFoundException;
@@ -345,7 +346,7 @@ class OrderApplicationServiceTest {
     @Test
     void checkout_withCoupon_quotesAppliesDiscountAndRedeemsAfterSave() {
         stubProductsAndStock();
-        when(couponQuote.quote("save10", new Money(new BigDecimal("36.50"))))
+        when(couponQuote.quote("save10", discountLines()))
                 .thenReturn(new DiscountQuote("SAVE10", new Money(new BigDecimal("3.65"))));
         when(paymentGateway.authorize(any(), any())).thenReturn(new PaymentAuthorization(
                 "card", "auth-1", new Money(new BigDecimal("47.85")), "tx-1", Instant.now()));
@@ -358,8 +359,8 @@ class OrderApplicationServiceTest {
         assertThat(order.getDiscountAmount().getAmount()).isEqualByComparingTo("3.65");
         assertThat(order.getMerchandiseSubtotal().getAmount()).isEqualByComparingTo("36.50");
         assertThat(order.getTotal().getAmount()).isEqualByComparingTo("47.85");
-        verify(couponQuote).quote("save10", new Money(new BigDecimal("36.50")));
-        verify(couponRedemption).redeem("SAVE10");
+        verify(couponQuote).quote("save10", discountLines());
+        verify(couponRedemption).redeem("SAVE10", "user-1");
         verify(cartRepository).deleteByUserId("user-1");
     }
 
@@ -377,7 +378,7 @@ class OrderApplicationServiceTest {
         verify(inventoryReservation, never()).reserve(anyString(), anyList());
         verify(orderRepository, never()).save(any());
         verify(cartRepository, never()).deleteByUserId(anyString());
-        verify(couponRedemption, never()).redeem(anyString());
+        verify(couponRedemption, never()).redeem(anyString(), anyString());
     }
 
     @Test
@@ -391,13 +392,13 @@ class OrderApplicationServiceTest {
                 .hasMessageContaining("exhausted");
         verify(orderRepository, never()).save(any());
         verify(cartRepository, never()).deleteByUserId(anyString());
-        verify(couponRedemption, never()).redeem(anyString());
+        verify(couponRedemption, never()).redeem(anyString(), anyString());
     }
 
     @Test
     void checkout_whenCaptureFailsWithCoupon_doesNotRedeem() {
         stubProductsAndStock();
-        when(couponQuote.quote("SAVE10", new Money(new BigDecimal("36.50"))))
+        when(couponQuote.quote("SAVE10", discountLines()))
                 .thenReturn(new DiscountQuote("SAVE10", new Money(new BigDecimal("3.65"))));
         when(paymentGateway.authorize(any(), any())).thenReturn(new PaymentAuthorization(
                 "card", "auth-1", new Money(new BigDecimal("47.85")), "tx-1", Instant.now()));
@@ -409,7 +410,14 @@ class OrderApplicationServiceTest {
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
         assertThat(order.getCouponCode()).isEqualTo("SAVE10");
         verify(cartRepository, never()).deleteByUserId(anyString());
-        verify(couponRedemption, never()).redeem(anyString());
+        verify(couponRedemption, never()).redeem(anyString(), anyString());
         verify(notification, never()).notifyOrderConfirmed(any());
+    }
+
+    /** DiscountLine snapshot for the seeded cart (p1 x2 @10.00, p2 x3 @5.50). */
+    private List<DiscountLine> discountLines() {
+        return List.of(
+                new DiscountLine("p1", Set.of(1L), new Money(new BigDecimal("20.00"))),
+                new DiscountLine("p2", Set.of(1L), new Money(new BigDecimal("16.50"))));
     }
 }

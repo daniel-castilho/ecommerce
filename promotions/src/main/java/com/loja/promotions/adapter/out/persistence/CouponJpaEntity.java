@@ -1,6 +1,7 @@
 package com.loja.promotions.adapter.out.persistence;
 
 import com.loja.promotions.domain.model.Coupon;
+import com.loja.promotions.domain.model.CouponScope;
 import com.loja.promotions.domain.model.CouponType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -45,6 +46,19 @@ public class CouponJpaEntity {
     @Column(name = "max_total_uses")
     private Integer maxTotalUses;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private CouponScope scope = CouponScope.ALL;
+
+    @Column(name = "product_ids", length = 2000)
+    private String productIds;
+
+    @Column(name = "category_ids", length = 2000)
+    private String categoryIds;
+
+    @Column(name = "max_uses_per_user")
+    private Integer maxUsesPerUser;
+
     @Column(name = "used_count", nullable = false)
     private int usedCount;
 
@@ -61,6 +75,10 @@ public class CouponJpaEntity {
     public Instant getValidFrom() { return validFrom; }
     public Instant getValidTo() { return validTo; }
     public Integer getMaxTotalUses() { return maxTotalUses; }
+    public CouponScope getScope() { return scope; }
+    public String getProductIds() { return productIds; }
+    public String getCategoryIds() { return categoryIds; }
+    public Integer getMaxUsesPerUser() { return maxUsesPerUser; }
     public int getUsedCount() { return usedCount; }
     public Instant getCreatedAt() { return createdAt; }
 
@@ -72,6 +90,10 @@ public class CouponJpaEntity {
     public void setValidFrom(Instant validFrom) { this.validFrom = validFrom; }
     public void setValidTo(Instant validTo) { this.validTo = validTo; }
     public void setMaxTotalUses(Integer maxTotalUses) { this.maxTotalUses = maxTotalUses; }
+    public void setScope(CouponScope scope) { this.scope = scope; }
+    public void setProductIds(String productIds) { this.productIds = productIds; }
+    public void setCategoryIds(String categoryIds) { this.categoryIds = categoryIds; }
+    public void setMaxUsesPerUser(Integer maxUsesPerUser) { this.maxUsesPerUser = maxUsesPerUser; }
     public void setUsedCount(int usedCount) { this.usedCount = usedCount; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

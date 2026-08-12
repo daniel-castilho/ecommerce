@@ -16,6 +16,7 @@ import com.loja.ordercheckout.domain.port.in.GetCartUseCase;
 import com.loja.ordercheckout.domain.port.out.OrderRepositoryPort;
 import com.loja.ordercheckout.domain.port.out.ShippingRatePort;
 import com.loja.productcatalog.domain.exception.InsufficientStockException;
+import com.loja.promotions.application.dto.DiscountLine;
 import com.loja.promotions.domain.exception.CouponNotApplicableException;
 import com.loja.promotions.domain.exception.CouponNotFoundException;
 import com.loja.promotions.domain.port.in.QuoteDiscountUseCase;
@@ -237,10 +238,20 @@ public class CheckoutBean implements Serializable {
             return Money.zero();
         }
         try {
-            return couponQuote.quote(couponCode.trim(), getSubtotal()).discountAmount();
+            return couponQuote.quote(couponCode.trim(), discountLines()).discountAmount();
         } catch (CouponNotFoundException | CouponNotApplicableException e) {
             return Money.zero();
         }
+    }
+
+    private List<DiscountLine> discountLines() {
+        if (cartView == null) {
+            return List.of();
+        }
+        return cartView.lines().stream()
+                .filter(CartLineView::available)
+                .map(line -> new DiscountLine(line.productId(), line.categoryIds(), line.lineTotal()))
+                .toList();
     }
 
     public Money getOrderTotal() {

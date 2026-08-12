@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -171,5 +172,102 @@ class CouponTest {
 
         coupon.deactivate();
         assertThat(coupon.isApplicableAt(NOW)).isFalse();
+    }
+
+    // ---- eligibility scope (ALL / PRODUCT / CATEGORY) ----
+
+    @Test
+    void create_allScope_withTargets_throws() {
+        assertThatThrownBy(() -> Coupon.create("SAVE", CouponType.FIXED,
+                new BigDecimal("5"), true, null, null, null,
+                CouponScope.ALL, Set.of("p1"), Set.of(), null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("ALL scope");
+    }
+
+    @Test
+    void create_productScope_withoutProducts_throws() {
+        assertThatThrownBy(() -> Coupon.create("SAVE", CouponType.FIXED,
+                new BigDecimal("5"), true, null, null, null,
+                CouponScope.PRODUCT, Set.of(), Set.of(), null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("product id");
+    }
+
+    @Test
+    void create_categoryScope_withoutCategories_throws() {
+        assertThatThrownBy(() -> Coupon.create("SAVE", CouponType.FIXED,
+                new BigDecimal("5"), true, null, null, null,
+                CouponScope.CATEGORY, Set.of(), Set.of(), null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("category id");
+    }
+
+    @Test
+    void create_maxUsesPerUserBelowOne_throws() {
+        assertThatThrownBy(() -> Coupon.create("SAVE", CouponType.FIXED,
+                new BigDecimal("5"), true, null, null, null,
+                CouponScope.ALL, Set.of(), Set.of(), 0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("per user");
+    }
+
+    @Test
+    void isLineEligible_allScope_acceptsEveryLine() {
+        Coupon coupon = Coupon.create("SAVE", CouponType.FIXED,
+                new BigDecimal("5"), true, null, null, null);
+
+        assertThat(coupon.isLineEligible("p1", Set.of(1L))).isTrue();
+        assertThat(coupon.isLineEligible(null, Set.of())).isTrue();
+    }
+
+    @Test
+    void isLineEligible_productScope_acceptsOnlyScopedProduct() {
+        Coupon coupon = Coupon.create("SAVE", CouponType.FIXED,
+                new BigDecimal("5"), true, null, null, null,
+                CouponScope.PRODUCT, Set.of("p1"), Set.of(), null);
+
+        assertThat(coupon.isLineEligible("p1", Set.of(1L))).isTrue();
+        assertThat(coupon.isLineEligible("p2", Set.of(1L))).isFalse();
+    }
+
+    @Test
+    void isLineEligible_categoryScope_acceptsSharedCategoryLines() {
+        Coupon coupon = Coupon.create("SAVE", CouponType.FIXED,
+                new BigDecimal("5"), true, null, null, null,
+                CouponScope.CATEGORY, Set.of(), Set.of(3L, 7L), null);
+
+        assertThat(coupon.isLineEligible("p1", Set.of(1L, 7L))).isTrue();
+        assertThat(coupon.isLineEligible("p2", Set.of(1L))).isFalse();
+        assertThat(coupon.isLineEligible("p3", Set.of())).isFalse();
+        assertThat(coupon.isLineEligible("p4", null)).isFalse();
+    }
+
+    @Test
+    void canBeUsedByUser_respectsPerUserCap() {
+        Coupon coupon = Coupon.create("SAVE", CouponType.FIXED,
+                new BigDecimal("5"), true, null, null, null,
+                CouponScope.ALL, Set.of(), Set.of(), 2);
+
+        assertThat(coupon.canBeUsedByUser(0)).isTrue();
+        assertThat(coupon.canBeUsedByUser(1)).isTrue();
+        assertThat(coupon.canBeUsedByUser(2)).isFalse();
+    }
+
+    @Test
+    void canBeUsedByUser_noCap_isAlwaysTrue() {
+        Coupon coupon = Coupon.create("SAVE", CouponType.FIXED,
+                new BigDecimal("5"), true, null, null, null);
+
+        assertThat(coupon.canBeUsedByUser(10)).isTrue();
+    }
+
+    @Test
+    void reconstitute_defaultsMissingScopeToAll() {
+        Coupon coupon = Coupon.reconstitute("c-1", "SAVE", CouponType.FIXED,
+                new BigDecimal("5"), true, null, null, null, null,
+                Set.of(), Set.of(), null, 0, Instant.now());
+
+        assertThat(coupon.getScope()).isEqualTo(CouponScope.ALL);
     }
 }
