@@ -6,6 +6,18 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.18.4](docs/releases/v0.18.4.md) — 2026-08-11
+
+**Hardening: guest-cart edge cases + atomic coupon redemption**
+Checkout rejects cart lines whose product is missing or no longer ACTIVE (clean
+`CartProductNotAvailableException` instead of ordering stale inventory). The guest-cart
+merge can no longer fail a login: optimistic-lock conflicts retry on fresh transactions
+and any other failure is logged and swallowed. Coupon invariants are tightened: `create()`
+rejects a reversed validity window, `applyCoupon()` refuses a second coupon, and redemption
+reads under a pessimistic write lock so concurrent checkouts can never over-book
+`used_count`. Covered by new unit tests, a guest→merge→coupon→checkout IT, and a concurrent
+redemption IT.
+
 ## [v0.18.3](docs/releases/v0.18.3.md) — 2026-08-11
 
 **Confirm modal no-JSF fallback submits via `requestSubmit`; logout form fix**

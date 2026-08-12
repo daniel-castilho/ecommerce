@@ -8,6 +8,36 @@ Full historical write-ups of every lesson remain in git history of this file.
 
 ---
 
+## 40. A read-modify-write on a shared counter is a race no matter how careful the domain is (2026-08-11)
+
+Coupon `used_count` was incremented by loading the coupon, checking the cap, calling
+`recordUsage()` and saving — two concurrent checkouts could both read `used_count == cap - 1`
+and both write, exceeding `maxTotalUses`. Domain logic cannot fix this alone. **Golden
+rules:**
+
+1. Serialize the read at the persistence seam: `SELECT ... FOR UPDATE` via
+   `query.setLockMode(PESSIMISTIC_WRITE)` on a dedicated `findByCodeForUpdate` port method,
+   then keep the domain increment under the same transaction.
+2. Alternatively use a single atomic statement:
+   `UPDATE ... SET used_count = used_count + 1 WHERE used_count < max_total_uses`.
+3. Prove it with a concurrent IT (N threads racing against a small cap) — it must yield
+   exactly `cap` successes. Mock-based unit tests cannot catch this class of bug.
+
+## 39. Retry on an optimistic-lock conflict must live outside the transactional seam (2026-08-11)
+
+The guest-cart merge (`CartApplicationService.merge`) can hit
+`CartConcurrentModificationException` when the user's cart was modified concurrently.
+Retrying inside the same `@Transactional` method is pointless: the persistence context is
+already marked rollback-only and re-reads the stale version. **Golden rules:**
+
+1. Put the retry loop in the non-transactional caller (the `GuestCartMergeObserver`), where
+   each re-invocation of the use case starts a fresh transaction and fresh persistence
+   context.
+2. Never let a best-effort side effect (cart merge on login) fail the primary flow (login):
+   bounded retries, then log and swallow — and always reset the session state.
+
+---
+
 ## 38. A confirm modal's no-JSF fallback must submit the form, not re-click the guarded button (2026-08-11)
 
 The admin "Resend" flow: the resend button carries

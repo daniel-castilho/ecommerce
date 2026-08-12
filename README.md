@@ -62,7 +62,7 @@ https://localhost:9443/web/
 
 ## Current State
 
-**Latest tag: [v0.18.3](docs/releases/v0.18.3.md)** (2026-08-11)
+**Latest tag: [v0.18.4](docs/releases/v0.18.4.md)** (2026-08-11)
 
 - **Persistent cart** (S1–S12): add from product detail or catalog card; manage quantities on
   `/web/order-checkout/cart.xhtml`; checkout from a durable cart cleared only after a confirmed
@@ -85,6 +85,10 @@ https://localhost:9443/web/
 - **v0.18.3 fixes**: the confirm modal's no-JSF fallback now submits via
   `form.requestSubmit(el)` (the old `el.click()` hit the guarded button's `return false`
   and silently cancelled the submit), and the profile logout lives in a proper `<h:form>`.
+- **v0.18.4 hardening**: checkout rejects lines whose product is missing or no longer
+  ACTIVE; the guest-cart merge can no longer fail a login (retry + isolation in the
+  observer); `Coupon.create` enforces the validity window, `Order.applyCoupon` refuses a
+  double apply, and redemption serializes `used_count` under a pessimistic write lock.
 - **Coupons** (`promotions`): admin create/list, checkout discount quote, snapshot on the order (V22/V23).
 - **Wishlist** (S1–S10): detail toggle, list page, catalog ♥/♡.
 - **Reviews & Ratings** (`product-reviews`): submit, summary, verified purchase, admin moderation.
@@ -119,10 +123,10 @@ mvn test -Dtest='*Test' -DfailIfNoTests=false
 - PDF reports embed charts as images (currently data tables)
 - Optional coupon depth: category/product scope, per-user redemption limits
 
-> Hardening item 4 (guest-cart edge cases, cart↔coupon regression smoke) is **done**:
-> checkout rejects non-ACTIVE products, guest merge never fails login, coupon window/double-apply
-> invariants, and atomic `used_count` redemption, all covered by unit tests and a guest→merge→coupon
-> →checkout IT.
+> Hardening item 4 (guest-cart edge cases, cart↔coupon regression smoke) is **done
+> (v0.18.4)**: checkout rejects non-ACTIVE products, guest merge never fails login, coupon
+> window/double-apply invariants, and atomic `used_count` redemption, covered by unit tests
+> and a guest→merge→coupon→checkout IT.
 
 ## Documentation
 
