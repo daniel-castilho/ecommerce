@@ -8,6 +8,36 @@ Full historical write-ups of every lesson remain in git history of this file.
 
 ---
 
+## 37. A component registered as a Facelets tag must be a Facelets tag, not a JSF composite (2026-08-11)
+
+`confirm-modal.xhtml` was registered in `loja.taglib.xml` as a Facelets tag
+(`<tag><source>tags/confirm-modal.xhtml</source></tag>`) but implemented as a JSF
+composite (`cc:interface` / `cc:implementation`, `xmlns:cc`). Admin pages that used it
+500'd at render. The rewrite to a plain Facelets tag (`<ui:composition>` with EL
+attributes and no `cc:` namespace) fixed it. Separately, the inline script used `&&`,
+which is an illegal XML character — Facelets parse aborts on the raw `&`; it must be
+escaped as `&amp;&amp;`.
+
+**Golden rule:** the taglib `<source>` slot means literal Facelets-tag semantics. If a
+page 500s only on pages using a "shared component", check whether it is registered as a
+Facelets tag but written as a composite; and in XHTML attribute/script contexts, always
+escape `&` as `&amp;` (extends lesson #22's "Facelets is strict XML").
+
+## 36. A @ApplicationScoped scheduled task must be cancelled on @Destroyed, or a hot redeploy leaks a zombie poller (2026-08-11)
+
+`NotificationOutboxDispatcher` started its 5 s fixed-delay poller on
+`@Initialized(ApplicationScoped.class)` but never cancelled it. A hot redeploy started a
+**second** poller while the previous app instance's task kept running against a destroyed
+Weld context, logging `ContextNotActiveException` every 5 s. The fix stores the
+`ScheduledFuture` in a volatile field and cancels it (`cancel(false)`) on
+`@Destroyed(ApplicationScoped.class)`.
+
+**Golden rule:** any long-lived `ManagedScheduledExecutorService` task started by a CDI
+lifecycle observer needs a symmetric stop on the matching `@Destroyed` observer. Symptom
+of a leak: a recurring poller that keeps running — and logging context errors — after a
+redeploy/stop. `cancel(false)` is enough for a polling task (no runnable "may be running"
+concern beyond the next tick).
+
 ## 35. Raw-SQL timestamp inserts must mimic the app's timezone or rows are "in the future" (2026-08-10)
 
 Smoke-testing the Phase D outbox poller, I inserted due rows from psql with bare `now()` into a
