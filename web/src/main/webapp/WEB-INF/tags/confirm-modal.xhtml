@@ -180,7 +180,14 @@
                 }
               } else {
                 var el = document.getElementById(targetId)
-                if (el) el.click()
+                if (el) {
+                  var form = el.form || el.closest("form")
+                  if (form &amp;&amp; typeof form.requestSubmit === "function") {
+                    form.requestSubmit(el)
+                  } else {
+                    el.click()
+                  }
+                }
               }
             } finally {
               hide()

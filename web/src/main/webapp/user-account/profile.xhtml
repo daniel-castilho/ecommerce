@@ -15,7 +15,9 @@
             <h:outputLink value="/user-account/profile.xhtml">Profile</h:outputLink> |
             <h:outputLink value="/user-account/address-book.xhtml">Address Book</h:outputLink> |
             <h:outputLink value="/user-account/admin/users.xhtml" rendered="#{userBean.hasRole('ADMIN')}">Admin</h:outputLink> |
-            <h:commandLink value="Logout" action="#{loginBean.logout}" />
+            <h:form>
+                <h:commandLink value="Logout" action="#{loginBean.logout}" />
+            </h:form>
         </p>
 
         <h:messages showDetail="true" showSummary="false" styleClass="messages" />

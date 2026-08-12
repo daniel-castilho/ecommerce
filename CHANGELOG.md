@@ -6,6 +6,15 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.18.3](docs/releases/v0.18.3.md) — 2026-08-11
+
+**Confirm modal no-JSF fallback submits via `requestSubmit`; logout form fix**
+The admin "Resend" confirm button silently did nothing on pages without `faces.js`: the
+no-JSF fallback called `el.click()` on the guarded button, whose `return false` onclick
+cancelled the submit. It now submits the real form via `form.requestSubmit(el)` (button
+name/value included, so the JSF action resolves), verified end-to-end in a real browser
+(row resets to PENDING). Profile logout is also wrapped in a proper `<h:form>`.
+
 ## [v0.18.2](docs/releases/v0.18.2.md) — 2026-08-11
 
 **QA fixes: admin resend + poller shutdown hygiene**

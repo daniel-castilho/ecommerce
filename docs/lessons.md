@@ -8,6 +8,23 @@ Full historical write-ups of every lesson remain in git history of this file.
 
 ---
 
+## 38. A confirm modal's no-JSF fallback must submit the form, not re-click the guarded button (2026-08-11)
+
+The admin "Resend" flow: the resend button carries
+`onclick="lojaConfirm.show(...); return false;"` to open the modal and prevent the
+default submit. On pages without `faces.js` (`jsf` undefined) the modal's Confirm
+handler fell back to `el.click()` on that same button — which re-ran
+`lojaConfirm.show(...); return false;` and silently cancelled the submit. The form
+never posted, so the action never ran (row stayed EXHAUSTED). Fix: submit the real
+form via `el.form.requestSubmit(el)` — `requestSubmit` fires the actual submit,
+includes the button's `name/value` so the JSF action resolves, and does **not** run
+the button's `onclick`. Only fall back to `el.click()` when `requestSubmit` is absent.
+
+Related: the codegpt extension's patchright harness disables inline scripts via CDP
+(`Emulation.setScriptExecutionDisabled`), so `<script>` bodies and `onclick` attributes
+never execute in it — a modal that "does nothing" under that harness may be fine in a
+real browser. Verify web-layer smoke tests in a plain Playwright/real browser.
+
 ## 37. A component registered as a Facelets tag must be a Facelets tag, not a JSF composite (2026-08-11)
 
 `confirm-modal.xhtml` was registered in `loja.taglib.xml` as a Facelets tag

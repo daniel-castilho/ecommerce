@@ -62,7 +62,7 @@ https://localhost:9443/web/
 
 ## Current State
 
-**Latest tag: [v0.18.2](docs/releases/v0.18.2.md)** (2026-08-11)
+**Latest tag: [v0.18.3](docs/releases/v0.18.3.md)** (2026-08-11)
 
 - **Persistent cart** (S1–S12): add from product detail or catalog card; manage quantities on
   `/web/order-checkout/cart.xhtml`; checkout from a durable cart cleared only after a confirmed
@@ -82,6 +82,9 @@ https://localhost:9443/web/
   Best-effort: SMTP failures never block checkout; respects `UserProfile.notificationsEnabled`.
 - **v0.18.2 QA fixes**: admin delivery-log "Resend" verifies (tag-rewrite of the confirm
   modal + `&&` escaping) and the outbox poller shuts down cleanly on app redeploy/stop.
+- **v0.18.3 fixes**: the confirm modal's no-JSF fallback now submits via
+  `form.requestSubmit(el)` (the old `el.click()` hit the guarded button's `return false`
+  and silently cancelled the submit), and the profile logout lives in a proper `<h:form>`.
 - **Coupons** (`promotions`): admin create/list, checkout discount quote, snapshot on the order (V22/V23).
 - **Wishlist** (S1–S10): detail toggle, list page, catalog ♥/♡.
 - **Reviews & Ratings** (`product-reviews`): submit, summary, verified purchase, admin moderation.
