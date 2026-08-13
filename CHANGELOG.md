@@ -6,6 +6,15 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.19.2](docs/releases/v0.19.2.md) — 2026-08-13
+
+**Order notification emails are multipart/alternative**
+The outbox snapshots an inline-styled HTML variant (`body_html`, V30) next to the plain-text body
+at claim time and the poller sends `multipart/alternative` (`text/plain` + `text/html`) from those
+stored snapshots. One shared HTML layout with design-token colors, HTML-escaped user/catalog
+strings; resend re-sends the same snapshots, pre-V30 rows stay text-only. No new dependency,
+checkout still never blocks on SMTP.
+
 ## [v0.19.1](docs/releases/v0.19.1.md) — 2026-08-13
 
 **Admin PDF reports embed vector charts**

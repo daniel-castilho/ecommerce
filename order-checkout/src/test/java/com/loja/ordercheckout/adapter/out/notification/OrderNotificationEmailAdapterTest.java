@@ -63,6 +63,10 @@ class OrderNotificationEmailAdapterTest {
         assertThat(claimed.getBody())
                 .contains("- QA Test Widget x 1 ($29.90)")
                 .contains("Total: $29.90");
+        assertThat(claimed.getBodyHtml())
+                .contains("QA Test Widget x 1")
+                .contains("Total")
+                .contains("You\u2019re receiving this because you placed an order at Loja.");
     }
 
     @Test

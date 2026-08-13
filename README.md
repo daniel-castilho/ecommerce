@@ -86,6 +86,10 @@ https://localhost:9443/web/
   5 min) and the final of 3 failures escalates to **EXHAUSTED** (never polled again); admins see
   every delivery on `/web/admin-dashboard/notifications/list.xhtml` and can Re-queue a stuck row.
   Best-effort: SMTP failures never block checkout; respects `UserProfile.notificationsEnabled`.
+- **Order notification emails are multipart (v0.19.2)**: since V30 the outbox snapshots an
+  inline-styled **HTML variant** (`body_html`) alongside the text body at claim time and the poller
+  sends `multipart/alternative` (`text/plain` + `text/html`, design-token colors, HTML-escaped
+  user/catalog strings). Pre-V30 rows stay text-only; resend re-sends the same stored snapshots.
 - **v0.18.2 QA fixes**: admin delivery-log "Resend" verifies (tag-rewrite of the confirm
   modal + `&&` escaping) and the outbox poller shuts down cleanly on app redeploy/stop.
 - **v0.18.3 fixes**: the confirm modal's no-JSF fallback now submits via

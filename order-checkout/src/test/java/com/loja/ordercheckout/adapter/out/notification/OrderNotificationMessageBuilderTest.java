@@ -27,6 +27,11 @@ class OrderNotificationMessageBuilderTest {
                 .contains(order.getId())
                 .contains("- QA Test Widget x 2 ($59.80)")
                 .contains("Total: $59.80");
+        assertThat(draft.htmlBody())
+                .contains(order.getId())
+                .contains("QA Test Widget x 2")
+                .contains("$59.80")
+                .contains("You\u2019re receiving this because you placed an order at Loja.");
     }
 
     @Test
@@ -37,6 +42,9 @@ class OrderNotificationMessageBuilderTest {
         assertThat(draft.body())
                 .contains(order.getId())
                 .contains("Tracking number: AA123BR");
+        assertThat(draft.htmlBody())
+                .contains("AA123BR")
+                .contains("is on its way");
     }
 
     @Test
@@ -48,6 +56,9 @@ class OrderNotificationMessageBuilderTest {
         assertThat(draft.body())
                 .contains(order.getId())
                 .contains("Reason: Item was damaged");
+        assertThat(draft.htmlBody())
+                .contains("Reason: Item was damaged")
+                .contains("We will review it shortly.");
     }
 
     @Test
@@ -62,6 +73,9 @@ class OrderNotificationMessageBuilderTest {
                 .contains(order.getId())
                 .contains("Amount: $59.80")
                 .contains("Reason: damaged");
+        assertThat(draft.htmlBody())
+                .contains("$59.80")
+                .contains("Reason: damaged");
     }
 
     @Test
@@ -75,5 +89,17 @@ class OrderNotificationMessageBuilderTest {
         assertThat(draft.body())
                 .contains(order.getId())
                 .contains("Rejection detail: Camera not returned");
+        assertThat(draft.htmlBody())
+                .contains("Rejection detail: Camera not returned");
+    }
+
+    @Test
+    void htmlBody_escapesHtmlSignificantCharactersInUserSuppliedStrings() {
+        OrderNotificationMessageBuilder.Draft draft
+                = OrderNotificationMessageBuilder.refundRequested(order, "Broke <a href=\"x\"> & more");
+
+        assertThat(draft.htmlBody())
+                .contains("Broke &lt;a href=&quot;x&quot;&gt; &amp; more")
+                .doesNotContain("<a href=\"x\">");
     }
 }

@@ -11,7 +11,9 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
 import jakarta.mail.Transport;
 import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeBodyPart;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeMultipart;
 import jakarta.transaction.Transactional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -83,13 +85,39 @@ public class NotificationOutboxProcessor {
     }
 
     private void sendMime(NotificationDelivery delivery) throws MessagingException {
+        Transport.send(compose(delivery));
+    }
+
+    /**
+     * Builds the MIME message for one delivery: multipart/alternative ({@code text/plain}
+     * then {@code text/html}) when an HTML snapshot is present, plain-only otherwise
+     * (pre-Phase-E rows never fail on a missing HTML body).
+     */
+    static MimeMessage compose(NotificationDelivery delivery, Session mailSession)
+            throws MessagingException {
         String from = mailSession.getProperty("mail.from");
         MimeMessage msg = new MimeMessage(mailSession);
         msg.setFrom(new InternetAddress(from != null && !from.isBlank() ? from : DEFAULT_FROM));
         msg.setRecipient(Message.RecipientType.TO, new InternetAddress(delivery.getRecipientEmail()));
         msg.setSubject(delivery.getSubject());
-        msg.setText(delivery.getBody());
-        Transport.send(msg);
+        String html = delivery.getBodyHtml();
+        if (html == null || html.isBlank()) {
+            msg.setText(delivery.getBody());
+        } else {
+            MimeBodyPart textPart = new MimeBodyPart();
+            textPart.setText(delivery.getBody(), "utf-8", "plain");
+            MimeBodyPart htmlPart = new MimeBodyPart();
+            htmlPart.setContent(html, "text/html; charset=utf-8");
+            MimeMultipart alternative = new MimeMultipart("alternative");
+            alternative.addBodyPart(textPart);
+            alternative.addBodyPart(htmlPart);
+            msg.setContent(alternative);
+        }
+        return msg;
+    }
+
+    private MimeMessage compose(NotificationDelivery delivery) throws MessagingException {
+        return compose(delivery, mailSession);
     }
 
     /** Sends a single delivery; implementers must throw on failure. */

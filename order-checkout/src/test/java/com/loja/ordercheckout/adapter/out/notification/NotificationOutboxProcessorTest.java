@@ -5,9 +5,14 @@ import com.loja.ordercheckout.domain.model.NotificationDelivery;
 import com.loja.ordercheckout.domain.model.NotificationDeliveryStatus;
 import com.loja.ordercheckout.domain.port.out.NotificationDeliveryLogPort;
 import jakarta.mail.MessagingException;
+import jakarta.mail.Session;
+import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeMultipart;
 import java.util.List;
+import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -18,7 +23,14 @@ class NotificationOutboxProcessorTest {
 
     private static NotificationDelivery due() {
         return NotificationDelivery.create("ORDER_CONFIRMED:ord-1", "ORDER_CONFIRMED", "ord-1",
-                NotificationChannel.EMAIL, "buyer@example.com", "Order ord-1 confirmed", "Hi,\n\nbody");
+                NotificationChannel.EMAIL, "buyer@example.com", "Order ord-1 confirmed", "Hi,\n\nbody",
+                "<html><body><h1>Order ord-1 confirmed</h1></body></html>");
+    }
+
+    private static Session mailSession() {
+        Properties props = new Properties();
+        props.setProperty("mail.from", "noreply@loja.com");
+        return Session.getInstance(props);
     }
 
     @Test
@@ -61,5 +73,32 @@ class NotificationOutboxProcessorTest {
 
         verify(log, never()).updateStatus(org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void compose_htmlSnapshot_buildsMultipartAlternative() throws Exception {
+        MimeMessage msg = NotificationOutboxProcessor.compose(due(), mailSession());
+        msg.saveChanges();
+
+        MimeMultipart multipart = (MimeMultipart) msg.getContent();
+        assertThat(multipart.getCount()).isEqualTo(2);
+        assertThat(multipart.getBodyPart(0).getContentType()).startsWith("text/plain");
+        assertThat(multipart.getBodyPart(0).getContent().toString()).isEqualTo("Hi,\n\nbody");
+        assertThat(multipart.getBodyPart(1).getContentType()).startsWith("text/html");
+        assertThat(multipart.getBodyPart(1).getContent().toString())
+                .contains("<h1>Order ord-1 confirmed</h1>");
+    }
+
+    @Test
+    void compose_noHtmlSnapshot_fallsBackToTextOnly() throws Exception {
+        NotificationDelivery textOnly = NotificationDelivery.create("ORDER_CONFIRMED:ord-1",
+                "ORDER_CONFIRMED", "ord-1", NotificationChannel.EMAIL, "buyer@example.com",
+                "Order ord-1 confirmed", "Hi,\n\nbody");
+
+        MimeMessage msg = NotificationOutboxProcessor.compose(textOnly, mailSession());
+
+        assertThat(msg.getContent()).isInstanceOf(String.class);
+        assertThat(msg.getContentType()).startsWith("text/plain");
+        assertThat(msg.getContent().toString()).isEqualTo("Hi,\n\nbody");
     }
 }

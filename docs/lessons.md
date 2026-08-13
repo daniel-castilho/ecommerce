@@ -22,6 +22,18 @@ user dimension and an audit trail anyway. **Golden rules:**
 3. Never pre-aggregate per-user counts into a mutable column; the ledger is simpler, is
    race-free by construction, and doubles as audit data.
 
+## 42. Inspect a multipart MimeMessage only after saveChanges() (2026-08-13)
+
+Building a `MimeMessage` with a `MimeMultipart("alternative")` and reading it back via
+`msg.getContent()` before saving collapses both parts to `text/plain` (the subtype of the
+second part is lost). `Transport.send()` calls `saveChanges()` internally, so the shipped
+message is correct — the trap only shows up in unit tests that read the message before sending.
+
+**Golden rule:** when a test asserts on the parts of a composed MIME message, call
+`msg.saveChanges()` first, then read `getContent()`. Mirror the real send path.
+
+---
+
 ## 41. Thread raw per-line data through the port; don't pre-aggregate to a scalar (2026-08-11)
 
 `QuoteDiscountUseCase.quote(code, merchandiseSubtotal)` could not express PRODUCT/CATEGORY

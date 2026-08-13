@@ -33,9 +33,9 @@ public class NotificationDeliveryLogRepositoryAdapter implements NotificationDel
         int inserted = em.createNativeQuery(
                         "INSERT INTO tb_notification_delivery_log "
                                 + "(id, event_type, aggregate_id, channel, status, attempt_count, "
-                                + "idempotency_key, recipient_email, subject, body, next_attempt_at, "
-                                + "created_at, updated_at) "
-                                + "VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13) "
+                                + "idempotency_key, recipient_email, subject, body, body_html, "
+                                + "next_attempt_at, created_at, updated_at) "
+                                + "VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14) "
                                 + "ON CONFLICT (idempotency_key) DO NOTHING")
                 .setParameter(1, delivery.getId())
                 .setParameter(2, delivery.getEventType())
@@ -47,9 +47,10 @@ public class NotificationDeliveryLogRepositoryAdapter implements NotificationDel
                 .setParameter(8, delivery.getRecipientEmail())
                 .setParameter(9, delivery.getSubject())
                 .setParameter(10, delivery.getBody())
-                .setParameter(11, delivery.getNextAttemptAt())
-                .setParameter(12, delivery.getCreatedAt())
-                .setParameter(13, delivery.getUpdatedAt())
+                .setParameter(11, delivery.getBodyHtml())
+                .setParameter(12, delivery.getNextAttemptAt())
+                .setParameter(13, delivery.getCreatedAt())
+                .setParameter(14, delivery.getUpdatedAt())
                 .executeUpdate();
         return inserted > 0;
     }

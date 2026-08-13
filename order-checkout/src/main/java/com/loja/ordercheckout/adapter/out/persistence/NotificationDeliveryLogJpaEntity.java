@@ -54,6 +54,9 @@ public class NotificationDeliveryLogJpaEntity {
     @Column(columnDefinition = "text")
     private String body;
 
+    @Column(name = "body_html", columnDefinition = "text")
+    private String bodyHtml;
+
     @Column(name = "next_attempt_at")
     private Instant nextAttemptAt;
 
@@ -78,6 +81,7 @@ public class NotificationDeliveryLogJpaEntity {
         this.recipientEmail = delivery.getRecipientEmail();
         this.subject = delivery.getSubject();
         this.body = delivery.getBody();
+        this.bodyHtml = delivery.getBodyHtml();
         this.nextAttemptAt = delivery.getNextAttemptAt();
         this.createdAt = delivery.getCreatedAt();
         this.updatedAt = delivery.getUpdatedAt();
@@ -86,7 +90,7 @@ public class NotificationDeliveryLogJpaEntity {
     public NotificationDelivery toDomain() {
         return NotificationDelivery.reconstitute(id, eventType, aggregateId, channel,
                 idempotencyKey, status, attemptCount, errorMessage, recipientEmail,
-                subject, body, nextAttemptAt, createdAt, updatedAt);
+                subject, body, bodyHtml, nextAttemptAt, createdAt, updatedAt);
     }
 
     public String getId() { return id; }
@@ -110,6 +114,8 @@ public class NotificationDeliveryLogJpaEntity {
     public String getSubject() { return subject; }
 
     public String getBody() { return body; }
+
+    public String getBodyHtml() { return bodyHtml; }
 
     public Instant getNextAttemptAt() { return nextAttemptAt; }
 

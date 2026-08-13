@@ -57,7 +57,8 @@ class NotificationDeliveryLogRepositoryIT extends AbstractIntegrationTest {
 
     private NotificationDelivery draft(String idempotencyKey, String event, String aggregateId) {
         return NotificationDelivery.create(idempotencyKey, event, aggregateId, NotificationChannel.EMAIL,
-                "buyer@example.com", "Order " + aggregateId + " confirmed", "Hi,\n\nYour order is confirmed.");
+                "buyer@example.com", "Order " + aggregateId + " confirmed", "Hi,\n\nYour order is confirmed.",
+                "<html><body><h1>Order " + aggregateId + " confirmed</h1></body></html>");
     }
 
     /** Opens the backoff gate so a FAILED row becomes due again (simulates elapsed backoff). */
@@ -96,6 +97,21 @@ class NotificationDeliveryLogRepositoryIT extends AbstractIntegrationTest {
         assertThat(stored.getRecipientEmail()).isEqualTo("buyer@example.com");
         assertThat(stored.getSubject()).isEqualTo("Order o-1 confirmed");
         assertThat(stored.getBody()).contains("Your order is confirmed.");
+        assertThat(stored.getBodyHtml())
+                .contains("<h1>Order o-1 confirmed</h1>");
+    }
+
+    @Test
+    void claim_withoutHtmlBody_keepsBodyHtmlNull() {
+        NotificationDelivery delivery = NotificationDelivery.create("ORDER_CONFIRMED:text-only",
+                "ORDER_CONFIRMED", "o-2", NotificationChannel.EMAIL, "buyer@example.com",
+                "Order o-2 confirmed", "Hi,\n\nYour order is confirmed.");
+
+        boolean claimed = inTx(() -> adapter.claim(delivery));
+
+        assertThat(claimed).isTrue();
+        NotificationDelivery stored = inTx(() -> find("ORDER_CONFIRMED:text-only"));
+        assertThat(stored.getBodyHtml()).isNull();
     }
 
     @Test
@@ -231,7 +247,7 @@ class NotificationDeliveryLogRepositoryIT extends AbstractIntegrationTest {
     void findDue_excludesRowsWithoutBodySnapshot() {
         NotificationDelivery noBody = NotificationDelivery.reconstitute("id-x", "ORDER_CONFIRMED", "a",
                 NotificationChannel.EMAIL, "ORDER_CONFIRMED:no-body", NotificationDeliveryStatus.PENDING,
-                0, null, null, null, null, Instant.now(), Instant.now(), Instant.now());
+                0, null, null, null, null, null, Instant.now(), Instant.now(), Instant.now());
         inTx(() -> adapter.claim(noBody));
 
         List<NotificationDelivery> due = inTx(() -> adapter.findDue(10));

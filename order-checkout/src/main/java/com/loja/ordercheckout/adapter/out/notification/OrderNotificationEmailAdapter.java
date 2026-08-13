@@ -77,7 +77,8 @@ public class OrderNotificationEmailAdapter implements NotificationPort {
         }
         String idempotencyKey = event + ":" + order.getId();
         NotificationDelivery delivery = NotificationDelivery.create(idempotencyKey, event,
-                order.getId(), CHANNEL, order.getCustomerEmail(), draft.subject(), draft.body());
+                order.getId(), CHANNEL, order.getCustomerEmail(), draft.subject(), draft.body(),
+                draft.htmlBody());
         if (deliveryLog.claim(delivery)) {
             LOG.info("Enqueued " + event + " email for order " + order.getId());
         } else {

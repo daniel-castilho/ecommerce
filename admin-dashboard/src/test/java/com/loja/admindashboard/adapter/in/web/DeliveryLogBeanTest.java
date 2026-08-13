@@ -45,7 +45,7 @@ class DeliveryLogBeanTest {
     private NotificationDelivery delivery(String key, NotificationDeliveryStatus status) {
         return NotificationDelivery.reconstitute("id-" + key, "ORDER_CONFIRMED", "o-1",
                 NotificationChannel.EMAIL, key, status, 3, "boom",
-                "buyer@example.com", "Order o-1 confirmed", "Body", null,
+                "buyer@example.com", "Order o-1 confirmed", "Body", "<html>Body</html>", null,
                 java.time.Instant.now(), java.time.Instant.now());
     }
 
@@ -87,7 +87,7 @@ class DeliveryLogBeanTest {
     void errorPreview_truncatesLongErrors() {
         NotificationDelivery longError = NotificationDelivery.reconstitute("id-b", "ORDER_CONFIRMED", "o-1",
                 NotificationChannel.EMAIL, "ORDER_CONFIRMED:b", NotificationDeliveryStatus.FAILED, 1,
-                "x".repeat(200), "buyer@example.com", "Subject", "Body", null,
+                "x".repeat(200), "buyer@example.com", "Subject", "Body", null, null,
                 java.time.Instant.now(), java.time.Instant.now());
 
         assertThat(bean.errorPreview(longError)).endsWith("…");
