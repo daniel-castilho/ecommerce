@@ -145,24 +145,3 @@ mvn test -Dtest='*Test' -DfailIfNoTests=false
 | [docs/releases/](docs/releases/)                     | Detailed release notes                                 |
 | [tasks/](tasks/)                                     | Backlogs, technical specs and implementation sequences |
 | [CHANGELOG.md](CHANGELOG.md)                         | High-level release index                               |
-
-```
-
-*(Opcional no mesmo commit: no `docs/testing-playbook.md`, na seção **Do not**, troque a linha do guest cart por algo como: “multi-coupon stack or new libs without a story + human OK”.)*
-
----
-
-### Próximo passo
-
-O storefront core (catálogo, reviews, wishlist, cupom, cart + guest, checkout) está **maduro**. Eu priorizaria nesta ordem:
-
-| Prioridade | O quê | Por quê |
-|------------|--------|---------|
-| **1. Hygiene de release** | Tag **v0.17.0** (guest cart S12 + FTS V25) + notas + CHANGELOG | `main` já passou do tag; doc e histórico ficam honestos |
-| **2. Smoke de regressão** | Guest → add → login (merge) → cupom → pedido → cart vazio; busca FTS no catálogo | Fecha o que acabou de entrar sem épico novo |
-| **3. Próximo épico de produto** | **Notificações** (pedido confirmado / status) *ou* **provedor real de pagamento** (ainda mock) | Único gap grande de “loja de verdade”; há `docs/notification-system-guide.md` no repo |
-| **4. Evolução menor** | Cupom por categoria/produto (S11 do épico de cupons) | Só se quiser profundidade de promo antes de infra |
-
-**Recomendação objetiva:** faça **(1) + (2)** ainda hoje/amanhã. Depois escolha **notificações** se quiser valor de UX com mock de e-mail/outbox, ou **pagamento real** se o objetivo for fechar o caminho feliz comercial.
-
-```
