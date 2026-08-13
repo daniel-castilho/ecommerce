@@ -12,6 +12,9 @@ import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import java.io.Serializable;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /** Admin coupon list: search/filter, pagination, activate/deactivate. */
@@ -92,6 +95,11 @@ public class CouponManagementBean implements Serializable {
 
     public String newCoupon() {
         return "/admin-dashboard/coupons/create.xhtml?faces-redirect=true";
+    }
+
+    public String formatUtc(Instant instant) {
+        return instant == null ? null
+                : DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneOffset.UTC).format(instant);
     }
 
     public List<Coupon> getCoupons() { return coupons; }

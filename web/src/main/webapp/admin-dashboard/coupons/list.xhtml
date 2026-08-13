@@ -90,14 +90,10 @@
           </h:column>
           <h:column>
             <f:facet name="header">Valid</f:facet>
-            <h:outputText value="#{coupon.validFrom}" rendered="#{coupon.validFrom != null}">
-              <f:convertDateTime type="both" timeZone="UTC" pattern="yyyy-MM-dd HH:mm" />
-            </h:outputText>
+            <h:outputText value="#{couponManagementBean.formatUtc(coupon.validFrom)}" rendered="#{coupon.validFrom != null}" />
             <h:outputText value="—" rendered="#{coupon.validFrom == null}" />
             <h:outputText value=" → " rendered="#{coupon.validTo != null}" />
-            <h:outputText value="#{coupon.validTo}" rendered="#{coupon.validTo != null}">
-              <f:convertDateTime type="both" timeZone="UTC" pattern="yyyy-MM-dd HH:mm" />
-            </h:outputText>
+            <h:outputText value="#{couponManagementBean.formatUtc(coupon.validTo)}" rendered="#{coupon.validTo != null}" />
           </h:column>
           <h:column>
             <f:facet name="header">Action</f:facet>
