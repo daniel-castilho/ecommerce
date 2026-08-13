@@ -126,6 +126,20 @@ of a leak: a recurring poller that keeps running — and logging context errors 
 redeploy/stop. `cancel(false)` is enough for a polling task (no runnable "may be running"
 concern beyond the next tick).
 
+## 36. JSF `<f:convertDateTime>` cannot format `java.time.Instant` (2026-08-13)
+
+The admin coupon list 500'd with `Cannot format given Object as a Date` for any coupon with a
+validity window. `<f:convertDateTime>` accepts `java.util.Date`, `Calendar`, `Long` or a parseable
+`String` — **not** `java.time.Instant` (Jakarta Faces 4 / MyFaces). Throwing the domain `Instant`
+straight into the Facelet `convertDateTime` is the trap; it fails only when the value is non-null,
+so a list of windowless coupons appears fine.
+
+**Golden rule:** surface `Instant` to the Facelet as a pre-formatted `String` from the bean
+(e.g. `CouponManagementBean.formatUtc(Instant)` → `"yyyy-MM-dd HH:mm"` with `ZoneOffset.UTC`), and
+keep the `!= null` guards in the XHTML. Related: the `04:09` vs `00:09` shift on legacy seeded rows
+is the app's JVM `America/New_York` round-trip (see lesson 35) — new coupons written and read by
+the app display the exact UTC entered.
+
 ## 35. Raw-SQL timestamp inserts must mimic the app's timezone or rows are "in the future" (2026-08-10)
 
 Smoke-testing the Phase D outbox poller, I inserted due rows from psql with bare `now()` into a

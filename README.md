@@ -62,8 +62,12 @@ https://localhost:9443/web/
 
 ## Current State
 
-**Latest tag: [v0.19.0](docs/releases/v0.19.0.md)** (2026-08-11)
+**Latest tag: [v0.19.3](docs/releases/v0.19.3.md)** (2026-08-13)
 
+- **v0.19.3 coupon list fix + release smoke**: the admin coupon list no longer 500s on coupons
+  with a validity window (`<f:convertDateTime` can't format `Instant` — now rendered via
+  `CouponManagementBean.formatUtc`); `docs/testing-playbook.md` documents the required pre-tag
+  browser smoke (guest-cart merge, coupon checkout, notification SENT) with read-only SQL proofs.
 - **v0.19.0 coupon scope**: coupons target specific products/categories (`CouponScope`:
   ALL/PRODUCT/CATEGORY) and can cap redemptions per user; the checkout discounts only the
   eligible cart lines (V29 adds scope columns + the `tb_coupon_redemption` per-user ledger).

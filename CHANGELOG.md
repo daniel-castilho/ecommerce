@@ -6,6 +6,15 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.19.3](docs/releases/v0.19.3.md) — 2026-08-13
+
+**Admin coupon list regression fix + documented release smoke**
+The admin coupon list 500'd (`Cannot format given Object as a Date`) for any coupon with a
+validity window because `<f:convertDateTime>` cannot format `java.time.Instant`; the window now
+renders via `CouponManagementBean.formatUtc(...)` with a regression test. `docs/testing-playbook.md`
+gains a "Release regression smoke" section — required browser steps + read-only SQL proofs —
+so UI regressions like this are caught before every tag.
+
 ## [v0.19.2](docs/releases/v0.19.2.md) — 2026-08-13
 
 **Order notification emails are multipart/alternative**
