@@ -101,6 +101,8 @@ GROUP BY u.email, l.product_id ORDER BY u.email;
 | Resend | `notifications/list` → **Resend** on a `PENDING`/`FAILED` row | No exception; `attempt_count` increments |
 
 > Regression note (v0.19.x): `Coupons` list broke with `Cannot format given Object as a Date` because `Instant` was fed to `<f:convertDateTime>`; fixed via `CouponManagementBean.formatUtc(...)`. If it 500s again, that helper or its EL usage is the culprit.
+>
+> Timezone caveat: `valid_from/valid_to` are `timestamp without time zone` mapped to `Instant`; Hibernate uses the JVM default zone for both writes and reads, so **new coupons round-trip the exact UTC the admin enters**. Only pre-existing seeded rows (written in an older zone) can display a shifted window — cosmetic, not a bug; do not "fix" the formatter.
 
 ---
 
