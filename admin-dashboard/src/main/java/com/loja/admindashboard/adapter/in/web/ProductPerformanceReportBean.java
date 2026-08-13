@@ -11,6 +11,7 @@ import java.util.Locale;
 
 import com.loja.admindashboard.application.dto.ChartBar;
 import com.loja.admindashboard.application.dto.CsvTable;
+import com.loja.admindashboard.application.dto.PdfChart;
 import com.loja.admindashboard.application.dto.PdfDocument;
 import com.loja.admindashboard.application.dto.PdfSection;
 import com.loja.admindashboard.domain.exception.ReportGenerationException;
@@ -189,6 +190,7 @@ public class ProductPerformanceReportBean implements Serializable {
     }
 
     private PdfDocument buildPdf() {
+        List<PdfChart> charts = List.of(new PdfChart("Units sold by category", getUnitsByCategoryChartBars(), List.of()));
         List<PdfSection> sections = new ArrayList<>();
         if (!report.topSellers().isEmpty()) {
             sections.add(new PdfSection("Top Sellers by Units",
@@ -212,7 +214,7 @@ public class ProductPerformanceReportBean implements Serializable {
                             .map(entry -> List.of(entry.categoryName(), formatUnits(entry.unitsSold())))
                             .toList()));
         }
-        return new PdfDocument("Product Performance Report", subtitle(), List.of(), sections);
+        return new PdfDocument("Product Performance Report", subtitle(), List.of(), charts, sections);
     }
 
     private List<List<String>> toRows(List<ProductPerformanceRow> rows) {

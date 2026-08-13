@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 
 import com.loja.admindashboard.application.dto.ChartLine;
 import com.loja.admindashboard.application.dto.CsvTable;
+import com.loja.admindashboard.application.dto.PdfChart;
 import com.loja.admindashboard.application.dto.PdfDocument;
 import com.loja.admindashboard.application.dto.PdfKeyValue;
 import com.loja.admindashboard.application.dto.PdfSection;
@@ -149,12 +150,13 @@ public class CustomerInsightsReportBean implements Serializable {
                 new PdfKeyValue("Repeat Customer Rate", formatPercent(report.repeatCustomerRate())),
                 new PdfKeyValue("Average LTV", formatMoney(report.averageLtv())),
                 new PdfKeyValue("Churn Rate", formatPercent(report.churnRate())));
+        List<PdfChart> charts = List.of(new PdfChart("New Customers by Date", List.of(), getNewCustomersChartLines()));
         List<PdfSection> sections = new ArrayList<>();
         sections.add(new PdfSection("New Customers by Date", List.of("Date", "New Customers"),
                 report.newCustomersSeries().stream()
                         .map(point -> List.of(formatDate(point.date()), formatCount(point.count())))
                         .toList()));
-        return new PdfDocument("Customer Insights Report", subtitle(), kpis, sections);
+        return new PdfDocument("Customer Insights Report", subtitle(), kpis, charts, sections);
     }
 
     private String subtitle() {

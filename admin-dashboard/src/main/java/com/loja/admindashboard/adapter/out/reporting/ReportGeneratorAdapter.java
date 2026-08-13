@@ -14,6 +14,7 @@ import com.lowagie.text.Document;
 import com.lowagie.text.Element;
 import com.lowagie.text.Font;
 import com.lowagie.text.FontFactory;
+import com.lowagie.text.Image;
 import com.lowagie.text.PageSize;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.Phrase;
@@ -25,6 +26,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 
 import com.loja.admindashboard.application.dto.CsvTable;
+import com.loja.admindashboard.application.dto.PdfChart;
 import com.loja.admindashboard.application.dto.PdfDocument;
 import com.loja.admindashboard.application.dto.PdfKeyValue;
 import com.loja.admindashboard.application.dto.PdfSection;
@@ -38,8 +40,10 @@ import com.loja.admindashboard.domain.port.out.ReportExportPort;
  * {@code --color-action-primary-hover}, {@code --color-text-secondary}) — see the
  * color constants below.
  *
- * <p>Right-sized: charts are not embedded as images; the underlying series is
- * exported as a data table instead (mirrors the S20/S21 right-sizing notes).
+ * <p>Since S23 the PDF embeds the report charts as vector graphics via
+ * {@link PdfChartDrawer}: any {@link PdfChart} in the payload is drawn with pure
+ * OpenPDF primitives on a template and placed between the KPI row and the tables,
+ * mirroring the chart the report page shows.
  */
 @ApplicationScoped
 public class ReportGeneratorAdapter implements ReportExportPort {
@@ -85,10 +89,13 @@ public class ReportGeneratorAdapter implements ReportExportPort {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         Document pdf = new Document(PageSize.A4, 36, 36, 48, 48);
         try {
-            PdfWriter.getInstance(pdf, out);
+            PdfWriter writer = PdfWriter.getInstance(pdf, out);
             pdf.open();
             addTitleBand(pdf, document);
             addKpiRow(pdf, document.kpis());
+            for (PdfChart chart : document.charts()) {
+                addChart(pdf, writer, chart);
+            }
             for (PdfSection section : document.sections()) {
                 addSection(pdf, section);
             }
@@ -97,6 +104,18 @@ public class ReportGeneratorAdapter implements ReportExportPort {
             throw new ReportGenerationException("Failed to generate PDF", e);
         }
         return out.toByteArray();
+    }
+
+    private static void addChart(Document pdf, PdfWriter writer, PdfChart chart) throws Exception {
+        Image image;
+        if (chart.isLineChart()) {
+            image = PdfChartDrawer.drawLineChart(writer, chart.heading(), chart.lines());
+        } else {
+            image = PdfChartDrawer.drawBarChart(writer, chart.heading(), chart.bars());
+        }
+        image.scaleToFit(PdfChartDrawer.CHART_WIDTH, PdfChartDrawer.CHART_HEIGHT);
+        pdf.add(image);
+        pdf.add(spacer());
     }
 
     private static void addTitleBand(Document pdf, PdfDocument document) throws Exception {

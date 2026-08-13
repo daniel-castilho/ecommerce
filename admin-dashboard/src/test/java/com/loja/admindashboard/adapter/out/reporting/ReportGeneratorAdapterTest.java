@@ -8,7 +8,10 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.loja.admindashboard.application.dto.ChartBar;
+import com.loja.admindashboard.application.dto.ChartLine;
 import com.loja.admindashboard.application.dto.CsvTable;
+import com.loja.admindashboard.application.dto.PdfChart;
 import com.loja.admindashboard.application.dto.PdfDocument;
 import com.loja.admindashboard.application.dto.PdfKeyValue;
 import com.loja.admindashboard.application.dto.PdfSection;
@@ -67,6 +70,7 @@ class ReportGeneratorAdapterTest {
                 "Revenue Report",
                 "01/07/2026 - 31/07/2026 (Daily)",
                 List.of(new PdfKeyValue("Total Revenue", "R$ 1.234,50")),
+                List.of(),
                 List.of(new PdfSection("Revenue by payment method",
                         List.of("Payment Method", "Revenue"),
                         List.of(List.of("card", "R$ 800,00"), List.of("pix", "R$ 434,50")))));
@@ -78,8 +82,60 @@ class ReportGeneratorAdapterTest {
     }
 
     @Test
+    void generatePdf_withChart_sameDocumentIsLargerThanTableOnlyVersion() {
+        PdfDocument tableOnly = new PdfDocument(
+                "Revenue Report", null, List.of(),
+                List.of(),
+                List.of(new PdfSection("Revenue over time", List.of("Date", "Revenue"),
+                        List.of(List.of("01/07/2026", "R$ 10,00"), List.of("02/07/2026", "R$ 20,00")))));
+        PdfDocument withChart = new PdfDocument(
+                "Revenue Report", null, List.of(),
+                List.of(new PdfChart("Revenue over time",
+                        List.of(new ChartBar("01/07", "R$ 10,00", 50), new ChartBar("02/07", "R$ 20,00", 100)),
+                        List.of())),
+                List.of(new PdfSection("Revenue over time", List.of("Date", "Revenue"),
+                        List.of(List.of("01/07/2026", "R$ 10,00"), List.of("02/07/2026", "R$ 20,00")))));
+
+        byte[] tableOnlyBytes = adapter.generatePdf(tableOnly);
+        byte[] withChartBytes = adapter.generatePdf(withChart);
+
+        assertThat(new String(withChartBytes, 0, 5, StandardCharsets.US_ASCII)).isEqualTo("%PDF-");
+        assertThat(withChartBytes.length).isGreaterThan(tableOnlyBytes.length);
+    }
+
+    @Test
+    void generatePdf_withEmptyChartSeries_rendersChartAreaWithoutThrowing() {
+        PdfDocument document = new PdfDocument(
+                "Customer Insights Report", null, List.of(),
+                List.of(new PdfChart("New Customers by Date", List.of(), List.of())),
+                List.of(new PdfSection("New Customers by Date", List.of("Date", "New Customers"), List.of())));
+
+        byte[] bytes = adapter.generatePdf(document);
+
+        assertThat(new String(bytes, 0, 5, StandardCharsets.US_ASCII)).isEqualTo("%PDF-");
+    }
+
+    @Test
+    void generatePdf_withLineChart_embedsLineSeries() {
+        PdfDocument document = new PdfDocument(
+                "Customer Insights Report", null, List.of(),
+                List.of(new PdfChart("New Customers by Date", List.of(),
+                        List.of(new ChartLine("01/06", "2", 0, 50),
+                                new ChartLine("02/06", "4", 50, 25),
+                                new ChartLine("03/06", "8", 100, 0)))),
+                List.of(new PdfSection("New Customers by Date", List.of("Date", "New Customers"),
+                        List.of(List.of("01/06/2026", "2"), List.of("02/06/2026", "4"),
+                                List.of("03/06/2026", "8")))));
+
+        byte[] bytes = adapter.generatePdf(document);
+
+        assertThat(new String(bytes, 0, 5, StandardCharsets.US_ASCII)).isEqualTo("%PDF-");
+        assertThat(bytes.length).isGreaterThan(500);
+    }
+
+    @Test
     void generatePdf_withSectionWithoutColumns_doesNotThrow() {
-        PdfDocument document = new PdfDocument("Empty Report", null, List.of(),
+        PdfDocument document = new PdfDocument("Empty Report", null, List.of(), List.of(),
                 List.of(new PdfSection("No data", List.of(), List.of())));
 
         byte[] bytes = adapter.generatePdf(document);

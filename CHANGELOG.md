@@ -6,6 +6,14 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.19.1](docs/releases/v0.19.1.md) — 2026-08-13
+
+**Admin PDF reports embed vector charts**
+Revenue, Product Performance and Customer Insights PDF exports now include a bar/line chart
+mirroring the on-screen series, drawn with pure OpenPDF vector primitives
+(`PdfChartDrawer`) using the design-token colors. Series reuse the UI chart DTOs — no
+re-query, no new dependency; CSV and the data tables are unchanged.
+
 ## [v0.19.0](docs/releases/v0.19.0.md) — 2026-08-11
 
 **Coupon eligibility scope + per-user redemption cap**

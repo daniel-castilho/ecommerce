@@ -73,6 +73,9 @@ https://localhost:9443/web/
   Checkout still requires an account.
 - **Postgres FTS ranking**: catalog text search ranks by `ts_rank` over name/SKU/short description
   (GIN index, V25); prefix `tsquery` with ILIKE fallback; default sort `RELEVANCE`.
+- **Admin reporting PDFs embed charts (v0.19.1)**: the Revenue, Product Performance and
+  Customer Insights PDF exports now draw vector bar/line charts (pure OpenPDF, token colors)
+  reflecting the on-screen series — CSV and tables unchanged.
 - **Order notifications** (Phase A+B+C): best-effort email for confirmed/shipped + refund events.
   Since Phase C the email is never sent on the request thread: checkout claims a **transactional
   outbox** row on `tb_notification_delivery_log` (V26+V27) with an idempotency key
@@ -123,7 +126,6 @@ mvn test -Dtest='*Test' -DfailIfNoTests=false
 
 - Real payment, shipping and notification providers (currently mocked — order email is real,
   payment/shipping still mocked)
-- PDF reports embed charts as images (currently data tables)
 
 > Coupon depth (category/product scope, per-user redemption limits) is **done (v0.19.0)**:
 > coupons restrict discounts to specific products/categories, cap redemptions per user via

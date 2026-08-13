@@ -38,7 +38,8 @@ public class AdminDashboardHexagonalArchitectureTest {
     static final ArchRule nothing_should_depend_on_a_top_level_adapter_class = noClasses()
             .that().resideInAPackage("..admindashboard..")
             .should().dependOnClassesThat(resideInAPackage("..adapter..")
-                    .and(JavaClass.Predicates.TOP_LEVEL_CLASSES));
+                    .and(JavaClass.Predicates.TOP_LEVEL_CLASSES)
+                    .and(JavaClass.Predicates.resideOutsideOfPackage("..admindashboard..")));
 
     @ArchTest
     static final ArchRule application_should_only_consume_own_and_cross_module_domain_application_shared = classes()

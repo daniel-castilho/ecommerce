@@ -17,6 +17,7 @@ import java.util.Map;
 
 import com.loja.admindashboard.application.dto.ChartBar;
 import com.loja.admindashboard.application.dto.CsvTable;
+import com.loja.admindashboard.application.dto.PdfChart;
 import com.loja.admindashboard.application.dto.PdfDocument;
 import com.loja.admindashboard.application.dto.PdfKeyValue;
 import com.loja.admindashboard.application.dto.PdfSection;
@@ -180,6 +181,7 @@ public class RevenueReportBean implements Serializable {
                 new PdfKeyValue("Shipping Revenue", formatMoney(report.shippingRevenue())),
                 new PdfKeyValue("Total Orders", Long.toString(report.orderCount())),
                 new PdfKeyValue("Average Order Value", formatMoney(report.averageOrderValue())));
+        List<PdfChart> charts = List.of(new PdfChart("Revenue over time", getRevenueChartBars(), List.of()));
         List<PdfSection> sections = new ArrayList<>();
         sections.add(new PdfSection("Revenue over time", List.of("Date", "Revenue"),
                 report.dailySeries().stream()
@@ -190,7 +192,7 @@ public class RevenueReportBean implements Serializable {
                         .sorted(Map.Entry.comparingByKey())
                         .map(entry -> List.of(entry.getKey(), formatMoney(entry.getValue())))
                         .toList()));
-        return new PdfDocument("Revenue Report", subtitle(), kpis, sections);
+        return new PdfDocument("Revenue Report", subtitle(), kpis, charts, sections);
     }
 
     private String subtitle() {
