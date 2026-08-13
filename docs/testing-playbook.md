@@ -46,6 +46,64 @@ This is not a public JSON API project. Exercise **ports / use cases**; Faces bea
 
 ---
 
+## Release regression smoke (browser)
+
+Run on Liberty against the **freshly built WAR** (`mvn clean package -pl web -am`, then `./scripts/run-liberty.sh`). Needs the dev DB migrated to the latest Flyway version and `docker compose up -d localstack` for product images.
+
+Known QA values in a stocked dev DB: login `qa.admin@loja.com` / `SmokeTest@123` (ADMIN + CUSTOMER); products `SKU-QA-001` (QA Test Widget, $29.90); coupons `SAVE10` (10% off, `ALL` scope) and `EXHAUST1` (5% off, exhausted). If a fresh DB shows fewer values, create a product and coupon from the admin dashboards first — the checklist does not depend on their exact ids.
+
+**Required — run before every release tag. Stop and fix on first failure.**
+
+| # | Step | Expected → verify |
+|---|------|-------------------|
+| 1 | Log in (`/web/user-account/login.xhtml`) | Land on catalog, no Faces error |
+| 2 | Catalog FTS: search `widget` | Only `QA Test Widget` returned |
+| 3 | Log out. As **guest**, add widget to cart, go to cart, click **Log in to check out** | Quantities merge with the user's existing cart (fold, not overwrite); single line per product |
+| 4 | `Cart` → `Proceed to checkout` | Step 1 review lists cart lines + subtotal |
+| 5 | Step 2: fill shipping address, **Check shipping rates** | PAC + SEDEX options shown with costs |
+| 6 | Step 3: email, payment token, coupon `SAVE10` → Continue | No validation error |
+| 7 | Step 4 Confirm: coupon + discount shown; subtotal − discount + shipping = total | Total ≥ 0; discount **not** applied to shipping |
+| 8 | **Place Order** | `/order-confirmed.xhtml?orderId=…`, status **CONFIRMED** |
+| 9 | Admin `/web/admin-dashboard/notifications/list.xhtml` | Row for that order's `ORDER_CONFIRMED`; Recipient = `qa.admin@loja.com` |
+
+**SQL proof (Postgres, `docker exec -it shop_db psql -U user -d shop`):**
+
+```sql
+-- order confirmed (substitute the orderId from the URL)
+SELECT id, user_id, status FROM tb_order WHERE id = '<orderId>';
+
+-- notification delivery recorded (best-effort; SENT only if a local SMTP sink is up)
+SELECT event_type, channel, status, attempt_count, recipient_email
+FROM tb_notification_delivery_log WHERE aggregate_id = '<orderId>';
+
+-- coupon redeemed exactly once per order, used_count incremented
+SELECT r.user_id, r.redeemed_at, c.used_count
+FROM tb_coupon_redemption r JOIN tb_coupon c ON c.id = r.coupon_id
+WHERE c.code = 'SAVE10' ORDER BY r.redeemed_at DESC LIMIT 1;
+
+-- guest cart folded (run right after step 3, before ordering): target user's cart has
+-- exactly one line per product with summed quantities (empty after step 8 clears the cart)
+SELECT u.email, l.product_id, SUM(l.quantity) AS qty
+FROM tb_cart_line l
+JOIN tb_cart ct ON ct.id = l.cart_id JOIN user_account u ON u.id = ct.user_id
+WHERE u.email = 'qa.admin@loja.com'
+GROUP BY u.email, l.product_id ORDER BY u.email;
+```
+
+**Optional — spot-check on the same session (do not block the tag):**
+
+| Area | Step | Expected |
+|------|------|----------|
+| Scoped coupon | Admin `Coupons` → **New coupon** (`PRODUCT` scope, list `SKU-QA-001`'s UUID, max 2 uses/user) → save → list | Renders with `Scope = PRODUCT`; `Valid` window formatted, page does **not** 500 |
+| Coupon guardrails | Admin coupon list shows `SAVE10` as Active, `EXHAUST1` as `1 / 1` | `Used / Max` reflects the redemption ledger |
+| Admin reports | `/web/admin-dashboard/reports/revenue.xhtml` → dates `dd/MM/yyyy` → **Generate** | Renders totals + chart, no Faces error; CSV/PDF export buttons present |
+| Empty cart guard | Checkout with an **empty** cart, click **Continue to shipping** | Stays on review (Step 1) with a "Add products to your cart before checking out" message; cannot reach shipping |
+| Resend | `notifications/list` → **Resend** on a `PENDING`/`FAILED` row | No exception; `attempt_count` increments |
+
+> Regression note (v0.19.x): `Coupons` list broke with `Cannot format given Object as a Date` because `Instant` was fed to `<f:convertDateTime>`; fixed via `CouponManagementBean.formatUtc(...)`. If it 500s again, that helper or its EL usage is the culprit.
+
+---
+
 ## Reading failures
 
 | Class | Signal | First move |

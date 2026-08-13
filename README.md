@@ -145,7 +145,7 @@ mvn test -Dtest='*Test' -DfailIfNoTests=false
 | Document                                             | Purpose                                                |
 | ---------------------------------------------------- | ------------------------------------------------------ |
 | [AGENTS.md](AGENTS.md)                               | Rules for AI agents and human contributors             |
-| [docs/testing-playbook.md](docs/testing-playbook.md) | Test pyramid, regression checklist, failure triage     |
+| [docs/testing-playbook.md](docs/testing-playbook.md) | Test pyramid, regression checklist, **release regression smoke**, failure triage |
 | [docs/design-system.md](docs/design-system.md)       | Design tokens, components and the “rule of two”        |
 | [docs/lessons.md](docs/lessons.md)                   | Hard-won lessons and golden rules                      |
 | [docs/releases/](docs/releases/)                     | Detailed release notes                                 |
