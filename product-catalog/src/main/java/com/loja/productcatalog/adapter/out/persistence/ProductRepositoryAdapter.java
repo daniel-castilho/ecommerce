@@ -40,29 +40,28 @@ import jakarta.persistence.criteria.Root;
  * application-layer uniqueness pre-checks; a sku violation surfaces here
  * as {@link DuplicateSkuException}.
  *
- * <p><b>Search (FTS epic).</b> Text searches run a native PostgreSQL query that
- * matches on a full-text vector ({@link #FTS_EXPRESSION}, backed by the GIN
- * expression index created in migration V25) and ranks the hits with
- * {@code ts_rank}. The term is also matched with {@code ILIKE} so nothing that a
- * {@code LIKE} search used to find ever disappears; {@code ts_rank} only
- * re-orders. The tsquery is a {@code token:* & token:*} prefix AND built from
- * the user's words (see {@link #buildPrefixTsQuery}), so "smart" matches
- * "smartphone". Queries without a text term keep the Criteria path unchanged.
+ * <p><b>Search (FTS benchmark evolution).</b> Text searches run a native PostgreSQL
+ * query over the STORED weighted tsvector column {@code search_vector} (created by
+ * migration V31, backed by a GIN index; weights A = name/sku, B = short_description).
+ * The primary match uses {@code websearch_to_tsquery} — safe for raw input, supports
+ * {@code "quoted phrases"}, {@code OR} and {@code -} exclusions — and hits are ranked
+ * with {@code ts_rank_cd(search_vector, tsquery, 32)}. When the primary pass returns
+ * no hits, a fallback pass runs a {@code token:* & token:*} prefix tsquery (see
+ * {@link #buildPrefixTsQuery}) ORed with {@code ILIKE} on name/sku, so prefix and
+ * interior-fragment matches a {@code LIKE} search used to find are not lost. Queries
+ * without a text term keep the Criteria path unchanged. Long description is NOT in the
+ * vector (same LOB-type variance reason as V25 — explicit debt).
  */
 @ApplicationScoped
 public class ProductRepositoryAdapter implements ProductRepositoryPort {
 
     /**
-     * Full-text vector over the searchable text fields. {@code description} is
-     * intentionally left out: it is a {@code @Lob} column (stored as {@code oid}
-     * in the test schema, {@code text} in production) which the vector cast
-     * cannot handle portably. Kept in sync with the expression GIN index in
-     * migration V25 — they must produce the same expression tree (table aliases
-     * are equivalent for index matching).
+     * Stored weighted tsvector column (migration V31), backed by a GIN index.
+     * Weights are applied by the generated column itself: A = name/sku, B =
+     * short_description. {@code description} stays out: it is a {@code @Lob}
+     * column whose type varies between environments (same reason as V25).
      */
-    private static final String FTS_EXPRESSION =
-            "to_tsvector('english', coalesce(p.name, '') || ' ' || coalesce(p.sku, '') || ' ' || "
-                    + "coalesce(p.short_description, ''))";
+    private static final String SEARCH_VECTOR = "p.search_vector";
 
     /** Words too common to rank by; also keeps the tsquery a valid AND of lexemes. */
     private static final Set<String> ENGLISH_STOPWORDS = Set.of(
@@ -133,11 +132,7 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
     @Override
     public PageResult<Product> search(ProductSearchCriteria criteria) {
         if (criteria.nameOrSkuContains() != null && !criteria.nameOrSkuContains().isBlank()) {
-            String tsquery = buildPrefixTsQuery(criteria.nameOrSkuContains());
-            if (!tsquery.isBlank()) {
-                return searchByText(criteria, tsquery);
-            }
-            // no usable FTS tokens (only stopwords/punctuation/digits) → LIKE path
+            return searchByText(criteria, criteria.nameOrSkuContains().trim());
         }
         return searchByCriteria(criteria);
     }
@@ -171,29 +166,42 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
     // ------------------------------------------------------------------ FTS text search
 
     /**
-     * Full-text path: native SQL so PostgreSQL can use the GIN expression index
-     * (V25). The term must match {@code FTS_EXPRESSION @@ to_tsquery(...)} OR a
-     * plain {@code ILIKE} (no result regressions), and hits are ordered by
-     * {@code ts_rank} descending first — the requested sort is the tie-breaker.
-     * Callers only reach this method with a non-blank, pre-validated tsquery
-     * ({@link #buildPrefixTsQuery} drops stopwords and digit-only tokens), so
-     * {@code to_tsquery} is always fed a valid prefix AND.
+     * FTS text-search entry point. Primary pass: websearch over the STORED vector.
+     * If it returns zero hits, a fallback pass re-runs with a prefix tsquery (+
+     * ILIKE on name/sku) so prefix and interior-fragment matches are not lost —
+     * see {@link #prefixFallbackWhere}. Page/count share the same WHERE and bind
+     * order in both passes.
      */
-    private PageResult<Product> searchByText(ProductSearchCriteria criteria, String tsquery) {
-        String like = "%" + criteria.nameOrSkuContains().trim().toLowerCase(Locale.ROOT) + "%";
-        List<Object> whereValues = ftsParamValues(criteria, tsquery, like);
+    private PageResult<Product> searchByText(ProductSearchCriteria criteria, String term) {
+        PageResult<Product> primary = ftsSearch(criteria, term, null);
+        if (primary.totalElements() > 0) {
+            return primary;
+        }
+        return ftsSearch(criteria, term, buildPrefixTsQuery(term));
+    }
+
+    /**
+     * Runs the count + page queries for one FTS strategy. {@code fallbackPrefix} is
+     * {@code null} for the primary websearch pass (single {@code @@ websearch_to_tsquery}
+     * predicate); otherwise it is a prefix AND tsquery ({@code token:* & token:*}, may be
+     * blank) ORed with ILIKE name/sku — the blank case degenerates to the LIKE fragment
+     * path for terms with no usable lexemes (punctuation/stopword-only).
+     */
+    private PageResult<Product> ftsSearch(ProductSearchCriteria criteria, String term, String fallbackPrefix) {
+        String like = "%" + term.toLowerCase(Locale.ROOT) + "%";
+        List<Object> whereValues = ftsWhereValues(criteria, term, fallbackPrefix, like);
 
         FtsBindSlots countSlots = new FtsBindSlots();
-        String where = ftsWhere(criteria, countSlots);
-        Query countQuery = em.createNativeQuery("SELECT COUNT(*) FROM tb_product p " + where);
+        String countSql = "SELECT COUNT(*) FROM tb_product p " + ftsWhere(criteria, countSlots, fallbackPrefix);
+        Query countQuery = em.createNativeQuery(countSql);
         bindPositional(countQuery, whereValues);
         long totalElements = ((Number) countQuery.getSingleResult()).longValue();
 
         FtsBindSlots pageSlots = new FtsBindSlots();
-        String pageSql = "SELECT p.id FROM tb_product p " + ftsWhere(criteria, pageSlots)
-                + " " + ftsOrderBy(criteria, pageSlots);
+        String pageSql = "SELECT p.id FROM tb_product p " + ftsWhere(criteria, pageSlots, fallbackPrefix)
+                + " " + ftsOrderBy(criteria, pageSlots, fallbackPrefix);
         List<Object> pageValues = new ArrayList<>(whereValues);
-        pageValues.add(tsquery); // last positional slot: the ORDER BY ts_rank tsquery
+        pageValues.add(rankBindValue(term, fallbackPrefix)); // ORDER BY rank slot
         Query pageQuery = em.createNativeQuery(pageSql)
                 .setFirstResult(criteria.page() * criteria.pageSize())
                 .setMaxResults(criteria.pageSize());
@@ -220,12 +228,34 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
         }
     }
 
-    /** Parameter values for the WHERE fragment, in the order the slots are placed. */
-    private List<Object> ftsParamValues(ProductSearchCriteria criteria, String tsquery, String like) {
+    /**
+     * Rank normalization for {@code ts_rank_cd} (32 = rank/(rank+1); see PostgreSQL docs
+     * for the normalization bitmask). Keeps the raw cover-density rank in a readable range.
+     */
+    private static final String RANK_NORMALIZATION = "32";
+
+    /**
+     * Parameter values for the WHERE fragment of one FTS pass, in the same order the
+     * slots are placed by {@link #ftsWhere}. Primary pass ({@code fallbackPrefix == null})
+     * binds the raw term once for {@code websearch_to_tsquery}; the fallback pass binds
+     * the prefix tsquery + the two ILIKE patterns. Filter values then match
+     * {@link #ftsFilterPredicates}.
+     */
+    private List<Object> ftsWhereValues(ProductSearchCriteria criteria, String term,
+                                        String fallbackPrefix, String like) {
         List<Object> values = new ArrayList<>();
-        values.add(tsquery);
-        values.add(like);
-        values.add(like);
+        if (fallbackPrefix == null) {
+            values.add(term);
+        } else {
+            values.add(fallbackPrefix);
+            values.add(like);
+            values.add(like);
+        }
+        ftsFilterValues(criteria, values);
+        return values;
+    }
+
+    private void ftsFilterValues(ProductSearchCriteria criteria, List<Object> values) {
         if (criteria.categoryId() != null) {
             values.add(criteria.categoryId());
         }
@@ -238,7 +268,10 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
         if (criteria.status() != null) {
             values.add(criteria.status().name());
         }
-        return values;
+    }
+
+    private String rankBindValue(String term, String fallbackPrefix) {
+        return fallbackPrefix == null ? term : fallbackPrefix;
     }
 
     private void bindPositional(Query query, List<Object> values) {
@@ -251,7 +284,7 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
      * Turn a free-form term into a prefix AND tsquery, e.g. "smart phon" →
      * {@code smart:* & phon:*}. Strips punctuation, drops stopwords and
      * all-digit tokens, lowercases. Returns an empty string when nothing usable
-     * remains — callers then fall back to the LIKE-only path.
+     * remains — the fallback pass then degenerates to the ILIKE fragment path.
      */
     static String buildPrefixTsQuery(String term) {
         String normalized = term.trim().toLowerCase(Locale.ROOT)
@@ -264,12 +297,30 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
                 .collect(Collectors.joining(" & "));
     }
 
-    private String ftsWhere(ProductSearchCriteria criteria, FtsBindSlots slots) {
-        StringBuilder sql = new StringBuilder("WHERE (")
-                .append(FTS_EXPRESSION)
-                .append(" @@ to_tsquery('english', ?").append(slots.place()).append(')')
-                .append(" OR p.name ILIKE ?").append(slots.place())
-                .append(" OR p.sku ILIKE ?").append(slots.place()).append(')');
+    /**
+     * WHERE fragment of one FTS pass. Primary: single {@code search_vector @@
+     * websearch_to_tsquery} predicate (safe for any raw input). Fallback
+     * ({@code fallbackPrefix != null}): prefix tsquery ({@code token:* & token:*},
+     * possibly blank → empty tsquery matches nothing) ORed with ILIKE name/sku so
+     * interior fragments survive. Category/price/status predicates are appended in
+     * the same order as their values in {@link #ftsWhereValues}.
+     */
+    private String ftsWhere(ProductSearchCriteria criteria, FtsBindSlots slots, String fallbackPrefix) {
+        StringBuilder sql = new StringBuilder("WHERE ");
+        if (fallbackPrefix == null) {
+            sql.append(SEARCH_VECTOR)
+                    .append(" @@ websearch_to_tsquery('english', ?").append(slots.place()).append(')');
+        } else {
+            sql.append('(').append(SEARCH_VECTOR)
+                    .append(" @@ to_tsquery('english', ?").append(slots.place()).append(')')
+                    .append(" OR p.name ILIKE ?").append(slots.place())
+                    .append(" OR p.sku ILIKE ?").append(slots.place()).append(')');
+        }
+        ftsFilterPredicates(criteria, sql, slots);
+        return sql.toString();
+    }
+
+    private void ftsFilterPredicates(ProductSearchCriteria criteria, StringBuilder sql, FtsBindSlots slots) {
         if (criteria.categoryId() != null) {
             sql.append(" AND EXISTS (SELECT 1 FROM tb_product_category c")
                     .append(" WHERE c.product_id = p.id AND c.category_id = ?").append(slots.place()).append(')');
@@ -285,18 +336,24 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
         } else if (!criteria.includeArchived()) {
             sql.append(" AND p.status <> 'ARCHIVED'");
         }
-        return sql.toString();
     }
 
-    private String ftsOrderBy(ProductSearchCriteria criteria, FtsBindSlots slots) {
+    /**
+     * ORDER BY for one FTS pass: cover-density rank first (descending), then the
+     * requested attribute as tie-breaker, then id for full stability. The rank
+     * tsquery is a supplementary positional slot bound after the WHERE values.
+     */
+    private String ftsOrderBy(ProductSearchCriteria criteria, FtsBindSlots slots, String fallbackPrefix) {
         String attribute = switch (criteria.sortField()) {
             case PRICE -> "price";
             case CREATED_AT -> "created_at";
             default -> "name"; // RELEVANCE and NAME
         };
         String direction = criteria.sortDirection() == SortDirection.DESC ? "DESC" : "ASC";
-        return "ORDER BY ts_rank(" + FTS_EXPRESSION
-                + ", to_tsquery('english', ?" + slots.place() + ")) DESC, "
+        String tsquery = fallbackPrefix == null
+                ? "websearch_to_tsquery('english', ?" + slots.place() + ')'
+                : "to_tsquery('english', ?" + slots.place() + ')';
+        return "ORDER BY ts_rank_cd(" + SEARCH_VECTOR + ", " + tsquery + ", " + RANK_NORMALIZATION + ") DESC, "
                 + "p." + attribute + " " + direction + ", p.id ASC";
     }
 

@@ -296,7 +296,7 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         assertThat(page.totalElements()).isZero();
     }
 
-    // -------------------------------------------------------------- FTS text search (V25)
+    // ------------------------------------------- FTS text search (stored weighted vector, V31)
 
     @Test
     void shouldRankRelevanceForTextSearch() {
@@ -313,6 +313,36 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         assertThat(page.items()).extracting(Product::getName)
                 .containsExactly("Smartphone X", "Phone Case");
         assertThat(page.totalElements()).isEqualTo(2);
+    }
+
+    @Test
+    void shouldRankNameAndSkuMatchesAboveDescriptionOnlyMatches() {
+        save(productDetailed("p-fw-1", "SKU-FW1", "produto-fw-1", "Warm Blanket",
+                "cozy for cold nights", null, "59.90", ProductStatus.ACTIVE));
+        save(productDetailed("p-fw-2", "SKU-FW2", "produto-fw-2", "Down Jacket",
+                "keeps you warm on the trail", null, "129.90", ProductStatus.ACTIVE));
+        save(productDetailed("p-fw-3", "SKU-FW3", "produto-fw-3", "Camping Tent",
+                "spacious shelter for four", null, "39.90", ProductStatus.ACTIVE));
+
+        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(
+                "warm", null, null, null, null, 0, 20, false, null, null)));
+
+        assertThat(page.items()).extracting(Product::getName)
+                .containsExactly("Warm Blanket", "Down Jacket");
+    }
+
+    @Test
+    void shouldMatchQuotedPhraseViaWebsearch() {
+        save(productDetailed("p-ph-1", "SKU-PH1", "produto-ph-1", "Red Phone 3",
+                "a red phone with great battery", null, "59.90", ProductStatus.ACTIVE));
+        save(productDetailed("p-ph-2", "SKU-PH2", "produto-ph-2", "Phone Shell",
+                "a phone case in red with a dark shell", null, "19.90", ProductStatus.ACTIVE));
+
+        PageResult<Product> phrase = inTx(() -> adapter.search(new ProductSearchCriteria(
+                "\"red phone\"", null, null, null, null, 0, 20, false, null, null)));
+
+        assertThat(phrase.items()).extracting(Product::getName)
+                .containsExactly("Red Phone 3");
     }
 
     @Test
@@ -388,14 +418,16 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void shouldFallBackToLikePathWhenTermHasNoFtsTokens() {
+    void shouldReturnEmptyForPunctuationOnlyAndStopwordOnlyTerms() {
         save(product("p-fb-1", "SKU-FB1", "produto-fb-1", "Telefone", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
 
+        // "!!!" has no websearch lexemes and no ILIKE substring in any product.
         PageResult<Product> punctuation = inTx(() -> adapter.search(new ProductSearchCriteria(
                 "!!!", null, null, null, null, 0, 20, false, null, null)));
         assertThat(punctuation.items()).isEmpty();
         assertThat(punctuation.totalElements()).isZero();
 
+        // "the and of" is all stopwords: no FTS lexemes and no contiguous substring match.
         PageResult<Product> stopwords = inTx(() -> adapter.search(new ProductSearchCriteria(
                 "the and of", null, null, null, null, 0, 20, false, null, null)));
         assertThat(stopwords.items()).isEmpty();
@@ -403,15 +435,38 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void shouldFallBackToLikePathForDigitOnlyTerms() {
-        // "123" has no FTS lexeme, so the search falls back to the LIKE path and
-        // still finds the SKU substring match.
+    void shouldMatchSkuDigitsViaIndexedVectorWithoutLike() {
+        // "123" has no FTS lexeme of its own, but the SKU "XYZ-123" is indexed in the
+        // stored vector (weight A), so the primary websearch pass matches it directly.
         save(product("p-hy-1", "SKU-XYZ-123", "produto-hy-1", "Generic", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
 
         PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(
                 "123", null, null, null, null, 0, 20, false, null, null)));
 
         assertThat(page.items()).extracting(Product::getName).containsExactly("Generic");
+    }
+
+    @Test
+    void shouldFallBackToIlikeForInteriorFragments() {
+        // "uper" is not a lexeme or a word prefix ("superwidget"), so the primary pass
+        // misses; the fallback ILIKE fragment path still finds it.
+        save(product("p-fr-1", "SKU-FR1", "produto-fr-1", "SuperWidget", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
+
+        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(
+                "uper", null, null, null, null, 0, 20, false, null, null)));
+
+        assertThat(page.items()).extracting(Product::getName).containsExactly("SuperWidget");
+    }
+
+    @Test
+    void shouldNotFailOnBlankTerm() {
+        save(product("p-bl-1", "SKU-BL1", "produto-bl-1", "Cobertor", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
+
+        PageResult<Product> page = inTx(() -> adapter.search(new ProductSearchCriteria(
+                "   ", null, null, null, null, 0, 20, false, null, null)));
+
+        assertThat(page.totalElements()).isEqualTo(1);
+        assertThat(page.items()).extracting(Product::getName).containsExactly("Cobertor");
     }
 
     @Test
