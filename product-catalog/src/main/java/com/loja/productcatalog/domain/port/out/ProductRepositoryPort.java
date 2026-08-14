@@ -2,6 +2,7 @@ package com.loja.productcatalog.domain.port.out;
 
 import com.loja.productcatalog.application.dto.PageResult;
 import com.loja.productcatalog.application.dto.ProductSearchCriteria;
+import com.loja.productcatalog.application.dto.ProductSearchHit;
 import com.loja.productcatalog.domain.model.Product;
 import com.loja.productcatalog.domain.model.Sku;
 import com.loja.productcatalog.domain.model.Slug;
@@ -17,6 +18,7 @@ public interface ProductRepositoryPort {
     boolean existsBySku(Sku sku);
     boolean existsBySlug(Slug slug);
     PageResult<Product> search(ProductSearchCriteria criteria);
+    PageResult<ProductSearchHit> searchWithSnippets(ProductSearchCriteria criteria);
     Product save(Product product);
     int decrementStock(String productId, int quantity);
 }

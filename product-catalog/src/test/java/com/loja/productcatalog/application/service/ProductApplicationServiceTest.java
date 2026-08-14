@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import com.loja.productcatalog.application.dto.CreateProductCommand;
 import com.loja.productcatalog.application.dto.PageResult;
 import com.loja.productcatalog.application.dto.ProductSearchCriteria;
+import com.loja.productcatalog.application.dto.ProductSearchHit;
 import com.loja.productcatalog.application.dto.ProductSortField;
 import com.loja.productcatalog.application.dto.SortDirection;
 import com.loja.productcatalog.application.dto.UpdateProductCommand;
@@ -334,6 +335,18 @@ class ProductApplicationServiceTest {
         when(productRepository.search(criteria)).thenReturn(expected);
 
         assertThat(service.search(criteria)).isSameAs(expected);
+    }
+
+    @Test
+    void searchWithSnippets_delegatesToRepository() {
+        PageResult<ProductSearchHit> expected = new PageResult<>(
+                List.of(new ProductSearchHit(product(), "<mark>Smartphone</mark>")), 1L, 0, 20);
+        ProductSearchCriteria criteria = new ProductSearchCriteria("phone", null, null, null,
+                null, 0, 20, false, ProductSortField.RELEVANCE, SortDirection.DESC);
+
+        when(productRepository.searchWithSnippets(criteria)).thenReturn(expected);
+
+        assertThat(service.searchWithSnippets(criteria)).isSameAs(expected);
     }
 
     @Test

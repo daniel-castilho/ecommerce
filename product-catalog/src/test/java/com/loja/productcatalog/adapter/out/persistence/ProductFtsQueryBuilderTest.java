@@ -65,4 +65,29 @@ class ProductFtsQueryBuilderTest {
         assertThat(ProductRepositoryAdapter.buildPrefixTsQuery("123 456"))
                 .isEmpty();
     }
+
+    @Test
+    void sanitizeHeadline_keepsOnlyMarkTags() {
+        assertThat(ProductRepositoryAdapter.sanitizeHeadline(
+                "<mark>Smart</mark> phone <b>pro</b> <script>alert(1)</script>"))
+                .isEqualTo("<mark>Smart</mark> phone &lt;b&gt;pro&lt;/b&gt; &lt;script&gt;alert(1)&lt;/script&gt;");
+    }
+
+    @Test
+    void sanitizeHeadline_escapesAmpersands() {
+        assertThat(ProductRepositoryAdapter.sanitizeHeadline("A & B <mark>cable</mark>"))
+                .isEqualTo("A &amp; B <mark>cable</mark>");
+    }
+
+    @Test
+    void sanitizeHeadline_plainText_passesThrough() {
+        assertThat(ProductRepositoryAdapter.sanitizeHeadline("Just a very fine cable"))
+                .isEqualTo("Just a very fine cable");
+    }
+
+    @Test
+    void sanitizeHeadline_blankOrNull_returnsNull() {
+        assertThat(ProductRepositoryAdapter.sanitizeHeadline(null)).isNull();
+        assertThat(ProductRepositoryAdapter.sanitizeHeadline("  ")).isNull();
+    }
 }

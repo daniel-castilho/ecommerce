@@ -15,6 +15,7 @@ import java.util.UUID;
 import com.loja.productcatalog.application.dto.CreateProductCommand;
 import com.loja.productcatalog.application.dto.PageResult;
 import com.loja.productcatalog.application.dto.ProductSearchCriteria;
+import com.loja.productcatalog.application.dto.ProductSearchHit;
 import com.loja.productcatalog.application.dto.UpdateProductCommand;
 import com.loja.productcatalog.application.dto.UploadProductImageCommand;
 import com.loja.productcatalog.domain.exception.DuplicateSkuException;
@@ -209,6 +210,11 @@ public class ProductApplicationService
     @Override
     public PageResult<Product> search(ProductSearchCriteria criteria) {
         return productRepository.search(criteria);
+    }
+
+    @Override
+    public PageResult<ProductSearchHit> searchWithSnippets(ProductSearchCriteria criteria) {
+        return productRepository.searchWithSnippets(criteria);
     }
 
     @Override

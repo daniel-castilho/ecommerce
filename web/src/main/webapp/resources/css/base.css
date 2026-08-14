@@ -831,3 +831,44 @@ a:hover {
   margin-top: var(--space-md);
   color: var(--color-text-secondary);
 }
+
+/* --- Catalog search & discovery UX (catalog.xhtml) ---
+   Single occurrence so far — layout classes consuming existing tokens only.
+   No new primitive/semantic/component token was added (design-system.md
+   sections 4 and 5). The highlight follows the row-warning pattern
+   (color-mix over the feedback-warning token). */
+
+.search-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-md);
+}
+
+.search-summary-actions {
+  margin: 0;
+}
+
+.product-card-desc mark {
+  background: color-mix(in srgb, var(--color-feedback-warning) 30%, var(--color-bg-surface));
+  color: var(--color-text-primary);
+  padding: 0 var(--space-xs);
+  border-radius: var(--radius-control);
+}
+
+.empty-state {
+  text-align: center;
+  padding: var(--space-xl) var(--space-md);
+  color: var(--color-text-secondary);
+}
+
+.empty-state h2 {
+  margin: 0 0 var(--space-sm);
+  color: var(--color-text-primary);
+}
+
+.empty-state p {
+  margin: 0 0 var(--space-md);
+}

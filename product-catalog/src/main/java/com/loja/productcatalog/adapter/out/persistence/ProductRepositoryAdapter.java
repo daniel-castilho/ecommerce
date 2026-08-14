@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 
 import com.loja.productcatalog.application.dto.PageResult;
 import com.loja.productcatalog.application.dto.ProductSearchCriteria;
+import com.loja.productcatalog.application.dto.ProductSearchHit;
 import com.loja.productcatalog.application.dto.SortDirection;
 import com.loja.productcatalog.domain.exception.DuplicateSkuException;
 import com.loja.productcatalog.domain.model.Product;
@@ -137,6 +138,33 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
         return searchByCriteria(criteria);
     }
 
+    /**
+     * Storefront search with {@code ts_headline} snippets: same search path as
+     * {@link #search}, plus an optional pre-sanitized highlight per hit (only for the
+     * current page of rows, never the full candidate set). Browsing without a text term
+     * yields {@code null} snippets.
+     */
+    @Override
+    public PageResult<ProductSearchHit> searchWithSnippets(ProductSearchCriteria criteria) {
+        if (criteria.nameOrSkuContains() == null || criteria.nameOrSkuContains().isBlank()) {
+            PageResult<Product> base = searchByCriteria(criteria);
+            return new PageResult<>(mapToHits(base.items(), Map.of()),
+                    base.totalElements(), base.page(), base.pageSize());
+        }
+        String term = criteria.nameOrSkuContains().trim();
+        PageResult<ProductSearchHit> primary = ftsSearch(criteria, term, null);
+        if (primary.totalElements() > 0) {
+            return primary;
+        }
+        return ftsSearch(criteria, term, buildPrefixTsQuery(term));
+    }
+
+    private List<ProductSearchHit> mapToHits(List<Product> products, Map<String, String> snippets) {
+        return products.stream()
+                .map(p -> new ProductSearchHit(p, snippets.get(p.getId())))
+                .toList();
+    }
+
     /** Criteria path: LIKE name/sku + category/price/status filters + explicit sort. */
     private PageResult<Product> searchByCriteria(ProductSearchCriteria criteria) {
         CriteriaBuilder cb = em.getCriteriaBuilder();
@@ -173,21 +201,26 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
      * order in both passes.
      */
     private PageResult<Product> searchByText(ProductSearchCriteria criteria, String term) {
-        PageResult<Product> primary = ftsSearch(criteria, term, null);
+        PageResult<ProductSearchHit> primary = ftsSearch(criteria, term, null);
         if (primary.totalElements() > 0) {
-            return primary;
+            return new PageResult<>(primary.items().stream().map(ProductSearchHit::product).toList(),
+                    primary.totalElements(), primary.page(), primary.pageSize());
         }
-        return ftsSearch(criteria, term, buildPrefixTsQuery(term));
+        PageResult<ProductSearchHit> fallback = ftsSearch(criteria, term, buildPrefixTsQuery(term));
+        return new PageResult<>(fallback.items().stream().map(ProductSearchHit::product).toList(),
+                fallback.totalElements(), fallback.page(), fallback.pageSize());
     }
 
     /**
-     * Runs the count + page queries for one FTS strategy. {@code fallbackPrefix} is
+     * Runs the count + page queries for one FTS strategy and returns hits with a
+     * {@code ts_headline} snippet (see {@link #ftsHeadline}). {@code fallbackPrefix} is
      * {@code null} for the primary websearch pass (single {@code @@ websearch_to_tsquery}
      * predicate); otherwise it is a prefix AND tsquery ({@code token:* & token:*}, may be
      * blank) ORed with ILIKE name/sku — the blank case degenerates to the LIKE fragment
      * path for terms with no usable lexemes (punctuation/stopword-only).
      */
-    private PageResult<Product> ftsSearch(ProductSearchCriteria criteria, String term, String fallbackPrefix) {
+    private PageResult<ProductSearchHit> ftsSearch(ProductSearchCriteria criteria, String term,
+                                                   String fallbackPrefix) {
         String like = "%" + term.toLowerCase(Locale.ROOT) + "%";
         List<Object> whereValues = ftsWhereValues(criteria, term, fallbackPrefix, like);
 
@@ -198,9 +231,14 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
         long totalElements = ((Number) countQuery.getSingleResult()).longValue();
 
         FtsBindSlots pageSlots = new FtsBindSlots();
-        String pageSql = "SELECT p.id FROM tb_product p " + ftsWhere(criteria, pageSlots, fallbackPrefix)
+        String pageSql = "SELECT p.id, " + ftsHeadline(pageSlots, fallbackPrefix) + " AS snippet"
+                + " FROM tb_product p " + ftsWhere(criteria, pageSlots, fallbackPrefix)
                 + " " + ftsOrderBy(criteria, pageSlots, fallbackPrefix);
-        List<Object> pageValues = new ArrayList<>(whereValues);
+        List<Object> pageValues = new ArrayList<>();
+        if (isHeadlineEnabled(fallbackPrefix)) {
+            pageValues.add(rankBindValue(term, fallbackPrefix)); // headline tsquery slot (allocated first)
+        }
+        pageValues.addAll(whereValues);
         pageValues.add(rankBindValue(term, fallbackPrefix)); // ORDER BY rank slot
         Query pageQuery = em.createNativeQuery(pageSql)
                 .setFirstResult(criteria.page() * criteria.pageSize())
@@ -208,8 +246,14 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
         bindPositional(pageQuery, pageValues);
 
         @SuppressWarnings("unchecked")
-        List<String> ids = (List<String>) pageQuery.getResultList();
-        return new PageResult<>(fetchByIdsInOrder(ids), totalElements,
+        List<Object[]> rows = (List<Object[]>) pageQuery.getResultList();
+        List<String> ids = new ArrayList<>(rows.size());
+        Map<String, String> snippets = new LinkedHashMap<>();
+        for (Object[] row : rows) {
+            ids.add((String) row[0]);
+            snippets.put((String) row[0], sanitizeHeadline((String) row[1]));
+        }
+        return new PageResult<>(mapToHits(fetchByIdsInOrder(ids), snippets), totalElements,
                 criteria.page(), criteria.pageSize());
     }
 
@@ -350,11 +394,60 @@ public class ProductRepositoryAdapter implements ProductRepositoryPort {
             default -> "name"; // RELEVANCE and NAME
         };
         String direction = criteria.sortDirection() == SortDirection.DESC ? "DESC" : "ASC";
-        String tsquery = fallbackPrefix == null
+        return "ORDER BY ts_rank_cd(" + SEARCH_VECTOR + ", "
+                + tsqueryExpression(slots, fallbackPrefix) + ", " + RANK_NORMALIZATION + ") DESC, "
+                + "p." + attribute + " " + direction + ", p.id ASC";
+    }
+
+    /**
+     * tsquery expression for the primary (websearch) or fallback (prefix AND tsquery)
+     * pass, consuming one FtsBindSlots slot. Used by both the ORDER BY rank and the
+     * {@code ts_headline} fragment.
+     */
+    private String tsqueryExpression(FtsBindSlots slots, String fallbackPrefix) {
+        return fallbackPrefix == null
                 ? "websearch_to_tsquery('english', ?" + slots.place() + ')'
                 : "to_tsquery('english', ?" + slots.place() + ')';
-        return "ORDER BY ts_rank_cd(" + SEARCH_VECTOR + ", " + tsquery + ", " + RANK_NORMALIZATION + ") DESC, "
-                + "p." + attribute + " " + direction + ", p.id ASC";
+    }
+
+    /**
+     * {@code ts_headline} fragment for the selected column. Falls back to an empty
+     * tsquery ({@code 'NULL'}) — snippet {@code NULL}, rendered nowhere — when the
+     * fallback pass has no usable lexemes (punctuation/stopword-only terms), where
+     * results exist only via the ILIKE fragment path. Fragments are drawn from the
+     * short description (title) with the name as a title-less fallback.
+     */
+    private String ftsHeadline(FtsBindSlots slots, String fallbackPrefix) {
+        if (!isHeadlineEnabled(fallbackPrefix)) {
+            return "NULL";
+        }
+        String options = "StartSel=<mark>, StopSel=</mark>, MaxWords=32, MinWords=12, MaxFragments=1";
+        return "ts_headline('english', coalesce(p.short_description, p.name, ''), "
+                + tsqueryExpression(slots, fallbackPrefix) + ", '" + options + "')";
+    }
+
+    private boolean isHeadlineEnabled(String fallbackPrefix) {
+        return fallbackPrefix == null || !fallbackPrefix.isBlank();
+    }
+
+    /**
+     * Sanitizes the {@code ts_headline} fragment for {@code escape="false"} rendering:
+     * all HTML metacharacters are escaped first, so only the {@code <mark>} /
+     * {@code </mark>} wrappers injected by the headline searcher survive; the original
+     * text can never smuggle markup into the storefront. {@code null}/{@code blank}
+     * input yields {@code null}.
+     */
+    static String sanitizeHeadline(String headline) {
+        if (headline == null || headline.isBlank()) {
+            return null;
+        }
+        String escaped = headline
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
+        return escaped
+                .replace("&lt;mark&gt;", "<mark>")
+                .replace("&lt;/mark&gt;", "</mark>");
     }
 
     /**

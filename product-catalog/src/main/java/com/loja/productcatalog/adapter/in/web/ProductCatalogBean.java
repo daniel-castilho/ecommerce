@@ -2,10 +2,12 @@ package com.loja.productcatalog.adapter.in.web;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.loja.productcatalog.application.dto.PageResult;
 import com.loja.productcatalog.application.dto.ProductSearchCriteria;
+import com.loja.productcatalog.application.dto.ProductSearchHit;
 import com.loja.productcatalog.application.dto.ProductSortField;
 import com.loja.productcatalog.application.dto.SortDirection;
 import com.loja.productcatalog.domain.model.Category;
@@ -17,6 +19,7 @@ import com.loja.productcatalog.domain.port.out.CategoryRepositoryPort;
 import com.loja.productcatalog.domain.port.out.ProductImageStoragePort;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.faces.model.SelectItem;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -47,11 +50,11 @@ public class ProductCatalogBean implements Serializable {
     private BigDecimal minPrice;
     private BigDecimal maxPrice;
     private ProductSortField sortField = ProductSortField.RELEVANCE;
-    private SortDirection sortDirection = SortDirection.ASC;
+    private SortDirection sortDirection = SortDirection.DESC;
     private int page;
 
     private List<Category> categories = List.of();
-    private PageResult<Product> result;
+    private PageResult<ProductSearchHit> result;
 
     @PostConstruct
     void init() {
@@ -60,6 +63,12 @@ public class ProductCatalogBean implements Serializable {
     }
 
     public void search() {
+        page = 0;
+        refresh();
+    }
+
+    public void clearSearch() {
+        searchTerm = null;
         page = 0;
         refresh();
     }
@@ -82,7 +91,7 @@ public class ProductCatalogBean implements Serializable {
         ProductSearchCriteria criteria = new ProductSearchCriteria(
                 searchTerm, categoryId, minPrice, maxPrice, ProductStatus.ACTIVE,
                 page, PAGE_SIZE, false, sortField, sortDirection);
-        result = searchProductsUseCase.search(criteria);
+        result = searchProductsUseCase.searchWithSnippets(criteria);
     }
 
     public boolean hasNextPage() {
@@ -101,8 +110,21 @@ public class ProductCatalogBean implements Serializable {
         return result != null ? result.totalElements() : 0;
     }
 
-    public List<Product> getResults() {
+    public List<ProductSearchHit> getResults() {
         return result != null ? result.items() : List.of();
+    }
+
+    public boolean isSearchActive() {
+        return searchTerm != null && !searchTerm.isBlank();
+    }
+
+    public boolean isSearchEmpty() {
+        return isSearchActive() && getTotalElements() == 0;
+    }
+
+    public String getResultCountText() {
+        String noun = getTotalElements() == 1 ? "product" : "products";
+        return getTotalElements() + " " + noun + (isSearchActive() ? " found" : "");
     }
 
     public String primaryImageUrl(Product product) {
@@ -122,8 +144,31 @@ public class ProductCatalogBean implements Serializable {
                 .findFirst();
     }
 
-    public ProductSortField[] getAvailableSortFields() { return ProductSortField.values(); }
-    public SortDirection[] getAvailableSortDirections() { return SortDirection.values(); }
+    public List<SelectItem> getSortFieldOptions() {
+        List<SelectItem> options = new ArrayList<>();
+        for (ProductSortField field : ProductSortField.values()) {
+            options.add(new SelectItem(field, sortFieldLabel(field)));
+        }
+        return options;
+    }
+
+    public List<SelectItem> getSortDirectionOptions() {
+        List<SelectItem> options = new ArrayList<>();
+        for (SortDirection direction : SortDirection.values()) {
+            options.add(new SelectItem(direction,
+                    direction == SortDirection.ASC ? "Ascending" : "Descending"));
+        }
+        return options;
+    }
+
+    private static String sortFieldLabel(ProductSortField field) {
+        return switch (field) {
+            case RELEVANCE -> "Most relevant";
+            case NAME -> "Name";
+            case PRICE -> "Price";
+            case CREATED_AT -> "Date added";
+        };
+    }
 
     public List<Category> getCategories() { return categories; }
     public String getSearchTerm() { return searchTerm; }

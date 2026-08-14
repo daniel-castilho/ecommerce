@@ -31,12 +31,12 @@
 
                     <h:outputLabel for="sortField" value="Sort by" />
                     <h:selectOneMenu id="sortField" value="#{productCatalogBean.sortField}">
-                        <f:selectItems value="#{productCatalogBean.availableSortFields}" />
+                        <f:selectItems value="#{productCatalogBean.sortFieldOptions}" />
                     </h:selectOneMenu>
 
                     <h:outputLabel for="sortDirection" value="Direction" />
                     <h:selectOneMenu id="sortDirection" value="#{productCatalogBean.sortDirection}">
-                        <f:selectItems value="#{productCatalogBean.availableSortDirections}" />
+                        <f:selectItems value="#{productCatalogBean.sortDirectionOptions}" />
                     </h:selectOneMenu>
                 </div>
                 <h:commandButton value="Search" action="#{productCatalogBean.search}"
@@ -45,50 +45,64 @@
         </div>
 
         <ui:fragment rendered="#{not empty productCatalogBean.results}">
+            <div class="search-summary">
+                <span>#{productCatalogBean.resultCountText}</span>
+                <h:form styleClass="search-summary-actions">
+                    <h:commandLink value="Clear search"
+                                   action="#{productCatalogBean.clearSearch}"
+                                   rendered="#{productCatalogBean.searchActive}" />
+                </h:form>
+            </div>
+
             <div class="product-grid">
-                <ui:repeat value="#{productCatalogBean.results}" var="product">
+                <ui:repeat value="#{productCatalogBean.results}" var="hit">
                     <div class="product-card">
-                        <h:graphicImage value="#{productCatalogBean.primaryImageUrl(product)}"
-                                        alt="#{productCatalogBean.primaryImageAlt(product)}"
-                                        rendered="#{not empty productCatalogBean.primaryImageUrl(product)}"
+                        <h:graphicImage value="#{productCatalogBean.primaryImageUrl(hit.product)}"
+                                        alt="#{productCatalogBean.primaryImageAlt(hit.product)}"
+                                        rendered="#{not empty productCatalogBean.primaryImageUrl(hit.product)}"
                                         styleClass="product-card-image" />
                         <div class="product-card-body">
                             <div class="product-card-title-row">
                                 <span class="product-card-name">
                                     <h:link outcome="/product-catalog/product-detail.xhtml"
-                                            value="#{product.name}">
-                                        <f:param name="slug" value="#{product.slugValue}" />
+                                            value="#{hit.product.name}">
+                                        <f:param name="slug" value="#{hit.product.slugValue}" />
                                     </h:link>
                                 </span>
                                 <h:form>
                                     <h:commandButton value="&#9829;"
                                                      title="Remove from wishlist"
                                                      styleClass="wishlist-heart active"
-                                                     rendered="#{wishlistBean.loggedIn and wishlistBean.inWishlistFor(product.id)}"
-                                                     action="#{wishlistBean.toggleFor(product.id)}" />
+                                                     rendered="#{wishlistBean.loggedIn and wishlistBean.inWishlistFor(hit.product.id)}"
+                                                     action="#{wishlistBean.toggleFor(hit.product.id)}" />
                                     <h:commandButton value="&#9825;"
                                                      title="Add to wishlist"
                                                      styleClass="wishlist-heart"
-                                                     rendered="#{wishlistBean.loggedIn and not wishlistBean.inWishlistFor(product.id)}"
-                                                     action="#{wishlistBean.toggleFor(product.id)}" />
+                                                     rendered="#{wishlistBean.loggedIn and not wishlistBean.inWishlistFor(hit.product.id)}"
+                                                     action="#{wishlistBean.toggleFor(hit.product.id)}" />
                                     <h:link outcome="/user-account/login.xhtml"
                                             title="Log in to save"
                                             styleClass="wishlist-heart"
                                             rendered="#{not wishlistBean.loggedIn}">&#9825;</h:link>
                                 </h:form>
                             </div>
-                            <span class="product-card-sku">#{product.skuValue}</span>
-                            <span class="product-card-price">$#{product.price.amount}</span>
-                            <span class="product-card-desc">#{product.shortDescription}</span>
+                            <span class="product-card-sku">#{hit.product.skuValue}</span>
+                            <span class="product-card-price">$#{hit.product.price.amount}</span>
+                            <h:outputText value="#{hit.snippet}"
+                                          styleClass="product-card-desc"
+                                          escape="false"
+                                          rendered="#{not empty hit.snippet}" />
+                            <span class="product-card-desc"
+                                  rendered="#{empty hit.snippet}">#{hit.product.shortDescription}</span>
                             <h:form>
                                 <h:commandButton value="Add to cart"
                                                  styleClass="button button-secondary"
-                                                 rendered="#{product.status eq 'ACTIVE' and product.stock gt 0}"
-                                                 action="#{cartBean.addProduct(product.id)}" />
+                                                 rendered="#{hit.product.status eq 'ACTIVE' and hit.product.stock gt 0}"
+                                                 action="#{cartBean.addProduct(hit.product.id)}" />
                             </h:form>
                             <h:link outcome="/product-catalog/product-detail.xhtml"
                                     value="View details" styleClass="button">
-                                <f:param name="slug" value="#{product.slugValue}" />
+                                <f:param name="slug" value="#{hit.product.slugValue}" />
                             </h:link>
                         </div>
                     </div>
@@ -99,16 +113,29 @@
                 <h:commandButton value="Previous" action="#{productCatalogBean.previousPage}"
                                  disabled="#{not productCatalogBean.hasPreviousPage()}"
                                  styleClass="button button-secondary" />
-                <span>Page #{productCatalogBean.page + 1} of #{productCatalogBean.totalPages}
-                      (#{productCatalogBean.totalElements} products)</span>
+                <span>Page #{productCatalogBean.page + 1} of #{productCatalogBean.totalPages}</span>
                 <h:commandButton value="Next" action="#{productCatalogBean.nextPage}"
                                  disabled="#{not productCatalogBean.hasNextPage()}"
                                  styleClass="button" />
             </h:form>
         </ui:fragment>
 
-        <ui:fragment rendered="#{empty productCatalogBean.results}">
-          <p>No products match your search.</p>
+        <ui:fragment rendered="#{productCatalogBean.searchEmpty}">
+            <div class="empty-state">
+                <h2>No products found</h2>
+                <p>Nothing matches your search. Try a different term or browse the full catalog.</p>
+                <h:form>
+                    <h:commandButton value="Clear search" action="#{productCatalogBean.clearSearch}"
+                                     styleClass="button" />
+                </h:form>
+            </div>
+        </ui:fragment>
+
+        <ui:fragment rendered="#{empty productCatalogBean.results and not productCatalogBean.searchActive}">
+            <div class="empty-state">
+                <h2>No products yet</h2>
+                <p>The catalog is empty right now. Check back soon.</p>
+            </div>
         </ui:fragment>
     </ui:define>
 </ui:composition>

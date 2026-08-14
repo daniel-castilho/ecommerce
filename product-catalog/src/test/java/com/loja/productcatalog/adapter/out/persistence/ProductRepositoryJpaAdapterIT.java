@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import com.loja.productcatalog.application.dto.PageResult;
 import com.loja.productcatalog.application.dto.ProductSearchCriteria;
+import com.loja.productcatalog.application.dto.ProductSearchHit;
 import com.loja.productcatalog.application.dto.ProductSortField;
 import com.loja.productcatalog.application.dto.SortDirection;
 import com.loja.productcatalog.domain.exception.DuplicateSkuException;
@@ -467,6 +468,54 @@ class ProductRepositoryJpaAdapterIT extends AbstractIntegrationTest {
 
         assertThat(page.totalElements()).isEqualTo(1);
         assertThat(page.items()).extracting(Product::getName).containsExactly("Cobertor");
+    }
+
+    // ----------------------------------------------------- FTS snippets (headline, S1)
+
+    @Test
+    void shouldReturnSanitizedSnippetWithMarkForTextSearch() {
+        save(productDetailed("p-sn-1", "SKU-SN1", "produto-sn-1", "Smartphone X",
+                "A rugged smartphone with a long lasting battery", null, "59.90", ProductStatus.ACTIVE));
+        save(productDetailed("p-sn-2", "SKU-SN2", "produto-sn-2", "Phone Case",
+                "a case for smartphone with <b>extra</b> grip", null, "19.90", ProductStatus.ACTIVE));
+
+        PageResult<ProductSearchHit> page = inTx(() -> adapter.searchWithSnippets(
+                new ProductSearchCriteria("smartphone", null, null, null, null, 0, 20, false, null, null)));
+
+        assertThat(page.totalElements()).isEqualTo(2);
+        assertThat(page.items()).extracting(hit -> hit.snippet())
+                .allSatisfy(snippet -> {
+                    assertThat(snippet).contains("<mark>smartphone</mark>");
+                    // ts_headline strips source markup itself; whatever survives must
+                    // never reach the page as raw HTML — only <mark></mark> is allowed.
+                    assertThat(snippet).doesNotContain("<b>");
+                    assertThat(snippet).doesNotContain("<script");
+                });
+    }
+
+    @Test
+    void shouldReturnNullSnippetWhenBrowsingWithoutTextTerm() {
+        save(product("p-br-1", "SKU-BR1", "produto-br-1", "Smartphone", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
+
+        PageResult<ProductSearchHit> page = inTx(() -> adapter.searchWithSnippets(
+                new ProductSearchCriteria(null, null, null, null, null, 0, 20, false, null, null)));
+
+        assertThat(page.items()).extracting(ProductSearchHit::snippet).containsOnly((String) null);
+        assertThat(page.items()).extracting(hit -> hit.product().getName()).containsExactly("Smartphone");
+    }
+
+    @Test
+    void shouldReturnNullSnippetWhenHeadlineQueryIsDegenerate() {
+        // "the" is a stopword: no websearch lexemes and no prefix tsquery, so the
+        // fallback pass matches only by ILIKE and the headline must degrade to null
+        // instead of producing a misleading unmarked fragment.
+        save(product("p-fr-2", "SKU-FR2", "produto-fr-2", "The Alpha Headset", "10.00", ProductStatus.ACTIVE, Set.of(5L)));
+
+        PageResult<ProductSearchHit> page = inTx(() -> adapter.searchWithSnippets(
+                new ProductSearchCriteria("the", null, null, null, null, 0, 20, false, null, null)));
+
+        assertThat(page.items()).extracting(hit -> hit.product().getName()).containsExactly("The Alpha Headset");
+        assertThat(page.items()).extracting(ProductSearchHit::snippet).containsOnly((String) null);
     }
 
     @Test
