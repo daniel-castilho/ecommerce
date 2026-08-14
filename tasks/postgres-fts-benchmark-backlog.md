@@ -48,10 +48,11 @@
 - [x] Tests: no silent 500, SKU/digit tokens, interior fragments, prefix recall
 - [x] Documented in release notes (v0.20.0)
 
-### S4 — Headline (deferred → explicit debt)
+### S4 — Headline (shipped via search-discovery epic, v0.20.1)
 
-- [ ] Snippet field on search hits — deferred: needs a hit DTO surface for `PageResult<Product>`
-      and an XSS-safe render path; not required for the reference FTS path. Promoted to debt.
+- [x] Snippet field on search hits — delivered by the **Search & Discovery UX** epic
+      (`ProductSearchHit` DTO + `searchWithSnippets` + sanitized `ts_headline`, XSS-safe
+      `escape="false"` render) in **v0.20.1**. Was previously deferred as debt here.
 
 ### S5 — Hardening & docs
 
@@ -60,11 +61,10 @@
 - [x] Adapter IT: empty/blank query, punctuation-only input, pagination under RELEVANCE
 - [x] ArchUnit green (8/8); WAR package
 - [x] `docs/releases/v0.20.0.md`, CHANGELOG, README bullet
-- [x] Mark this backlog shipped (S1–S3 + S5 shipped; S4 in debt)
+- [x] Mark this backlog shipped (S1–S3 + S5 shipped; S4 shipped via v0.20.1)
 
 ## Explicit debt (not blocking)
 
-- [ ] `ts_headline` snippet on search hits (S4 above)
 - [ ] `unaccent` + Portuguese configuration (lab image / ops approval)
 - [ ] Weight C for long description (`description` is `@Lob`, type varies per environment — same
       reason V25 excluded it)
@@ -73,5 +73,6 @@
 
 ## Priority
 
-S1 → S2 → S3 → S5 shipped in v0.20.0. S4 moved to debt (not blocking).
+S1 → S2 → S3 → S5 shipped in v0.20.0. S4 shipped in v0.20.1 via the Search & Discovery UX epic.
+All stories closed; only debt remains.
 ```
