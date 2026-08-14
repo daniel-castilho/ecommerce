@@ -6,6 +6,18 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.19.4](docs/releases/v0.19.4.md) — 2026-08-13
+
+**Reviews gap closure: author "My Reviews" screen + moderation emails**
+Customers get a self-service `/product-reviews/my-reviews.xhtml` listing all their reviews across
+moderation states (product links, status badge, rejection reason, pagination) plus a working
+hide-own-review action. Admin approve/reject now enqueue idempotent `REVIEW_APPROVED` /
+`REVIEW_REJECTED` rows on the shared transactional outbox (new `ReviewNotificationPort` +
+`ReviewNotificationEmailAdapter` depending only on `NotificationDeliveryLogPort`) — dispatched by
+the existing poller, respecting `UserProfile.notificationsEnabled`, never blocking moderation. Full
+product-reviews suite 107/107 green (incl. new `findByAuthor` IT), ArchUnit 8/8, browser E2E
+(register → submit → approve → outbox row `SENT`). No new dependency, no schema change.
+
 ## [v0.19.3](docs/releases/v0.19.3.md) — 2026-08-13
 
 **Admin coupon list regression fix + documented release smoke**

@@ -22,6 +22,26 @@ user dimension and an audit trail anyway. **Golden rules:**
 3. Never pre-aggregate per-user counts into a mutable column; the ledger is simpler, is
    race-free by construction, and doubles as audit data.
 
+## 43. The transactional notification outbox is reusable across modules (2026-08-13)
+
+Closing the reviews-ratings gap, moderation notified authors by email. Rather than
+duplicating a poller or touching order-checkout, product-reviews depended only on the
+existing **`NotificationDeliveryLogPort`** (an order-checkout domain port) and enqueued
+idempotent rows; the existing 5 s poller dispatched them.
+
+**Golden rules:**
+
+1. Any module may claim rows on the transactional outbox by depending on the port alone —
+   `NotificationOutboxProcessor.findDue()` returns every due row regardless of `eventType`.
+2. Keep event-type prefixes specific in idempotency keys (`ORDER_CONFIRMED`, `REVIEW_APPROVED`):
+   the key is the single dedup point per business event.
+3. Snapshot the full rendered payload (recipient/subject/text/HTML) at claim time inside the
+   business transaction; the dispatching module never re-renders and never sees the domain.
+4. Respect `UserProfile.notificationsEnabled` via `FindUserUseCase.findById`, best-effort —
+   notification failures must never fail the business transaction.
+
+---
+
 ## 42. Inspect a multipart MimeMessage only after saveChanges() (2026-08-13)
 
 Building a `MimeMessage` with a `MimeMultipart("alternative")` and reading it back via
