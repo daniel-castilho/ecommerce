@@ -6,6 +6,18 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.20.1](docs/releases/v0.20.1.md) — 2026-08-14
+
+**Catalog search & discovery UX** (headline, empty state, sort labels, result count)
+Search hits now carry a pre-sanitized `ts_headline` **snippet** (`<mark>`-highlighted short
+description with a name fallback, everything else escaped) via a new `searchWithSnippets` port
+method; the catalog card renders it `escape="false"` safely. Zero-hit searches show a distinct
+**"No products found" empty state with a Clear search** action, sort dropdowns show **human
+labels** (`Most relevant`, `Name`, `Price`, `Date added` / `Ascending`/`Descending`), and a
+**result count** line reads correctly in the singular. Product-catalog suite 203/203 green (incl.
+new snippet ITs, sanitizer units, bean tests), ArchUnit 8/8, browser smoke on Liberty. No new
+dependency, no schema change.
+
 ## [v0.20.0](docs/releases/v0.20.0.md) — 2026-08-14
 
 **Benchmark-grade Postgres FTS for the product catalog**

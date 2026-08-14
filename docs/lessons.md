@@ -8,6 +8,26 @@ Full historical write-ups of every lesson remain in git history of this file.
 
 ---
 
+## 45. Positional binds in native SQL follow textual slot order, not your clause grouping (2026-08-14)
+
+Adding `ts_headline(...)` to the `SELECT` of the v0.20.0 FTS page query shifted the bind slots
+previously occupied by the WHERE clause and the ORDER BY rank. The value list was still built in
+clause order (`WHERE`, then rank), so JDBC bound the ILIKE `%term%` strings into `to_tsquery(...)`
+— surfacing as `ERROR: syntax error in tsquery: "%term%"` only at runtime in the Testcontainers
+ITs, not in any compile or unit step.
+
+**Golden rules:**
+
+1. When a native query already manages strict positional binds (WHERE → ORDER BY), a new column
+   in the `SELECT` must consume its slot wherever its text is emitted — allocation order must
+   equal textual order.
+2. Build the parameter value list in the same textual order: computed-column value first, then
+   the WHERE values, then ORDER BY values.
+3. Re-run the adapter ITs after touching the SELECT list; a wrong slot order usually throws a
+   Postgres syntax/function error that no static check catches.
+
+---
+
 ## 44. A STORED tsvector column cannot live in a JPA drop-and-create schema (2026-08-14)
 
 The FTS benchmark evolution added `search_vector tsvector GENERATED ALWAYS AS (…) STORED`

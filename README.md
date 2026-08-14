@@ -62,8 +62,13 @@ https://localhost:9443/web/
 
 ## Current State
 
-**Latest tag: [v0.20.0](docs/releases/v0.20.0.md)** (2026-08-14)
+**Latest tag: [v0.20.1](docs/releases/v0.20.1.md)** (2026-08-14)
 
+- **v0.20.1 search & discovery UX**: catalog search hits render a pre-sanitized `ts_headline`
+  snippet (highlighted, `<mark>`-only markup), zero-hit searches get a distinct **empty state
+  with a Clear search** action, sort dropdowns use **human labels** (`Most relevant`, `Name`,
+  `Price`, `Date added`), and the results show a **count line** with correct singular/plural.
+  Ships on top of the v0.20.0 FTS engine; no schema change.
 - **v0.20.0 benchmark-grade Postgres FTS**: catalog search now uses a STORED weighted
   `search_vector` (A = name/sku, B = short_description) behind a GIN index (V31), parses user
   terms with `websearch_to_tsquery` (quoted phrases / OR / -), ranks with `ts_rank_cd(…, 32)`,
