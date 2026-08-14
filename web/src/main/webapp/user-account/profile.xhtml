@@ -14,6 +14,8 @@
             Signed in as #{userBean.currentUser.email.value}.
             <h:outputLink value="/user-account/profile.xhtml">Profile</h:outputLink> |
             <h:outputLink value="/user-account/address-book.xhtml">Address Book</h:outputLink> |
+            <h:outputLink value="/order-checkout/order-history.xhtml">My Orders</h:outputLink> |
+            <h:outputLink value="/product-reviews/my-reviews.xhtml">My Reviews</h:outputLink> |
             <h:outputLink value="/user-account/admin/users.xhtml" rendered="#{userBean.hasRole('ADMIN')}">Admin</h:outputLink> |
             <h:form>
                 <h:commandLink value="Logout" action="#{loginBean.logout}" />

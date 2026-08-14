@@ -21,11 +21,17 @@
 | Admin moderation list/detail (S9–S11)  | ✅ Done         | PENDING queue; approve; reject with mandatory reason              |
 | ArchUnit + RBAC (S12)                  | ✅ Done         | `ReviewHexagonalArchitectureTest`; admin coverage extended        |
 | Full test suite (S13)                  | ✅ Done         | 85 module tests green                                             |
-| Hide own review UI (S14)               | ⚠️ Partial      | Use case may exist; **no** dedicated customer “my reviews” screen |
-| Notifications on moderate              | ❌ Deferred     | `NotificationPort` not wired                                      |
+| Hide own review UI (S14)               | ✅ Done         | “My Reviews” screen at `/product-reviews/my-reviews.xhtml`        |
+| Notifications on moderate              | ✅ Done         | Approve/reject outbox emails via reuse of `NotificationDeliveryLogPort` |
 | Images / voting / vendor replies       | ❌ Out of scope | Explicit debt                                                     |
 
 **MVP (S1–S8 + S12–S13) and admin moderation (S9–S11): delivered in v0.10.0.**
+
+**Gap closure (my-reviews UI + moderation emails): shipped after v0.19.3** — the author
+screen lists every review across states with product links + hide action, and approve/reject
+enqueue idempotent `REVIEW_APPROVED`/`REVIEW_REJECTED` outbox emails to the author's
+account (respecting `UserProfile.notificationsEnabled`), dispatched by order-checkout's
+existing poller.
 
 ---
 
@@ -64,8 +70,7 @@ Verified purchase: order must be CONFIRMED / SHIPPED / DELIVERED for the **badge
 
 | Item                                                           | Notes                                            |
 | -------------------------------------------------------------- | ------------------------------------------------ |
-| Author “my reviews” / edit UI                                  | Backend capability may exist; no customer screen |
-| Moderation email notifications                                 | Deferred with notification module                |
+| Author edit / resubmit of reviews                              | `Review` is immutable; edit would need a domain transition |
 | Review media, helpfulness votes, vendor replies, AI moderation | Out of scope                                     |
 | Rating on catalog cards / search                               | Stays on product-detail only                     |
 | Block non-purchasers from reviewing                            | Product decision — currently badge-only          |
@@ -90,7 +95,7 @@ Cross-module: only **ports** from `product-catalog` and `order-checkout` (no ada
 - [x] Public average / histogram / approved list
 - [x] Admin approve / reject
 - [x] ArchUnit + tests + WAR builds
-- [ ] Optional author self-service UI and notifications
+- [x] Optional author self-service UI and notifications
 
 ---
 

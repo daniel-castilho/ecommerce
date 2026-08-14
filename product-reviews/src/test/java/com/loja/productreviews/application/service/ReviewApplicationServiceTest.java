@@ -33,6 +33,7 @@ import com.loja.productreviews.domain.model.ReviewStatus;
 import com.loja.productreviews.domain.port.in.HideOwnReviewUseCase;
 import com.loja.productreviews.domain.port.out.OrderVerificationPort;
 import com.loja.productreviews.domain.port.out.ProductLookupPort;
+import com.loja.productreviews.domain.port.out.ReviewNotificationPort;
 import com.loja.productreviews.domain.port.out.ReviewRepositoryPort;
 
 class ReviewApplicationServiceTest {
@@ -40,12 +41,14 @@ class ReviewApplicationServiceTest {
     private final ReviewRepositoryPort reviewRepository = mock(ReviewRepositoryPort.class);
     private final ProductLookupPort productLookup = mock(ProductLookupPort.class);
     private final OrderVerificationPort orderVerification = mock(OrderVerificationPort.class);
+    private final ReviewNotificationPort reviewNotification = mock(ReviewNotificationPort.class);
 
     private ReviewApplicationService service;
 
     @BeforeEach
     void setUp() {
-        service = new ReviewApplicationService(reviewRepository, productLookup, orderVerification);
+        service = new ReviewApplicationService(reviewRepository, productLookup, orderVerification,
+                reviewNotification);
         when(reviewRepository.save(any(Review.class))).thenAnswer(inv -> inv.getArgument(0));
     }
 
@@ -194,6 +197,18 @@ class ReviewApplicationServiceTest {
     }
 
     @Test
+    void approve_partiesApprovalNotificationToAuthor() {
+        Review pending = Review.reconstitute("r-1", "p-1", "u-1", Rating.of(5),
+                null, null, false, java.time.Instant.now(),
+                ReviewStatus.PENDING, null, null);
+        when(reviewRepository.findById("r-1")).thenReturn(Optional.of(pending));
+
+        service.approve("r-1");
+
+        verify(reviewNotification).notifyApproved(pending);
+    }
+
+    @Test
     void approve_whenMissing_throwsNotFound() {
         when(reviewRepository.findById("r-x")).thenReturn(Optional.empty());
 
@@ -226,6 +241,48 @@ class ReviewApplicationServiceTest {
         assertThat(pending.getStatus()).isEqualTo(ReviewStatus.REJECTED);
         assertThat(pending.getRejectionReason()).isEqualTo("spam");
         verify(reviewRepository).save(pending);
+    }
+
+    @Test
+    void reject_sendsRejectionNotificationToAuthor() {
+        Review pending = Review.reconstitute("r-1", "p-1", "u-1", Rating.of(1),
+                null, null, false, java.time.Instant.now(),
+                ReviewStatus.PENDING, null, null);
+        when(reviewRepository.findById("r-1")).thenReturn(Optional.of(pending));
+
+        service.reject("r-1", "spam");
+
+        verify(reviewNotification).notifyRejected(pending, "spam");
+    }
+
+    // -------------------------------------------------------------- my reviews
+
+    @Test
+    void listMine_returnsOwnReviewsPaged() {
+        Review approved = Review.reconstitute("r-1", "p-1", "u-1", Rating.of(5),
+                "ok", "body", true, java.time.Instant.now(),
+                ReviewStatus.APPROVED, java.time.Instant.now(), null);
+        when(reviewRepository.findByAuthor(eq("u-1"), anyInt(), anyInt()))
+                .thenReturn(List.of(approved));
+        when(reviewRepository.countByAuthor("u-1")).thenReturn(1L);
+
+        ReviewListPage page = service.listMine("u-1", 0, 20);
+
+        assertThat(page.items()).hasSize(1);
+        assertThat(page.items().get(0).id()).isEqualTo("r-1");
+        assertThat(page.totalElements()).isEqualTo(1L);
+        assertThat(page.page()).isZero();
+    }
+
+    @Test
+    void listMine_clampsPageSize() {
+        when(reviewRepository.findByAuthor(anyString(), anyInt(), anyInt()))
+                .thenReturn(List.of());
+        when(reviewRepository.countByAuthor("u-1")).thenReturn(0L);
+
+        service.listMine("u-1", 0, 999);
+
+        verify(reviewRepository).findByAuthor("u-1", 0, 100);
     }
 
     // -------------------------------------------------------------- hide

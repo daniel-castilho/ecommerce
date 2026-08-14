@@ -100,6 +100,28 @@ public class ReviewRepositoryAdapter implements ReviewRepositoryPort {
     }
 
     @Override
+    public List<Review> findByAuthor(String authorId, int page, int pageSize) {
+        TypedQuery<ReviewJpaEntity> query = em.createQuery(
+                "SELECT r FROM ReviewJpaEntity r WHERE r.authorId = :authorId "
+                        + "ORDER BY r.createdAt DESC",
+                ReviewJpaEntity.class);
+        query.setParameter("authorId", authorId);
+        query.setFirstResult(page * pageSize);
+        query.setMaxResults(pageSize);
+        return query.getResultList().stream().map(ReviewJpaMapper::toDomain).toList();
+    }
+
+    @Override
+    public long countByAuthor(String authorId) {
+        Long count = em.createQuery(
+                "SELECT COUNT(r) FROM ReviewJpaEntity r WHERE r.authorId = :authorId",
+                Long.class)
+                .setParameter("authorId", authorId)
+                .getSingleResult();
+        return count == null ? 0L : count;
+    }
+
+    @Override
     public boolean existsByUserAndProduct(String userId, String productId) {
         Long count = em.createQuery(
                 "SELECT COUNT(r) FROM ReviewJpaEntity r " +

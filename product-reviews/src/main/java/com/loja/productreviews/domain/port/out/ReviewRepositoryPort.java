@@ -32,6 +32,11 @@ public interface ReviewRepositoryPort {
 
     long countByStatus(ReviewStatus status);
 
+    /** A user's own reviews across all products and statuses, newest first, paginated. */
+    List<Review> findByAuthor(String authorId, int page, int pageSize);
+
+    long countByAuthor(String authorId);
+
     /** True iff the user already has a review for this product (any status). */
     boolean existsByUserAndProduct(String userId, String productId);
 

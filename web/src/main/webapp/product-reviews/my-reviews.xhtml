@@ -1,0 +1,86 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:my="https://loja.com/design-system"
+                template="/WEB-INF/templates/main.xhtml">
+
+    <ui:define name="title">My Reviews</ui:define>
+
+    <ui:define name="content">
+        <h1 class="page-title">My Reviews</h1>
+        <h:messages globalOnly="true" styleClass="messages" />
+
+        <ui:fragment rendered="#{not myReviewsBean.loggedIn}">
+            <div class="card">
+                <p>You need to log in to manage your reviews.</p>
+                <p><h:link outcome="/user-account/login.xhtml" value="Log in" /></p>
+            </div>
+        </ui:fragment>
+
+        <ui:fragment rendered="#{myReviewsBean.loggedIn}">
+            <div class="card">
+                <h:dataTable value="#{myReviewsBean.reviews}" var="review"
+                             styleClass="data-table"
+                             rendered="#{not empty myReviewsBean.reviews}">
+                    <h:column>
+                        <f:facet name="header">Product</f:facet>
+                        <h:link outcome="/product-catalog/product-detail.xhtml"
+                                rendered="#{not empty myReviewsBean.productSlug(review.productId)}"
+                                value="#{myReviewsBean.productName(review.productId)}">
+                            <f:param name="slug" value="#{myReviewsBean.productSlug(review.productId)}" />
+                        </h:link>
+                        <ui:fragment rendered="#{empty myReviewsBean.productSlug(review.productId)}">
+                            <span>#{review.productId}</span>
+                        </ui:fragment>
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Review</f:facet>
+                        <ui:fragment rendered="#{not empty review.title}">
+                            <strong>#{review.title}</strong><br/>
+                        </ui:fragment>
+                        <span>#{review.body}</span>
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Rating</f:facet>
+                        #{review.rating}/5
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Status</f:facet>
+                        <my:statusBadge status="#{review.status}" />
+                        <ui:fragment rendered="#{review.status eq 'REJECTED' and not empty review.rejectionReason}">
+                            <p class="review-card-meta">Reason: #{review.rejectionReason}</p>
+                        </ui:fragment>
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Date</f:facet>
+                        #{myReviewsBean.formatDate(review.createdAt)}
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Actions</f:facet>
+                        <h:commandButton value="Hide"
+                                         action="#{myReviewsBean.hide(review)}"
+                                         rendered="#{myReviewsBean.canHide(review)}"
+                                         styleClass="button button-secondary" />
+                    </h:column>
+                </h:dataTable>
+                <ui:fragment rendered="#{empty myReviewsBean.reviews}">
+                    <p>You haven't written any reviews yet.</p>
+                </ui:fragment>
+
+                <h:form rendered="#{not empty myReviewsBean.reviews}" styleClass="pagination">
+                    <h:commandButton value="Previous" action="#{myReviewsBean.previousPage()}"
+                                     disabled="#{not myReviewsBean.hasPreviousPage()}"
+                                     styleClass="button button-secondary" />
+                    <span>Page #{myReviewsBean.page + 1} of #{myReviewsBean.totalPages}
+                          (#{myReviewsBean.totalElements} reviews)</span>
+                    <h:commandButton value="Next" action="#{myReviewsBean.nextPage()}"
+                                     disabled="#{not myReviewsBean.hasNextPage()}"
+                                     styleClass="button" />
+                </h:form>
+            </div>
+        </ui:fragment>
+
+        <p><h:link outcome="/product-catalog/catalog.xhtml" value="Back to catalog" /></p>
+    </ui:define>
+</ui:composition>

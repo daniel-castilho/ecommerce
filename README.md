@@ -62,8 +62,13 @@ https://localhost:9443/web/
 
 ## Current State
 
-**Latest tag: [v0.19.3](docs/releases/v0.19.3.md)** (2026-08-13)
+**Latest tag: [v0.19.4](docs/releases/v0.19.4.md)** (2026-08-13)
 
+- **v0.19.4 reviews gap closure**: a customer **My Reviews** page
+  `/product-reviews/my-reviews.xhtml` lists every review across moderation states with product
+  links and a hide-own-review action (previously unreachable), and admin approve/reject now
+  enqueue idempotent `REVIEW_APPROVED`/`REVIEW_REJECTED` outbox emails to the author (respecting
+  `UserProfile.notificationsEnabled`), dispatched by the existing notification poller.
 - **v0.19.3 coupon list fix + release smoke**: the admin coupon list no longer 500s on coupons
   with a validity window (`<f:convertDateTime` can't format `Instant` — now rendered via
   `CouponManagementBean.formatUtc`); `docs/testing-playbook.md` documents the required pre-tag

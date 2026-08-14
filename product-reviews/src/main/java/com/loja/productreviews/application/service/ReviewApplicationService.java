@@ -22,11 +22,13 @@ import com.loja.productreviews.domain.port.in.GetProductRatingSummaryUseCase;
 import com.loja.productreviews.domain.port.in.GetReviewByIdUseCase;
 import com.loja.productreviews.domain.port.in.HideOwnReviewUseCase;
 import com.loja.productreviews.domain.port.in.ListApprovedReviewsByProductUseCase;
+import com.loja.productreviews.domain.port.in.ListMyReviewsUseCase;
 import com.loja.productreviews.domain.port.in.ListPendingReviewsUseCase;
 import com.loja.productreviews.domain.port.in.RejectReviewUseCase;
 import com.loja.productreviews.domain.port.in.SubmitReviewUseCase;
 import com.loja.productreviews.domain.port.out.OrderVerificationPort;
 import com.loja.productreviews.domain.port.out.ProductLookupPort;
+import com.loja.productreviews.domain.port.out.ReviewNotificationPort;
 import com.loja.productreviews.domain.port.out.ReviewRepositoryPort;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -51,6 +53,7 @@ public class ReviewApplicationService implements
         GetProductRatingSummaryUseCase,
         GetReviewByIdUseCase,
         ListPendingReviewsUseCase,
+        ListMyReviewsUseCase,
         ApproveReviewUseCase,
         RejectReviewUseCase,
         HideOwnReviewUseCase {
@@ -61,14 +64,17 @@ public class ReviewApplicationService implements
     private final ReviewRepositoryPort reviewRepository;
     private final ProductLookupPort productLookup;
     private final OrderVerificationPort orderVerification;
+    private final ReviewNotificationPort reviewNotification;
 
     @Inject
     public ReviewApplicationService(ReviewRepositoryPort reviewRepository,
                                     ProductLookupPort productLookup,
-                                    OrderVerificationPort orderVerification) {
+                                    OrderVerificationPort orderVerification,
+                                    ReviewNotificationPort reviewNotification) {
         this.reviewRepository = reviewRepository;
         this.productLookup = productLookup;
         this.orderVerification = orderVerification;
+        this.reviewNotification = reviewNotification;
     }
 
     @Override
@@ -142,10 +148,24 @@ public class ReviewApplicationService implements
     }
 
     @Override
+    public ReviewListPage listMine(String authorId, int page, int pageSize) {
+        int safePage = Math.max(0, page);
+        int safeSize = clampPageSize(pageSize);
+        List<ReviewDTO> items = reviewRepository
+                .findByAuthor(authorId, safePage, safeSize)
+                .stream()
+                .map(ReviewDTO::from)
+                .toList();
+        long total = reviewRepository.countByAuthor(authorId);
+        return new ReviewListPage(items, total, safePage, safeSize);
+    }
+
+    @Override
     public void approve(String reviewId) {
         Review review = loadOrThrow(reviewId);
         review.approve();
         reviewRepository.save(review);
+        reviewNotification.notifyApproved(review);
     }
 
     @Override
@@ -153,6 +173,7 @@ public class ReviewApplicationService implements
         Review review = loadOrThrow(reviewId);
         review.reject(reason);
         reviewRepository.save(review);
+        reviewNotification.notifyRejected(review, reason);
     }
 
     @Override

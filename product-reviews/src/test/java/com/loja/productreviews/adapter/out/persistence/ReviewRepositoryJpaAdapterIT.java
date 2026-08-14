@@ -259,6 +259,42 @@ class ReviewRepositoryJpaAdapterIT extends AbstractIntegrationTest {
         assertThat(inTx(() -> adapter.countByStatus(ReviewStatus.APPROVED))).isZero();
     }
 
+    // ------------------------------------------------------------------ findByAuthor / count
+
+    @Test
+    void findByAuthor_shouldReturnOnlyThatAuthorsReviewsNewestFirstAndPaginate() {
+        Review otherPending = Review.reconstitute("r-other", "p-1", "u-2", Rating.of(5),
+                null, null, true, java.time.Instant.parse("2026-01-01T00:00:10Z"),
+                ReviewStatus.PENDING, null, null);
+        Review mineApprovedOld = Review.reconstitute("r-mine-old", "p-2", "u-1", Rating.of(4),
+                null, null, true, java.time.Instant.parse("2026-01-01T00:00:20Z"),
+                ReviewStatus.APPROVED, java.time.Instant.parse("2026-01-01T00:00:21Z"), null);
+        Review minePendingNew = Review.reconstitute("r-mine-new", "p-3", "u-1", Rating.of(5),
+                null, null, true, java.time.Instant.parse("2026-01-01T00:00:30Z"),
+                ReviewStatus.PENDING, null, null);
+
+        EntityTransaction tx = em.getTransaction();
+        tx.begin();
+        adapter.save(otherPending);
+        adapter.save(mineApprovedOld);
+        adapter.save(minePendingNew);
+        tx.commit();
+        em.clear();
+
+        List<Review> mine = inTx(() -> adapter.findByAuthor("u-1", 0, 10));
+        assertThat(mine).extracting(Review::getId)
+                .containsExactly("r-mine-new", "r-mine-old");
+
+        List<Review> page0 = inTx(() -> adapter.findByAuthor("u-1", 0, 1));
+        assertThat(page0).extracting(Review::getId).containsExactly("r-mine-new");
+        List<Review> page1 = inTx(() -> adapter.findByAuthor("u-1", 1, 1));
+        assertThat(page1).extracting(Review::getId).containsExactly("r-mine-old");
+
+        assertThat(inTx(() -> adapter.countByAuthor("u-1"))).isEqualTo(2L);
+        assertThat(inTx(() -> adapter.countByAuthor("u-2"))).isEqualTo(1L);
+        assertThat(inTx(() -> adapter.countByAuthor("u-99"))).isZero();
+    }
+
     // ------------------------------------------------------------------ aggregate
 
     @Test
