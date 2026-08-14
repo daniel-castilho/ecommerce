@@ -8,6 +8,24 @@ Full historical write-ups of every lesson remain in git history of this file.
 
 ---
 
+## 44. A STORED tsvector column cannot live in a JPA drop-and-create schema (2026-08-14)
+
+The FTS benchmark evolution added `search_vector tsvector GENERATED ALWAYS AS (…) STORED`
+(Flyway V31) and the native SQL queries referenced it. The Testcontainers IT persistence unit
+uses `drop-and-create` (Hibernate), which cannot declare such a column — the ITs would fail at
+runtime with "column does not exist" surprises.
+
+**Golden rules:**
+
+1. Keep the real DDL in Flyway; keep the ITs off the JPA-generated path for that column.
+2. After creating the `EntityManagerFactory`, apply the column + index in
+   `AbstractIntegrationTest` via JDBC (`ALTER TABLE … ADD COLUMN IF NOT EXISTS … GENERATED
+   ALWAYS AS (…) STORED` + `CREATE INDEX IF NOT EXISTS … GIN`).
+3. The test DDL and the migration **must stay in sync** (weights and config); add a comment in
+   both pointing at each other.
+
+---
+
 ## 42. A per-user cap is a count against an append-only ledger, not a counter column (2026-08-11)
 
 The global coupon cap is a lock-serialized read-modify-write on `used_count` (lesson 40).

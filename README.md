@@ -62,8 +62,13 @@ https://localhost:9443/web/
 
 ## Current State
 
-**Latest tag: [v0.19.4](docs/releases/v0.19.4.md)** (2026-08-13)
+**Latest tag: [v0.20.0](docs/releases/v0.20.0.md)** (2026-08-14)
 
+- **v0.20.0 benchmark-grade Postgres FTS**: catalog search now uses a STORED weighted
+  `search_vector` (A = name/sku, B = short_description) behind a GIN index (V31), parses user
+  terms with `websearch_to_tsquery` (quoted phrases / OR / -), ranks with `ts_rank_cd(…, 32)`,
+  and falls back to prefix + ILIKE only when the primary pass returns nothing — no former LIKE
+  results lost. Explicit debt kept: long-description weight C, `ts_headline` snippets, `unaccent`.
 - **v0.19.4 reviews gap closure**: a customer **My Reviews** page
   `/product-reviews/my-reviews.xhtml` lists every review across moderation states with product
   links and a hide-own-review action (previously unreachable), and admin approve/reject now

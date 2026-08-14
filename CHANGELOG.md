@@ -6,6 +6,19 @@ This file provides a high-level index of every tagged release.
 
 ---
 
+## [v0.20.0](docs/releases/v0.20.0.md) — 2026-08-14
+
+**Benchmark-grade Postgres FTS for the product catalog**
+Catalog search moves from the V25 inline-expression GIN to a **STORED weighted `tsvector`**
+column (A = name/sku, B = short_description) behind a GIN index (V31, V25 index retired). User
+terms are parsed with **`websearch_to_tsquery`** (quoted phrases, `OR`, `-`), hits ranked with
+**`ts_rank_cd(…, 32)`**, and a documented fallback (prefix tsquery `token:* & token:*` + ILIKE on
+name/sku) runs only when the primary pass returns nothing — preserving prefix and interior-fragment
+recall with no former-LIKE regressions. Product-catalog suite 188/188 green (weighted-rank, phrase,
+empty/blank and punctuation-only, pagination under RELEVANCE ITs), ArchUnit 8/8, WAR builds, browser
+smoke on Liberty. No new dependency; long-description weight C, `ts_headline` snippets and `unaccent`
+stayed as explicit debt.
+
 ## [v0.19.4](docs/releases/v0.19.4.md) — 2026-08-13
 
 **Reviews gap closure: author "My Reviews" screen + moderation emails**
